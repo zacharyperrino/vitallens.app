@@ -59,6 +59,12 @@ export function renderAuth() {
                 style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;">
             </div>
 
+            <!-- Consent (signup only) -->
+            <label id="consent-field" style="display:none;gap:var(--space-2);align-items:flex-start;font-size:var(--text-xs);color:var(--text-secondary);cursor:pointer;line-height:1.5;">
+              <input type="checkbox" id="auth-consent" style="margin-top:2px;">
+              <span>I am 18+ and agree to the <a href="#/legal/terms" target="_blank" style="color:var(--accent);">Terms</a> and <a href="#/legal/privacy" target="_blank" style="color:var(--accent);">Privacy Policy</a>, and consent to processing of the wellness data I provide.</span>
+            </label>
+
             <!-- Error message -->
             <div id="auth-error" style="display:none;padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);font-size:var(--text-xs);color:var(--accent-coral);">
             </div>
@@ -85,6 +91,7 @@ export function renderAuth() {
         document.getElementById('btn-signup-mode').className = 'mode-btn';
         document.getElementById('name-field').style.display = 'none';
         document.getElementById('dob-field').style.display = 'none';
+        document.getElementById('consent-field').style.display = 'none';
         document.getElementById('auth-submit').textContent = 'Sign In';
         hideError();
     });
@@ -95,6 +102,7 @@ export function renderAuth() {
         document.getElementById('btn-signin-mode').className = 'mode-btn';
         document.getElementById('name-field').style.display = 'block';
         document.getElementById('dob-field').style.display = 'block';
+        document.getElementById('consent-field').style.display = 'flex';
         document.getElementById('auth-submit').textContent = 'Create Account';
         hideError();
     });
@@ -132,6 +140,10 @@ export function renderAuth() {
             const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
             if (age < 18) {
                 showError('VitalLens is available for users 18 and older.');
+                return;
+            }
+            if (!document.getElementById('auth-consent')?.checked) {
+                showError('Please agree to the Terms and Privacy Policy to create an account.');
                 return;
             }
         }

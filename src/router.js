@@ -1,9 +1,11 @@
 // Simple hash-based SPA router
 import { getSession, isOnboardingComplete } from './pages/auth.js';
 import { renderAuth } from './pages/auth.js';
+import { isConsentComplete } from './utils/consent.js';
+import { renderConsentGate } from './pages/consent-gate.js';
 
-// Routes that don't require login
-const PUBLIC_ROUTES = new Set(['/auth']);
+// Routes that don't require login (legal docs must be readable pre-consent)
+const PUBLIC_ROUTES = new Set(['/auth', '/legal/terms', '/legal/privacy']);
 
 export class Router {
     constructor(routes) {
@@ -20,6 +22,11 @@ export class Router {
             const session = await getSession();
             if (!session) {
                 renderAuth();
+                return;
+            }
+            // ── Consent gate — block app entry until current docs accepted ──
+            if (!(await isConsentComplete())) {
+                renderConsentGate();
                 return;
             }
             // ── Onboarding gate — redirect new users until done ──

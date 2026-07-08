@@ -16,6 +16,7 @@ import { getSession, renderAuth } from './pages/auth.js';
 import { meals } from './lib/db.js';
 import { renderHygieneScanner } from './pages/hygiene-scanner.js';
 import { renderOnboarding } from './pages/onboarding.js';
+import { renderTerms, renderPrivacy } from './pages/legal.js';
 import { apiFetch } from './utils/api.js';
 import { showToast } from './utils/toast.js';
 const NOTIFICATION_PERMISSION_KEY = 'vitallens_notifications_permission_requested';
@@ -479,6 +480,8 @@ async function init() {
     '/step-details': renderStepDetails,
     '/product-results': renderProductResults,
     '/onboarding': renderOnboarding,
+    '/legal/terms': renderTerms,
+    '/legal/privacy': renderPrivacy,
   });
 
   const stravaCode = checkOAuthCallback();
