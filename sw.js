@@ -1,18 +1,15 @@
 // ─── VitalLens Service Worker ─────────────────────────────────
 // Offline data entry + background sync + push notifications
 
-const CACHE_NAME = 'vitallens-v1';
+// Bump this on any SW logic change to evict old caches. The HTML shell is
+// fetched network-first (see below), so deploys reach users immediately even
+// without a bump — the version only controls the offline fallback copy.
+const CACHE_NAME = 'vitallens-v2';
 const OFFLINE_QUEUE = 'vitallens-offline-queue';
 
-// Assets to cache for offline use
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/src/styles/variables.css',
-  '/src/styles/base.css',
-  '/src/styles/components.css',
-  '/src/styles/animations.css',
-];
+// Only the offline navigation fallback is precached. Everything else is
+// cached on demand. Build assets (/assets/*) are content-hashed and immutable.
+const STATIC_ASSETS = ['/', '/index.html'];
 
 // ── Install ───────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
@@ -39,31 +36,61 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls — network first, queue if offline
+  // Only handle same-origin GETs; let everything else hit the network.
+  if (url.origin !== self.location.origin) return;
+
+  // API calls — network first, queue writes if offline
   if (url.pathname.startsWith('/api/')) {
     if (request.method === 'POST' || request.method === 'PUT') {
       event.respondWith(handleOfflinePost(request));
       return;
     }
-    // GET API calls — network only, no cache
+    return; // GET API — network only, never cached
+  }
+
+  if (request.method !== 'GET') return;
+
+  // Navigations (the HTML shell) — NETWORK FIRST. This is what makes new
+  // deploys reach users immediately; the cached copy is only an offline
+  // fallback. Cache-first here was the stale-build trap.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
     return;
   }
 
-  // Static assets — cache first
-  event.respondWith(
-    caches.match(request).then(cached => {
-      return cached || fetch(request).then(response => {
+  // Content-hashed build assets — immutable, so cache-first is safe and fast.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then(cached => cached || fetch(request).then(response => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
-      });
-    }).catch(() => {
-      // Offline fallback for navigation
-      if (request.mode === 'navigate') {
-        return caches.match('/index.html');
-      }
+      }))
+    );
+    return;
+  }
+
+  // Other static (icons, manifest) — stale-while-revalidate.
+  event.respondWith(
+    caches.match(request).then(cached => {
+      const network = fetch(request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => cached);
+      return cached || network;
     })
   );
 });

@@ -1,16 +1,17 @@
 {
-  "name": "archive-3",
+  "name": "vitallens",
   "version": "1.0.0",
-  "description": "",
-  "main": "biomarker.js",
+  "description": "VitalLens — personal wellness journaling PWA (frontend)",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:regulatory": "node scripts/check-regulatory-language.mjs"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "devDependencies": {
     "vite": "^8.0.13"

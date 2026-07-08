@@ -636,7 +636,7 @@ function setupCorrectionHandlers(result) {
   });
 }
 
-async function compressImage(file, maxDimension = 1200, quality = 0.82) {
+async function compressImage(file, maxDimension = 1536, quality = 0.85) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
