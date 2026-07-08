@@ -85,10 +85,16 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
    git remote add origin https://github.com/zacharyperrino/vitallens-app.git
    git push -u origin main
    ```
-5. Set production env before deploy: `NODE_ENV=production`, `VITE_API_BASE=<server URL>`, `FRONTEND_URL=<frontend URL>`, and the spend caps if you want different numbers.
-6. **Supabase dashboard:** enable leaked-password protection (30-second toggle); confirm you're on a plan with daily backups/PITR.
+5. **Deploy-time environment checklist** (set these where the app is hosted, not in code):
+   - `NODE_ENV=production` on the deployed API — the 5xx error sanitizer and prod logging only engage then.
+   - `VITE_API_BASE=<deployed API origin>` at frontend **build** time (Vite bakes it into the bundle).
+   - `FRONTEND_URL=<deployed frontend origin>` on the API — the CORS allow-list reads it.
+   - Spend caps (`MAX_USER_MONTHLY_USD`, `MAX_USER_MONTHLY_USD_PREMIUM`, `MAX_GLOBAL_MONTHLY_USD`) if you want different numbers than the 5/50/250 defaults.
+   - *(Optional)* `INTERNAL_API_BASE` — only if the API can't reach itself at `localhost:${PORT}` in prod (e.g. serverless/multi-instance hosting).
+6. **Supabase dashboard:** enable leaked-password protection (Auth → Policies → Password security — 30-second toggle); confirm you're on a plan with daily backups/PITR.
 7. Finish **Oura OAuth** (real client id/secret) if you want real steps/sleep before a native wrap.
-8. Turn on **PostHog** (uncomment + key) — you currently have zero product analytics, which is the biggest blind spot for your unit-economics story.
+8. Turn on **PostHog** — set `VITE_POSTHOG_KEY` (the old commented snippet is gone; the loader in `analytics-events.js` activates on that env var; until then `trackEvent` logs to console). Zero product analytics is the biggest blind spot for your unit-economics story.
+8b. **Verify the email-confirmation leg of signup once, by hand.** The fresh-user journey (consent gate → onboarding → targets → dashboard) is already E2E-verified (Part A.2 #9), but that test used an admin-confirmed user — the signup → "check your email" → confirm-link → first sign-in path hasn't been exercised with a real inbox.
 
 ### Data (this is what makes the scanner "Cal AI grade")
 9. **Populate `server/evals/meals/`** with 10–20 photos of **weighed** meals + ground-truth grams/calories, then run `npm run eval:food`. Until this exists, scanner accuracy is an assertion, not a measurement. This is the single highest-leverage thing you can do for the core product.
