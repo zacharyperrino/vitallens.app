@@ -1698,9 +1698,9 @@ select.input-field {
 .oura-connect-btn {
     width: 100%;
     margin-top: var(--space-4);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
+    background: var(--bg-chip);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
     padding: var(--space-2);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
@@ -1710,7 +1710,9 @@ select.input-field {
 }
 
 .oura-connect-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 

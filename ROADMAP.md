@@ -58,6 +58,18 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
 
 ---
 
+## Part A.2 — Second execution pass (2026-07-08, later) ✅
+
+8. **Queue stack deleted.** BullMQ, `worker.js`, and `services/queue.js` removed (workers existed but nothing ever enqueued); one-process deploy, `bullmq` uninstalled, Procfile simplified. The Upstash REST cache for context snapshots (already present in `context-builder.js`) is kept. *Evidence: 17/17 security tests after removal.*
+9. **Fresh-user E2E — the full new-user journey is proven.** Created a confirmed user via admin API and walked it live in the browser: consent gate rendered first → unchecked box blocked → accept recorded 3 consent rows → auto-redirect to onboarding → baseline form → **Mifflin-St Jeor verified to the digit** (29/M/180cm/78kg → BMR 1765, TDEE 2736) → optional steps → "You're all set" → dashboard. DB confirmed `onboarding_completed=true` + persisted targets. Test user deleted after.
+10. **Steps card is honest now.** Dashboard reads `habits.steps` (shows "Tap to log" when empty, links to the log); a Steps input was added to the Habits form and `db.js`. The washed-out white-on-white "Connect Oura" button was restyled for the light theme (verified via computed styles).
+11. **PostHog is one env var away.** Placeholder snippet replaced with an env-gated loader in `analytics-events.js` — set `VITE_POSTHOG_KEY` and it activates; unset means fully disabled.
+12. **Secret leak found and neutralized.** `server/.env.example` contained a **real OpenAI API key**. Confirmed it was git-ignored and **never committed or pushed** — it never left this machine. File scrubbed to a clean template; both repos' templates rewritten with all current vars (incl. spend caps) and un-ignored so they can be committed. Rotating the OpenAI key is optional insurance, not an emergency.
+13. **Migrations exported to the repo.** All 10 applied migrations now live in `server/supabase/migrations/` (steps column, consent table, RLS hardening, function fixes, index work) + README. A full base-schema `supabase db pull` remains a user step.
+14. **Dead schema twin dropped.** `environmental_log` (0 rows, no live code refs) removed via migration; `environment_logs` (26 rows) is the canonical table. `weekly_reports` vs `weekly_scores` checked — different features, both live, kept.
+
+---
+
 ## Part B — Your next steps (I can't do these)
 
 ### Legal (do before ANY real user)
@@ -66,7 +78,13 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
 3. Decide the launch geofence (recommended: **US-only at launch** to sidestep GDPR Art. 9 complexity until you have DPAs with each subprocessor).
 
 ### Accounts / config / money
-4. **Frontend git remote:** create a private repo and push (frontend is still local-only).
+4. **Frontend git remote** (no `gh` CLI on this machine — 3 manual steps):
+   create a private repo named `vitallens-app` at github.com/new, then:
+   ```
+   cd ~/Desktop/Antigravity/Archive3
+   git remote add origin https://github.com/zacharyperrino/vitallens-app.git
+   git push -u origin main
+   ```
 5. Set production env before deploy: `NODE_ENV=production`, `VITE_API_BASE=<server URL>`, `FRONTEND_URL=<frontend URL>`, and the spend caps if you want different numbers.
 6. **Supabase dashboard:** enable leaked-password protection (30-second toggle); confirm you're on a plan with daily backups/PITR.
 7. Finish **Oura OAuth** (real client id/secret) if you want real steps/sleep before a native wrap.
@@ -79,7 +97,8 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
 10. Re-consent gate currently records on accept; if you bump a document version, existing users will be re-prompted automatically — verify that flow once you have real users.
 11. The `body`/`face` wellness prompts still use functional-medicine "organ signal" framing (e.g., "liver/kidney signals"). The automated lint passes, but have counsel glance at it — it's softer than disease claims but not nothing.
 12. Consider migrating the ~1,500 inline styles to the existing React-island components over time (tech debt, not urgent).
-13. Wire the BullMQ producers or delete the queue stack — it's still half-built (workers exist, nothing enqueues).
+13. ~~Wire the BullMQ producers or delete the queue stack~~ — **done: deleted** (Part A.2 #8).
+14. Optional insurance: rotate the OpenAI API key that briefly sat in the (never-committed) `.env.example` — see Part A.2 #12.
 
 ---
 

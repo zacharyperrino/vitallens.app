@@ -448,6 +448,7 @@ export const habits = {
                 caffeine: entry.caffeine || 'moderate',
                 stress_level: entry.stressLevel || null,
                 mood: entry.mood || null,
+                steps: entry.steps ?? null,
                 notes: entry.notes || null,
             }, { onConflict: 'user_id,date' })
             .select()

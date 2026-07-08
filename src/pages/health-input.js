@@ -340,6 +340,9 @@ async function renderHabits() {
         <div class="input-group"><label>Stress Level (1-10)</label>
           <input class="input-field" type="number" id="habit-stress" value="${h.stress_level || ''}" min="1" max="10" placeholder="5">
         </div>
+        <div class="input-group"><label>Steps Today</label>
+          <input class="input-field" type="number" id="habit-steps" value="${h.steps ?? ''}" min="0" max="100000" placeholder="e.g. 8500">
+        </div>
         <div class="input-group"><label>Mood</label>
           <select class="input-field" id="habit-mood">
             <option value="">Select...</option>
@@ -900,6 +903,7 @@ function setupFormHandlers() {
         caffeine: document.getElementById('habit-caffeine')?.value || 'moderate',
         waterGlasses: parseInt(document.getElementById('habit-water')?.value || '8'),
         stressLevel: parseInt(document.getElementById('habit-stress')?.value || '0') || null,
+        steps: parseInt(document.getElementById('habit-steps')?.value || '') || null,
         mood: document.getElementById('habit-mood')?.value || null,
       });
       showToast('Habits saved');

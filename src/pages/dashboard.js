@@ -94,15 +94,15 @@ export async function renderDashboard() {
 
         <!-- Quick Stats Row -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-6);">
-          <!-- Daily Steps Card -->
-          <div class="card card-sm step-card" onclick="location.hash='#/step-details'" style="margin-bottom:0;">
+          <!-- Daily Steps Card — reads today's logged habits (manual or wearable sync) -->
+          <div class="card card-sm step-card" onclick="location.hash='#/health-input'" style="margin-bottom:0;">
             <div class="step-ring-container">
-              ${createRingProgress(0, 10000, 60, 6, 'var(--viz-green)')}
+              ${createRingProgress(habitsToday?.steps || 0, 10000, 60, 6, 'var(--viz-green)')}
               <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);">${icons.steps}</div>
             </div>
             <div class="step-card-info">
               <h4>Steps</h4>
-              <div class="step-card-value">0</div>
+              <div class="step-card-value">${habitsToday?.steps != null ? habitsToday.steps.toLocaleString() : '<span style="font-size:var(--text-xs);color:var(--text-tertiary);font-weight:400;">Tap to log</span>'}</div>
             </div>
           </div>
 
