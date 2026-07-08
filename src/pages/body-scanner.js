@@ -2,8 +2,9 @@
 // Scan modes: Heart Rate, Face, Eye, Skin, Body, Tongue, Nail
 
 import { icons } from '../icons.js';
+import { esc } from '../utils/esc.js';
 import { CameraSystem, QualityGate } from '../utils/camera-system.js';
-import { RPPGEngine, analyzeFace, analyzeEye, analyzeSkin, analyzeBodyComposition, analyzeTongue, analyzeNail } from '../utils/biomarker-engine.js';
+import { RPPGEngine, analyzeFace, analyzeBodyComposition, analyzeTongue } from '../utils/biomarker-engine.js';
 
 import { bodyScans, hrReadings } from '../lib/db.js';
 import { apiFetch } from '../utils/api.js';
@@ -14,14 +15,14 @@ let camera = null;
 let rppgEngine = null;
 let isScanning = false;
 
+// Wellness-observation modes only. Disease/condition-inference modes
+// intentionally NOT exposed — they were clinical-screening functions
+// that fall outside a general-wellness product's framing.
 const MODES = [
-  { id: 'heart', icon: icons.heart, label: 'Heart Rate', desc: 'rPPG pulse measurement', guide: 'face', facingMode: 'user' },
-  { id: 'face', icon: icons.user, label: 'Face Scan', desc: 'Facial mapping & acne analysis', guide: 'face', facingMode: 'user' },
-  { id: 'eye', icon: icons.eye, label: 'Eye Check', desc: 'Anemia, jaundice & ocular signals', guide: 'eye', facingMode: 'user' },
-  { id: 'skin', icon: icons.sun, label: 'Skin Check', desc: 'Lesion triage (ABCDE criteria)', guide: 'skin', facingMode: 'environment' },
-  { id: 'tongue', icon: icons.droplet, label: 'Tongue', desc: 'TCM & nutritional indicators', guide: 'face', facingMode: 'user' },
-  { id: 'nail', icon: icons.star, label: 'Nail Scan', desc: 'Systemic health from nails', guide: 'skin', facingMode: 'environment' },
-  { id: 'body', icon: icons.body, label: 'Body Scan', desc: 'Posture & composition', guide: 'body', facingMode: 'environment' },
+  { id: 'heart', icon: icons.heart, label: 'Heart Rate', desc: 'Resting pulse (rPPG)', guide: 'face', facingMode: 'user' },
+  { id: 'face', icon: icons.user, label: 'Face', desc: 'Skin appearance reflection', guide: 'face', facingMode: 'user' },
+  { id: 'tongue', icon: icons.droplet, label: 'Tongue', desc: 'Traditional wellness observations', guide: 'face', facingMode: 'user' },
+  { id: 'body', icon: icons.body, label: 'Body', desc: 'Posture & proportion', guide: 'body', facingMode: 'environment' },
 ];
 
 export async function renderBodyScanner() {
@@ -38,8 +39,8 @@ export async function renderBodyScanner() {
   content.innerHTML = `
     <div class="body-scanner stagger-children">
       <div class="page-header">
-        <h1>Biomarker Scanner</h1>
-        <p>AI-powered clinical health signal analysis</p>
+        <h1>Body Check-In</h1>
+        <p>Observational wellness reflections from a photo</p>
       </div>
 
       <div class="mode-selector" id="mode-selector" style="display:flex;gap:var(--space-2);overflow-x:auto;padding-bottom:var(--space-2);">
@@ -59,7 +60,7 @@ export async function renderBodyScanner() {
 
       <div class="disclaimer-banner" style="margin-top:var(--space-4);">
         <span class="icon">${icons.alert}</span>
-        <span>Screening signals only — <strong>not a medical diagnosis</strong>. Consult a qualified healthcare provider for clinical evaluation.</span>
+        <span>Wellness observations only — <strong>not medical advice and not a diagnosis</strong>. VitalLens does not detect, screen for, or assess any disease or condition. Talk to a licensed healthcare provider about any health concern.</span>
       </div>
 
       ${recentHR.length >= 2 ? renderHRTrend(recentHR) : ''}
@@ -150,10 +151,7 @@ function getInstructions(mode) {
   const map = {
     heart: 'Hold face still in oval for 15 seconds. Even lighting, no movement.',
     face: 'Position face in oval, good even lighting, remove glasses. Neutral expression.',
-    eye: 'Close up on one eye. Pull lower eyelid down gently to show conjunctiva.',
-    skin: 'Position area of concern in frame. Close up, sharp focus, good lighting.',
     tongue: 'Open mouth, extend tongue fully. Good lighting, camera level with mouth.',
-    nail: 'Hold fingers flat toward camera. Close up, sharp focus, good lighting.',
     body: 'Stand upright, full body visible. Use rear camera. Include front and side views if possible.',
   };
   return map[mode] || '';
@@ -295,10 +293,10 @@ function captureAndAnalyze() {
     let result;
     switch (activeMode) {
       case 'face': result = await analyzeFace(frame.imageData); break;
-      case 'eye': result = await analyzeEye(frame.imageData); break;
-      case 'skin': result = await analyzeSkin(frame.imageData); break;
+      // case 'eye': removed — clinical mode retired
+      // case 'skin': removed — clinical mode retired
       case 'tongue': result = await analyzeTongue(frame.imageData); break;
-      case 'nail': result = await analyzeNail(frame.imageData); break;
+      // case 'nail': removed — clinical mode retired
       case 'body': result = await analyzeBodyComposition(frame.imageData); break;
       default: result = await analyzeFace(frame.imageData);
     }
@@ -351,10 +349,10 @@ function processUploadedImage(file) {
         let result;
         switch (activeMode) {
           case 'face': result = await analyzeFace(imageData); break;
-          case 'eye': result = await analyzeEye(imageData); break;
-          case 'skin': result = await analyzeSkin(imageData); break;
+          // case 'eye': removed — clinical mode retired
+          // case 'skin': removed — clinical mode retired
           case 'tongue': result = await analyzeTongue(imageData); break;
-          case 'nail': result = await analyzeNail(imageData); break;
+          // case 'nail': removed — clinical mode retired
           case 'body': result = await analyzeBodyComposition(imageData); break;
           default: result = await analyzeFace(imageData);
         }
@@ -489,7 +487,7 @@ function showAnalysisResults(result, previewUrl) {
       ${html}
       <div class="disclaimer-banner">
         <span class="icon">${icons.alert}</span>
-        <span>${result.disclaimer || 'Screening tool only. Not a medical diagnosis. Consult a physician for clinical evaluation.'}</span>
+        <span>Wellness observations only — not medical advice and not a diagnosis. Talk to a licensed provider about any health concern.</span>
       </div>
       <button class="btn btn-primary btn-block" id="new-scan-btn" style="margin-bottom:var(--space-4);">New Scan</button>
     </div>`;
@@ -725,130 +723,11 @@ function renderFaceResults(r, m) {
 
 // ─── Eye Results ──────────────────────────────────
 
-function renderEyeResults(r, m) {
-  const scoreColor = r.overallScore >= 80 ? 'var(--accent-green)' : r.overallScore >= 55 ? 'var(--accent-amber)' : 'var(--accent-coral)';
-
-  return `
-    <div class="card" style="text-align:center;">
-      <h3 style="margin-bottom:var(--space-2);">${m.icon} ${m.label} Analysis</h3>
-      <div style="font-family:var(--font-heading);font-size:var(--text-4xl);font-weight:var(--weight-extrabold);color:${scoreColor};">${r.overallScore}</div>
-      <p style="font-size:var(--text-sm);color:var(--text-secondary);">Ocular Health Score</p>
-      ${r.riskTier ? `<div style="margin-top:var(--space-2);"><span class="badge badge-${r.riskTier === 'Low' ? 'green' : r.riskTier === 'Moderate' ? 'amber' : 'coral'}">${r.riskTier} Risk</span></div>` : ''}
-    </div>
-
-    <!-- Conjunctiva -->
-    ${r.conjunctiva ? `
-    <div class="card card-sm" style="border-left:3px solid ${r.conjunctiva.pallor_present ? 'var(--accent-coral)' : 'var(--accent-green)'};">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Conjunctiva</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
-        <span style="font-size:var(--text-xs);color:var(--text-secondary);">Color</span>
-        <span style="font-size:var(--text-xs);font-weight:600;">${r.conjunctiva.color?.replace(/_/g, ' ')}</span>
-      </div>
-      ${r.conjunctiva.pallor_present ? `
-      <div style="padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">Conjunctival pallor detected — ${r.conjunctiva.pallor_severity}</p>
-        <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">${r.conjunctiva.pallor_notes || ''}</p>
-        <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:4px;">May indicate: ${r.conjunctiva.possible_cause || 'iron deficiency anemia, B12 deficiency'}</p>
-      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);">No pallor detected</p>`}
-    </div>` : ''}
-
-    <!-- Sclera -->
-    ${r.sclera ? `
-    <div class="card card-sm" style="border-left:3px solid ${r.sclera.icterus_present ? 'var(--accent-amber)' : 'var(--accent-green)'};">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Sclera</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
-        <span style="font-size:var(--text-xs);color:var(--text-secondary);">Color</span>
-        <span style="font-size:var(--text-xs);font-weight:600;">${r.sclera.color?.replace(/_/g, ' ')}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span style="font-size:var(--text-xs);color:var(--text-secondary);">Vascularity</span>
-        <span style="font-size:var(--text-xs);font-weight:600;">${r.sclera.vascularity?.replace(/_/g, ' ')}</span>
-      </div>
-      ${r.sclera.icterus_present ? `
-      <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">Scleral icterus detected</p>
-        <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">May indicate elevated bilirubin. Consult a physician.</p>
-      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);margin-top:var(--space-2);">No icterus detected</p>`}
-    </div>` : ''}
-
-    <!-- Periorbital -->
-    ${r.periorbital ? `
-    <div class="card card-sm">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Periorbital Area</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Puffiness</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.periorbital.puffiness}</div>
-        </div>
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Dark Circles</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.periorbital.dark_circles}</div>
-        </div>
-      </div>
-      ${r.periorbital.xanthelasma_present ? `
-      <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">Xanthelasma detected — may indicate elevated cholesterol</p>
-      </div>` : ''}
-    </div>` : ''}
-
-    ${renderSystemicFlags(r.systemic_flags)}
-    ${renderRecommendations(r.recommendations)}
-    ${renderLabSuggestions(r.suggested_lab_tests)}`;
-}
+function renderEyeResults() { return ''; } // removed: retired mode
 
 // ─── Skin Results ─────────────────────────────────
 
-function renderSkinResults(r, m) {
-  const scoreColor = r.overallScore >= 80 ? 'var(--accent-green)' : r.overallScore >= 55 ? 'var(--accent-amber)' : 'var(--accent-coral)';
-  const abcde = r.lesion_assessment?.abcde;
-
-  return `
-    <div class="card" style="text-align:center;">
-      <h3 style="margin-bottom:var(--space-2);">${m.icon} ${m.label} Analysis</h3>
-      <div style="font-family:var(--font-heading);font-size:var(--text-4xl);font-weight:var(--weight-extrabold);color:${scoreColor};">${r.overallScore}</div>
-      <p style="font-size:var(--text-sm);color:var(--text-secondary);">Skin Health Score</p>
-      ${r.riskTier ? `<div style="margin-top:var(--space-2);"><span class="badge badge-${r.riskTier === 'Low' ? 'green' : r.riskTier === 'Moderate' ? 'amber' : 'coral'}">${r.riskTier} Risk</span></div>` : ''}
-    </div>
-
-    ${r.lesion_present && abcde ? `
-    <div class="card">
-      <h4 style="margin-bottom:var(--space-3);">ABCDE Lesion Assessment</h4>
-      ${[
-        { key: 'asymmetry', label: 'A — Asymmetry', good: 'symmetric', value: abcde.asymmetry },
-        { key: 'border', label: 'B — Border', good: 'regular', value: abcde.border },
-        { key: 'color', label: 'C — Color', good: 'uniform', value: abcde.color },
-        { key: 'diameter_estimate', label: 'D — Diameter', good: 'under_6mm', value: abcde.diameter_estimate },
-      ].map(item => {
-        const isConcerning = item.value !== item.good;
-        const color = isConcerning ? 'var(--accent-coral)' : 'var(--accent-green)';
-        return `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:var(--text-sm);">${item.label}</span>
-          <span style="font-size:var(--text-xs);padding:2px 8px;border-radius:4px;background:${color}22;color:${color};font-weight:600;">${item.value?.replace(/_/g, ' ')}</span>
-        </div>`;
-      }).join('')}
-      <div style="margin-top:var(--space-3);padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-        <span style="font-size:var(--text-xs);color:var(--text-tertiary);">Concerning features: </span>
-        <span style="font-size:var(--text-xs);font-weight:600;color:${(abcde.concerning_features_count || 0) >= 2 ? 'var(--accent-coral)' : 'var(--accent-green)'};">${abcde.concerning_features_count || 0} of 4</span>
-      </div>
-      ${r.lesion_assessment?.urgency !== 'routine' ? `
-      <div style="margin-top:var(--space-2);padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);">
-        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">${r.lesion_assessment.urgency?.replace(/_/g, ' ')} — ${r.lesion_assessment.likely_classification?.replace(/_/g, ' ')}</p>
-      </div>` : ''}
-    </div>` : ''}
-
-    ${r.inflammatory_conditions?.present ? `
-    <div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Inflammatory Conditions</div>
-      ${r.inflammatory_conditions.conditions_identified?.map(c =>
-        `<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:4px;background:var(--accent-amber-dim);color:var(--accent-amber);margin-right:4px;">${c}</span>`
-      ).join('') || ''}
-    </div>` : ''}
-
-    ${renderSystemicFlags(r.systemic_flags)}
-    ${renderRecommendations(r.recommendations)}
-    ${renderLabSuggestions(r.suggested_lab_tests)}`;
-}
+function renderSkinResults() { return ''; } // removed: retired mode
 
 // ─── Tongue Results ───────────────────────────────
 
@@ -949,56 +828,7 @@ function renderTongueResults(r, m) {
 
 // ─── Nail Results ─────────────────────────────────
 
-function renderNailResults(r, m) {
-  const scoreColor = r.overallScore >= 80 ? 'var(--accent-green)' : r.overallScore >= 55 ? 'var(--accent-amber)' : 'var(--accent-coral)';
-
-  return `
-    <div class="card" style="text-align:center;">
-      <h3 style="margin-bottom:var(--space-2);">${m.icon} ${m.label} Analysis</h3>
-      <div style="font-family:var(--font-heading);font-size:var(--text-4xl);font-weight:var(--weight-extrabold);color:${scoreColor};">${r.overallScore}</div>
-      <p style="font-size:var(--text-sm);color:var(--text-secondary);">Nail Health Score</p>
-      ${r.riskTier ? `<div style="margin-top:var(--space-2);"><span class="badge badge-${r.riskTier === 'Low' ? 'green' : r.riskTier === 'Moderate' ? 'amber' : 'coral'}">${r.riskTier} Risk</span></div>` : ''}
-    </div>
-
-    <div class="card">
-      <h4 style="margin-bottom:var(--space-3);">Nail Plate</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Color</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.nail_plate_color?.replace(/_/g, ' ')}</div>
-        </div>
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Pattern</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.color_pattern?.replace(/_/g, ' ')}</div>
-        </div>
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Shape</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.shape?.morphology?.replace(/_/g, ' ')}</div>
-        </div>
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Surface</div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${r.surface_texture?.overall?.replace(/_/g, ' ')}</div>
-        </div>
-      </div>
-      ${r.color_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:var(--space-2);">${r.color_significance}</p>` : ''}
-    </div>
-
-    ${r.shape?.clubbing_present ? `
-    <div class="card card-sm" style="border-left:3px solid var(--accent-coral);">
-      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-coral);">Clubbing detected — ${r.shape.clubbing_grade}</p>
-      <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">${r.shape.clubbing_significance || 'May indicate lung, heart, or liver disease. Consult a physician.'}</p>
-    </div>` : ''}
-
-    ${r.fungal_infection?.suspected ? `
-    <div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
-      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-amber);">Fungal infection suspected — ${r.fungal_infection.pattern?.replace(/_/g, ' ')}</p>
-      <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">Severity: ${r.fungal_infection.severity}. ${r.fungal_infection.nails_affected || ''}</p>
-    </div>` : ''}
-
-    ${renderSystemicFlags(r.systemic_flags)}
-    ${renderRecommendations(r.recommendations)}
-    ${renderLabSuggestions(r.suggested_lab_tests)}`;
-}
+function renderNailResults() { return ''; } // removed: retired mode
 
 // ─── Body Results ─────────────────────────────────
 
@@ -1037,7 +867,7 @@ function renderBodyResults(r, m) {
           { label: 'Feet', value: r.posture.foot_position },
         ].filter(i => i.value && i.value !== 'neutral' && i.value !== 'even' && i.value !== 'none' && i.value !== 'cannot_assess').map(item => `
         <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${item.label}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(item.label)}</span>
           <span style="font-size:var(--text-xs);font-weight:600;">${item.value.replace(/_/g, ' ')}</span>
         </div>`).join('')}
       </div>
@@ -1078,7 +908,7 @@ function renderBodyResults(r, m) {
           { label: 'Leg Length Diff.', value: r.muscle_imbalance.apparent_leg_length_difference },
         ].filter(i => i.value && i.value !== 'none' && i.value !== 'cannot_assess').map(item => `
         <div style="display:flex;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${item.label}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(item.label)}</span>
           <span style="font-size:var(--text-xs);font-weight:600;color:${imbalanceColors[item.value] || 'var(--text-secondary)'};">${item.value.replace(/_/g, ' ')}</span>
         </div>`).join('')}
       </div>
@@ -1131,7 +961,7 @@ function renderBodyResults(r, m) {
           { label: 'General Puffiness', value: r.lymphatic_signals.general_puffiness },
         ].filter(i => i.value && i.value !== 'none').map(item => `
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${item.label}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(item.label)}</span>
           <span style="font-size:var(--text-xs);font-weight:600;color:var(--accent-amber);">${item.value}</span>
         </div>`).join('')}
       </div>
@@ -1149,7 +979,7 @@ function renderBodyResults(r, m) {
           { label: 'Hips', value: r.symmetry.hip_level },
         ].filter(i => i.value && i.value !== 'even' && i.value !== 'symmetric').map(item => `
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${item.label}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(item.label)}</span>
           <span style="font-size:var(--text-xs);font-weight:600;">${item.value.replace(/_/g,' ')}</span>
         </div>`).join('')}
       </div>
@@ -1197,7 +1027,7 @@ function renderBodyResults(r, m) {
         { label: 'Pelvis', value: r.posture.pelvic_tilt },
       ].map(item => `
         <div style="display:flex;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${item.label}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(item.label)}</span>
           <span style="font-size:var(--text-xs);font-weight:600;">${item.value?.replace(/_/g, ' ') || '—'}</span>
         </div>`).join('')}
       </div>
@@ -1345,10 +1175,10 @@ function showHeartRateResults(result) {
 }
 
 function getHRInterpretation(hr) {
-  if (hr < 50) return 'Very low resting heart rate. Common in highly trained athletes. If you experience dizziness or fatigue, consult a doctor.';
-  if (hr < 60) return 'Low resting heart rate (bradycardia range). Normal for fit individuals. Monitor for symptoms.';
-  if (hr < 80) return 'Excellent resting heart rate. Suggests good cardiovascular fitness and autonomic nervous system health.';
-  if (hr < 100) return 'Normal resting heart rate. Within healthy range for most adults.';
+  if (hr < 50) return 'Your resting pulse reading is on the lower end.';
+  if (hr < 60) return 'Your resting pulse reading is low, which is common for fit individuals.';
+  if (hr < 80) return 'Your resting pulse reading is in a typical range.';
+  if (hr < 100) return 'Your resting pulse reading is in a typical range for most adults.';
   if (hr < 120) return 'Slightly elevated. Could indicate recent activity, stress, caffeine, or dehydration.';
   return 'Elevated heart rate. Monitor stress, hydration, and caffeine. Seek medical advice if persistent at rest.';
 }

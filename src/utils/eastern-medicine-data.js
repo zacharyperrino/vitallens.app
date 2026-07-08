@@ -164,11 +164,11 @@ export const faceMappingZones = [
 ];
 
 export const tongueDiagnosis = [
-    { condition: 'Pale Tongue', meaning: 'Qi or blood deficiency — low energy, possible anemia', recommendation: 'Iron-rich foods, warming herbs' },
-    { condition: 'Red Tongue', meaning: 'Excess heat — inflammation, infection, or stress', recommendation: 'Cooling foods, peppermint tea, reduce spicy foods' },
+    { condition: 'Pale Tongue', meaning: 'Qi or blood pattern — traditionally linked to low energy', recommendation: 'Iron-rich foods, warming herbs' },
+    { condition: 'Red Tongue', meaning: 'Excess heat pattern — traditionally linked to stress or overheating', recommendation: 'Cooling foods, peppermint tea, reduce spicy foods' },
     { condition: 'Purple Tongue', meaning: 'Blood stasis — poor circulation', recommendation: 'Increase movement, turmeric, and warming spices' },
     { condition: 'Thick White Coating', meaning: 'Cold and dampness — poor digestion', recommendation: 'Warm, cooked foods, ginger tea, avoid dairy' },
-    { condition: 'Yellow Coating', meaning: 'Heat and dampness — infection or inflammation', recommendation: 'Bitter herbs, reduce alcohol and sugar' },
-    { condition: 'Cracked Tongue', meaning: 'Yin deficiency — dehydration, chronic dryness', recommendation: 'Hydrating foods, marshmallow root, adequate water' },
-    { condition: 'Swollen/Tooth-marked', meaning: 'Spleen qi deficiency — poor nutrient absorption', recommendation: 'Easy-to-digest meals, avoid raw/cold foods' },
+    { condition: 'Yellow Coating', meaning: 'Heat and dampness pattern', recommendation: 'Bitter herbs, reduce alcohol and sugar' },
+    { condition: 'Cracked Tongue', meaning: 'Yin pattern — traditionally linked to dryness', recommendation: 'Hydrating foods, marshmallow root, adequate water' },
+    { condition: 'Swollen/Tooth-marked', meaning: 'Spleen qi pattern — traditionally linked to digestion', recommendation: 'Easy-to-digest meals, avoid raw/cold foods' },
 ];

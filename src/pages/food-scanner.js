@@ -1,5 +1,6 @@
 // Food Scanner Page — Meal Scan & Product Scan Modes
 import { icons } from '../icons.js';
+import { esc } from '../utils/esc.js';
 import { getRandomFoodCombo } from '../utils/food-analyzer.js';
 import { createDonutChart } from '../utils/charts.js';
 import { lookupBarcode, parseNutritionLabel, getHealthScore, getMealAnalysis } from '../services/foodScanApi.js';
@@ -622,7 +623,7 @@ function setupCorrectionHandlers(result) {
       const btnContainer = correctBtn?.parentElement;
       if (btnContainer) {
         btnContainer.innerHTML = `
-          <span style="font-size:var(--text-sm);color:var(--text-tertiary);text-decoration:line-through;">${item.name}</span>
+          <span style="font-size:var(--text-sm);color:var(--text-tertiary);text-decoration:line-through;">${esc(item.name)}</span>
           <span style="font-size:var(--text-sm);color:var(--accent-green);font-weight:var(--weight-semibold);">${correctedLabel}</span>
         `;
       }
@@ -746,7 +747,7 @@ async function processFood(filesOrFile) {
                     <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);">${icons.sparkle}</div>
                     <h4 style="margin-bottom:var(--space-1);">Looks familiar!</h4>
                     <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-1);">
-                        This looks like <strong>${memory.meal_name}</strong>
+                        This looks like <strong>${esc(memory.meal_name)}</strong>
                     </p>
                     <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-4);">
                         You've had this ${memory.scan_count} times · Avg ${memory.avg_calories} cal
@@ -933,8 +934,8 @@ function renderCorrectionSection(foods, food) {
       <div style="display:flex;flex-direction:column;gap:var(--space-2);">
         ${items.map((item, i) => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-            <span style="font-size:var(--text-sm);">${item.name}</span>
-            <button class="btn btn-sm btn-outline" id="correct-btn-${i}" data-detected="${item.name}" data-grams="${item.grams || 150}" data-confidence="${item.confidence || 1}" style="font-size:var(--text-xs);padding:var(--space-1) var(--space-3);">Correct</button>
+            <span style="font-size:var(--text-sm);">${esc(item.name)}</span>
+            <button class="btn btn-sm btn-outline" id="correct-btn-${i}" data-detected="${esc(item.name)}" data-grams="${item.grams || 150}" data-confidence="${item.confidence || 1}" style="font-size:var(--text-xs);padding:var(--space-1) var(--space-3);">Correct</button>
           </div>
           <div id="correct-input-${i}" style="display:none;padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
             <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">What is this food actually?</p>
@@ -1040,7 +1041,7 @@ function renderFoodResults(result) {
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
           <div>
-            <h3 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${food.name}</h3>
+            <h3 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${esc(food.name)}</h3>
             <span class="badge badge-teal">Health Rating: ${Math.round(healthRating || 0)}/100</span>
           </div>
           <div style="text-align:center;">
@@ -1076,7 +1077,7 @@ function renderFoodResults(result) {
               data-fiber-per-g="${((item.nutrients?.fiber || 0) / baseVal).toFixed(4)}">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
                 <div>
-                  <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${item.name}</div>
+                  <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(item.name)}</div>
                   <div style="font-size:var(--text-xs);color:var(--text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
                     ${item.confidence ? `${(item.confidence * 100).toFixed(0)}% confidence` : ''}
                     ${item.confidence >= 0.85 ? '' :
@@ -1609,13 +1610,13 @@ function renderMemoryCard(memory) {
         <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0;">
           <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-blue-dim);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${icons.sparkle}</div>
           <div style="min-width:0;">
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${memory.meal_name}</div>
+            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(memory.meal_name)}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${memory.avg_calories} cal avg · ${memory.scan_count}x scanned · ${scannedAgo}</div>
             ${foods ? `<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${foods}</div>` : ''}
           </div>
         </div>
         <div style="display:flex;gap:var(--space-2);flex-shrink:0;margin-left:var(--space-2);">
-          <button class="memory-quick-log" data-id="${memory.id}" data-name="${memory.meal_name}" data-calories="${memory.avg_calories}"
+          <button class="memory-quick-log" data-id="${memory.id}" data-name="${esc(memory.meal_name)}" data-calories="${memory.avg_calories}"
             style="font-size:10px;padding:3px 8px;border-radius:var(--radius-md);background:var(--accent-teal);color:#000;border:none;cursor:pointer;font-weight:600;white-space:nowrap;">
             Quick Log
           </button>
@@ -1687,8 +1688,8 @@ function renderProductScanCard(scan) {
         <div style="display:flex;align-items:center;gap:var(--space-3);">
           <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${color}22;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icons.barcode}</div>
           <div>
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${scan.name}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${scan.brand || scan.barcode}</div>
+            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(scan.name)}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(scan.brand) || scan.barcode}</div>
           </div>
         </div>
         <div style="text-align:center;">

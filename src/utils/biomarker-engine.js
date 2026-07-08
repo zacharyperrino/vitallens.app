@@ -1,5 +1,5 @@
 // Biomarker Analysis Engine — Evidence-based health signal extraction
-// Modules: rPPG Heart Rate, Face Analysis, Eye Analysis, Skin Lesion Triage, Body Composition
+// Modules: rPPG Heart Rate, Face Analysis, Eye Analysis, Skin Appearance, Body Composition
 
 
 import { apiFetch } from '../utils/api.js';

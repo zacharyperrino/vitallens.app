@@ -1,5 +1,6 @@
 // ─── Hygiene Product Scanner Page ────────────────────────────
 import { icons } from '../icons.js';
+import { esc } from '../utils/esc.js';
 import { initCamera, stopCamera, startBarcodeScanner } from '../utils/product-scanner.js';
 import { mountReact } from '../components/mountReact.js';
 import HygieneScanResult from '../components/HygieneScanResult.jsx';
@@ -97,8 +98,8 @@ function renderScanCard(scan) {
     <div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
         <div style="flex:1;">
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${scan.product_name || 'Unknown Product'}</div>
-          <div style="font-size:10px;color:var(--text-tertiary);">${scan.brand || ''} · ${new Date(scan.scanned_at).toLocaleDateString()}</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(scan.product_name || 'Unknown Product')}</div>
+          <div style="font-size:10px;color:var(--text-tertiary);">${esc(scan.brand) || ''} · ${new Date(scan.scanned_at).toLocaleDateString()}</div>
         </div>
         <div style="text-align:center;margin-left:var(--space-3);">
           <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:${scoreColor};">${score}</div>
@@ -109,7 +110,7 @@ function renderScanCard(scan) {
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-1);">
         ${concerns.slice(0, 3).map(c => `
         <span style="font-size:9px;padding:2px 6px;border-radius:20px;background:${c.risk === 'high' ? 'var(--accent-coral-dim)' : 'var(--accent-amber-dim)'};color:${c.risk === 'high' ? 'var(--accent-coral)' : 'var(--accent-amber)'};">
-          ${c.ingredient}
+          ${esc(c.ingredient)}
         </span>`).join('')}
         ${concerns.length > 3 ? `<span style="font-size:9px;color:var(--text-tertiary);">+${concerns.length - 3} more</span>` : ''}
       </div>` : `<div style="font-size:10px;color:var(--accent-green);">No major concerns noticed</div>`}
@@ -129,8 +130,8 @@ function renderFullResults(product, userId) {
     <div class="card" style="margin-bottom:var(--space-3);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
         <div style="flex:1;">
-          <div style="font-size:var(--text-base);font-weight:var(--weight-bold);">${product.name}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${product.brand}</div>
+          <div style="font-size:var(--text-base);font-weight:var(--weight-bold);">${esc(product.name)}</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(product.brand)}</div>
           ${product.category ? `<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">${product.category}</div>` : ''}
         </div>
         <div style="text-align:center;margin-left:var(--space-4);">
@@ -150,7 +151,7 @@ function renderFullResults(product, userId) {
         <div style="font-size:10px;font-weight:700;color:var(--accent-coral);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Worth Reviewing</div>
         ${highConcerns.map(c => `
         <div style="padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-coral);margin-bottom:2px;">${c.ingredient}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-coral);margin-bottom:2px;">${esc(c.ingredient)}</div>
           <div style="font-size:10px;color:var(--text-secondary);">${c.note}</div>
         </div>`).join('')}
       </div>` : ''}
@@ -160,7 +161,7 @@ function renderFullResults(product, userId) {
         <div style="font-size:10px;font-weight:700;color:var(--accent-amber);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Something to Explore</div>
         ${modConcerns.map(c => `
         <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-amber);margin-bottom:2px;">${c.ingredient}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-amber);margin-bottom:2px;">${esc(c.ingredient)}</div>
           <div style="font-size:10px;color:var(--text-secondary);">${c.note}</div>
         </div>`).join('')}
       </div>` : ''}
@@ -170,7 +171,7 @@ function renderFullResults(product, userId) {
         <div style="font-size:10px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Some Users Prefer to Avoid</div>
         ${lowConcerns.map(c => `
         <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--text-secondary);margin-bottom:2px;">${c.ingredient}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;color:var(--text-secondary);margin-bottom:2px;">${esc(c.ingredient)}</div>
           <div style="font-size:10px;color:var(--text-tertiary);">${c.note}</div>
         </div>`).join('')}
       </div>` : ''}

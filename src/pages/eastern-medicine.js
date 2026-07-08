@@ -292,7 +292,7 @@ function renderTongue() {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card" style="text-align:center;">
       <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
-      <h4>Tongue Diagnosis</h4>
+      <h4>Tongue Observations</h4>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);">In TCM, the tongue reflects internal organ health.</p>
     </div>
     ${tongueDiagnosis.map(t => `<div class="card card-sm">
