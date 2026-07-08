@@ -67,8 +67,8 @@ export async function renderDashboard() {
               <span class="text-gradient">${name}</span>
             </h1>
           </div>
-          <div onclick="location.hash='#/profile'" style="cursor:pointer;width:42px;height:42px;border-radius:var(--radius-full);background:var(--bg-glass-heavy);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border-subtle);">
-            ${profileData?.avatar || '🧬'}
+          <div onclick="location.hash='#/profile'" style="cursor:pointer;width:42px;height:42px;border-radius:var(--radius-full);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border:1px solid var(--border);">
+            ${icons.user}
           </div>
         </div>
 
@@ -97,8 +97,8 @@ export async function renderDashboard() {
           <!-- Daily Steps Card -->
           <div class="card card-sm step-card" onclick="location.hash='#/step-details'" style="margin-bottom:0;">
             <div class="step-ring-container">
-              ${createRingProgress(0, 10000, 60, 6, 'var(--accent-teal)')}
-              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;">${icons.steps}</div>
+              ${createRingProgress(0, 10000, 60, 6, 'var(--viz-green)')}
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);">${icons.steps}</div>
             </div>
             <div class="step-card-info">
               <h4>Steps</h4>
@@ -135,33 +135,33 @@ export async function renderDashboard() {
         </div>
         <div class="grid-3" style="margin-bottom:var(--space-6);">
           <div class="quick-action" onclick="location.hash='#/food-scanner'">
-            <div class="action-icon" style="background:var(--accent-teal-dim);">🍎</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.scan}</div>
             <span class="action-label">Scan Food</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/body-scanner'">
-            <div class="action-icon" style="background:var(--accent-purple-dim);">🔬</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.body}</div>
             <span class="action-label">Body Scan</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/stool-scanner'">
-            <div class="action-icon" style="background:var(--accent-amber-dim);">🧪</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.droplet}</div>
             <span class="action-label">Stool Check</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/health-input'">
-            <div class="action-icon" style="background:var(--accent-blue-dim);">📋</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.clipboard}</div>
             <span class="action-label">Log Data</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/eastern-medicine'">
-            <div class="action-icon" style="background:var(--accent-coral-dim);">🧘</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.lotus}</div>
             <span class="action-label">Ayurveda</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/analytics'">
-            <div class="action-icon" style="background:var(--accent-green-dim);">📊</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.chart}</div>
             <span class="action-label">Analytics</span>
           </div>
           <div class="quick-action" onclick="location.hash='#/hygiene-scanner'">
-  <div class="action-icon" style="background:var(--accent-teal-dim);">🧴</div>
-  <span class="action-label">Hygiene Scan</span>
-</div>
+            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.shield}</div>
+            <span class="action-label">Hygiene Scan</span>
+          </div>
         </div>
 
         <!-- Daily Nutrition Summary -->
@@ -171,10 +171,10 @@ export async function renderDashboard() {
         </div>
         <div class="card" style="margin-bottom:var(--space-6);">
           <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-4);">
-            ${renderMacro('Calories', nutrition.calories, calorieGoal, 'kcal', 'var(--accent-teal)')}
-            ${renderMacro('Protein', nutrition.protein, proteinGoal, 'g', 'var(--accent-blue)')}
-            ${renderMacro('Carbs', nutrition.carbs, carbsGoal, 'g', 'var(--accent-amber)')}
-            ${renderMacro('Fat', nutrition.fat, fatGoal, 'g', 'var(--accent-coral)')}
+            ${renderMacro('Calories', nutrition.calories, calorieGoal, 'kcal', 'var(--text-primary)')}
+            ${renderMacro('Protein', nutrition.protein, proteinGoal, 'g', 'var(--text-primary)')}
+            ${renderMacro('Carbs', nutrition.carbs, carbsGoal, 'g', 'var(--text-primary)')}
+            ${renderMacro('Fat', nutrition.fat, fatGoal, 'g', 'var(--text-primary)')}
           </div>
           <div class="progress-bar">
             <div class="progress-fill" style="width:${Math.min(100, Math.round((nutrition.calories / calorieGoal) * 100))}%"></div>
@@ -210,8 +210,8 @@ export async function renderDashboard() {
           ${insights.slice(0, 3).map((insight) => `
             <div class="card card-sm">
               <div class="insight-card">
-                <div class="insight-icon" style="background:${insight.color}22;">
-                  <span>${insight.icon}</span>
+                <div class="insight-icon" style="background:var(--bg-chip);color:var(--text-secondary);">
+                  <span>${icons.sparkle}</span>
                 </div>
                 <div class="insight-content">
                   <h4>${insight.title}</h4>
@@ -235,9 +235,9 @@ export async function renderDashboard() {
           <h3>Your Streaks</h3>
         </div>
         <div class="grid-3" style="margin-bottom:var(--space-8);">
-          ${renderStreak('🔥', 'Logging', streaks.logging, 'var(--accent-coral)')}
-          ${renderStreak('💪', 'Exercise', streaks.exercise, 'var(--accent-blue)')}
-          ${renderStreak('😴', 'Sleep', streaks.sleep, 'var(--accent-purple)')}
+          ${renderStreak(icons.zap, 'Logging', streaks.logging, 'var(--text-primary)')}
+          ${renderStreak(icons.activity, 'Exercise', streaks.exercise, 'var(--text-primary)')}
+          ${renderStreak(icons.moon, 'Sleep', streaks.sleep, 'var(--text-primary)')}
         </div>
       </div>
     `;
@@ -322,8 +322,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
   if (recentMeals && recentMeals.length > 0) {
     const meal = recentMeals[0];
     items.push({
-      icon: '🍎',
-      bg: 'var(--accent-teal-dim)',
+      icon: icons.leaf,
+      bg: 'var(--bg-chip)',
       title: meal.name || 'Meal logged',
       detail: `${meal.calories || 0} kcal • ${formatRelativeTime(meal.logged_at || meal.date || meal.created_at)}`,
       value: `${meal.protein || 0}g protein`, 
@@ -333,8 +333,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
   if (recentExercise && recentExercise.length > 0) {
     const ex = recentExercise[0];
     items.push({
-      icon: '🏃',
-      bg: 'var(--accent-blue-dim)',
+      icon: icons.activity,
+      bg: 'var(--bg-chip)',
       title: ex.name || ex.type || 'Exercise logged',
       detail: `${ex.duration || 0} min • ${formatRelativeTime(ex.date || ex.logged_at)}`,
       value: `${ex.calories || 0} kcal`, 
@@ -343,8 +343,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
 
   if (latestSleep) {
     items.push({
-      icon: '😴',
-      bg: 'var(--accent-purple-dim)',
+      icon: icons.moon,
+      bg: 'var(--bg-chip)',
       title: 'Sleep Tracked',
       detail: `${latestSleep.hours || 0}h • ${latestSleep.quality || 'Quality'} • ${formatRelativeTime(latestSleep.date)}`,
       value: `${latestSleep.quality || '--'}%`, 
@@ -353,8 +353,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
 
   if (latestBodyScan) {
     items.push({
-      icon: '🔬',
-      bg: 'var(--accent-amber-dim)',
+      icon: icons.body,
+      bg: 'var(--bg-chip)',
       title: 'Body Scan',
       detail: `Score ${latestBodyScan.overall_score || '--'} • ${formatRelativeTime(latestBodyScan.scanned_at || latestBodyScan.created_at)}`,
       value: latestBodyScan.risk_tier ? `${capitalize(latestBodyScan.risk_tier)}` : '--',
@@ -363,8 +363,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
 
   if (items.length === 0 && weeklyScores.length) {
     items.push({
-      icon: '📈',
-      bg: 'var(--accent-green-dim)',
+      icon: icons.trending,
+      bg: 'var(--bg-chip)',
       title: 'Weekly score data',
       detail: 'Tracked from recent health summaries',
       value: `${weeklyScores[weeklyScores.length - 1]} pts`,
@@ -373,12 +373,12 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
 
   return items.map((a) => `
     <div class="activity-item">
-      <div class="activity-icon" style="background:${a.bg};">${a.icon}</div>
+      <div class="activity-icon" style="background:${a.bg};color:var(--text-secondary);">${a.icon}</div>
       <div class="activity-text">
         <div class="title">${a.title}</div>
         <div class="time">${a.detail}</div>
       </div>
-      <div class="activity-value" style="color:var(--accent-teal);">${a.value}</div>
+      <div class="activity-value" style="color:var(--text-secondary);">${a.value}</div>
     </div>
   `);
 }
@@ -409,10 +409,10 @@ function renderMacro(label, value, target, unit, color) {
     </div>`;
 }
 
-function renderStreak(emoji, label, count, color) {
+function renderStreak(icon, label, count, color) {
   return `
     <div class="card card-sm" style="text-align:center;">
-      <div style="font-size:24px;margin-bottom:var(--space-1);">${emoji}</div>
+      <div style="margin-bottom:var(--space-1);color:var(--text-secondary);display:flex;justify-content:center;">${icon}</div>
       <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:${color};">${count}</div>
       <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label} days</div>
     </div>`;
@@ -420,7 +420,7 @@ function renderStreak(emoji, label, count, color) {
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return '☀️ Good morning';
-  if (h < 17) return '🌤️ Good afternoon';
-  return '🌙 Good evening';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }

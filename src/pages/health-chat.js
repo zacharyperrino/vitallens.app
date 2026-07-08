@@ -2,8 +2,8 @@
 import { store } from '../store.js';
 import { icons } from '../icons.js';
 import { chatHistory } from '../lib/db.js';
-
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
+import { trackEvent } from '../utils/analytics-events.js';
 
 let messages = [];
 
@@ -13,13 +13,13 @@ export async function renderHealthChat() {
   content.innerHTML = `
   <div class="chat-page">
     <div class="chat-header">
-      <div class="chat-header-avatar"><span>✨</span></div>
+      <div class="chat-header-avatar"><span style="color:var(--accent);display:flex;">${icons.sparkle}</span></div>
       <div class="chat-header-info">
         <h2>Health Copilot</h2>
         <span class="chat-status-dot"></span>
         <span class="chat-status-text">Online • Analyzing your data</span>
       </div>
-      <button class="chat-clear-btn" id="chat-clear" title="Clear chat">${icons.refresh || '🔄'}</button>
+      <button class="chat-clear-btn" id="chat-clear" title="Clear chat">${icons.refresh}</button>
     </div>
 
     <div class="chat-messages" id="chat-messages"></div>
@@ -84,7 +84,7 @@ function renderMessage(m) {
 
   const content = formatResponse(m.text || '');
   const badge = m.toolBadge ? m.toolBadge : '';
-  return `<div class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar">✨</div><div class="chat-bubble-body">${badge}<div class="chat-bubble-content">${content}</div><div class="chat-bubble-time">${time}</div></div></div>`;
+  return `<div class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar" style="color:var(--accent);">${icons.sparkle}</div><div class="chat-bubble-body">${badge}<div class="chat-bubble-content">${content}</div><div class="chat-bubble-time">${time}</div></div></div>`;
 }
 
 function escapeHtml(str) {
@@ -140,7 +140,7 @@ function renderTyping() {
   if (!el) return;
   const existing = document.getElementById('typing-indicator');
   if (existing) return;
-  el.insertAdjacentHTML('beforeend', `<div id="typing-indicator" class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar">✨</div><div class="chat-bubble-body"><div class="chat-typing-dots"><span></span><span></span><span></span></div></div></div>`);
+  el.insertAdjacentHTML('beforeend', `<div id="typing-indicator" class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar" style="color:var(--accent);">${icons.sparkle}</div><div class="chat-bubble-body"><div class="chat-typing-dots"><span></span><span></span><span></span></div></div></div>`);
   scrollToBottom();
 }
 
@@ -195,7 +195,7 @@ async function sendMessage(text) {
     const { data } = await supabase.auth.getUser();
     const userId = data?.user?.id;
 
-    const res = await fetch(`${API}/health-copilot`, {
+    const res = await apiFetch(`/api/health-copilot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, message: trimmed, history: messages.slice(-20) }),
@@ -233,6 +233,7 @@ async function sendMessage(text) {
     appendChatMessage('assistant', reply);
     renderSuggestionsForTools(toolsUsed);
     saveHistory();
+    trackEvent('copilot_message_sent', { userId });
   } catch (err) {
     removeTyping();
     const errMsg = { role: 'assistant', text: 'I had trouble connecting. Check that the server is running and try again.', timestamp: Date.now() };

@@ -1,10 +1,12 @@
+import { icons } from '../icons.js';
+
 // Eastern Medicine knowledge base
 
 export const doshaData = {
     vata: {
         name: 'Vata',
         element: 'Air + Ether',
-        icon: '🌬️',
+        icon: icons.wind,
         color: 'var(--accent-purple)',
         colorDim: 'var(--accent-purple-dim)',
         qualities: ['Light', 'Dry', 'Cold', 'Mobile', 'Quick'],
@@ -22,7 +24,7 @@ export const doshaData = {
     pitta: {
         name: 'Pitta',
         element: 'Fire + Water',
-        icon: '🔥',
+        icon: icons.zap,
         color: 'var(--accent-coral)',
         colorDim: 'var(--accent-coral-dim)',
         qualities: ['Hot', 'Sharp', 'Oily', 'Light', 'Intense'],
@@ -40,7 +42,7 @@ export const doshaData = {
     kapha: {
         name: 'Kapha',
         element: 'Earth + Water',
-        icon: '🌍',
+        icon: icons.leaf,
         color: 'var(--accent-green)',
         colorDim: 'var(--accent-green-dim)',
         qualities: ['Heavy', 'Slow', 'Cool', 'Oily', 'Stable'],

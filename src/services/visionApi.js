@@ -2,14 +2,14 @@
 // Calls POST /api/vision-scan on the Express server.
 // The OpenAI key lives in server/.env — never in the browser.
 
-const API_BASE = '/api';
+import { apiFetch } from '../utils/api.js';
 
 // ── Fetch corrections weighted by frequency ───────────────────
 
 async function getUserCorrections(userId) {
     if (!userId) return null;
     try {
-        const res = await fetch(`${API_BASE}/food-corrections?userId=${userId}&limit=30`);
+        const res = await apiFetch(`/api/food-corrections?userId=${userId}&limit=30`);
         if (!res.ok) return null;
         const { corrections } = await res.json();
         if (!corrections || corrections.length === 0) return null;
@@ -45,7 +45,7 @@ async function getUserCorrections(userId) {
 async function getPortionCorrections(userId) {
     if (!userId) return null;
     try {
-        const res = await fetch(`${API_BASE}/portion-corrections?userId=${userId}`);
+        const res = await apiFetch(`/api/portion-corrections?userId=${userId}`);
         if (!res.ok) return null;
         const { portions } = await res.json();
         if (!portions || portions.length === 0) return null;
@@ -88,7 +88,7 @@ export async function analyzeImageWithVision(imageFile) {
         // proceed without corrections
     }
 
-    const response = await fetch(`${API_BASE}/vision-scan`, {
+    const response = await apiFetch(`/api/vision-scan`, {
         method: 'POST',
         body: formData,
     });
@@ -112,7 +112,7 @@ export async function saveFoodCorrection(detectedLabel, correctedLabel, options 
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.id) return;
 
-        await fetch(`${API_BASE}/food-correction`, {
+        await apiFetch(`/api/food-correction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -125,7 +125,7 @@ export async function saveFoodCorrection(detectedLabel, correctedLabel, options 
                 mealContext: options.mealContext || null,
             }),
         });
-        console.log(`[VisionAPI] Correction saved: ${detectedLabel} → ${correctedLabel}`);
+        console.log(`[VisionAPI] Correction saved: ${detectedLabel} ${correctedLabel}`);
     } catch (err) {
         console.error('[VisionAPI] Failed to save correction:', err.message);
     }
@@ -142,7 +142,7 @@ export async function savePortionCorrection(foodLabel, originalGrams, correctedG
         const changePercent = Math.abs(correctedGrams - originalGrams) / originalGrams;
         if (changePercent < 0.40) return;
 
-        await fetch(`${API_BASE}/portion-correction`, {
+        await apiFetch(`/api/portion-correction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -152,7 +152,7 @@ export async function savePortionCorrection(foodLabel, originalGrams, correctedG
                 correctedGrams,
             }),
         });
-        console.log(`[VisionAPI] Portion correction: ${foodLabel} ${originalGrams}g → ${correctedGrams}g`);
+        console.log(`[VisionAPI] Portion correction: ${foodLabel} ${originalGrams}g ${correctedGrams}g`);
     } catch (err) {
         console.error('[VisionAPI] Failed to save portion correction:', err.message);
     }

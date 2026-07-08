@@ -59,7 +59,7 @@
 @keyframes scaleIn {
     from {
         opacity: 0;
-        transform: scale(0.85);
+        transform: scale(0.97);
     }
 
     to {
@@ -68,15 +68,16 @@
     }
 }
 
+/* Formerly a teal glow pulse — now a quiet opacity breath */
 @keyframes pulseGlow {
 
     0%,
     100% {
-        box-shadow: 0 0 20px rgba(0, 212, 170, 0.1);
+        opacity: 1;
     }
 
     50% {
-        box-shadow: 0 0 40px rgba(0, 212, 170, 0.25);
+        opacity: 0.75;
     }
 }
 
@@ -110,7 +111,7 @@
     }
 
     50% {
-        transform: translateY(-6px);
+        transform: translateY(-2px);
     }
 }
 
@@ -216,7 +217,7 @@
 }
 
 .animate-scale-in {
-    animation: scaleIn 0.4s var(--transition-spring) forwards;
+    animation: scaleIn 0.4s ease-out forwards;
 }
 
 .animate-slide-up {
@@ -272,9 +273,9 @@
 /* Shimmer loading effect */
 .shimmer-loading {
     background: linear-gradient(90deg,
-            var(--bg-glass) 25%,
-            var(--bg-glass-heavy) 50%,
-            var(--bg-glass) 75%);
+            var(--surface-1) 25%,
+            var(--surface-2) 50%,
+            var(--surface-1) 75%);
     background-size: 400% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    animation: shimmer 2s ease-in-out infinite;
 }

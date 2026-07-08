@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase.js';
+import { apiFetch } from '../utils/api.js';
 
+import { showToast } from '../utils/toast.js';
+import { CONDITIONS, GOAL_OPTIONS, inchesToCm, lbsToKg, kgToLbs, cmToInches } from '../utils/profile-shared.js';
 const ACTIVITY_FACTORS = {
   sedentary: 1.2,
   light: 1.375,
@@ -8,26 +11,13 @@ const ACTIVITY_FACTORS = {
   very_active: 1.9,
 };
 
-const CONDITIONS = [
-  'IBS', 'Diabetes', 'Hypertension', 'Anxiety', 'Depression',
-  'ADHD', 'Hypothyroid', 'PCOS', 'Acne', 'Eczema',
-  'Asthma', 'Arthritis', 'Migraines', 'GERD', 'Celiac',
-  'Crohns', 'Sleep Apnea', 'Endometriosis', 'High Cholesterol', 'Chronic Fatigue',
-];
 
-const GOAL_OPTIONS = [
-  'Lose weight',
-  'Build muscle',
-  'Improve energy',
-  'Longevity',
-  'General health',
-];
 
 export async function renderProfile() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="profile stagger-children">
-      <div class="page-header"><h1>👤 Profile</h1><p>Loading your profile data...</p></div>
+      <div class="page-header"><h1>Profile</h1><p>Loading your profile data...</p></div>
       <div style="display:flex;justify-content:center;padding:var(--space-8);"><div class="spinner"></div></div>
     </div>`;
 
@@ -36,39 +26,47 @@ export async function renderProfile() {
     if (authError) throw authError;
     if (!user?.id) throw new Error('You must be signed in to view your profile.');
 
-    const profileResponse = await fetch(`/api/health-profile?userId=${encodeURIComponent(user.id)}`);
+    const profileResponse = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(user.id)}`);
     const profileJson = profileResponse.ok ? await profileResponse.json() : { profile: null };
-    const profile = normalizeProfileData({ ...getDefaultProfile(), ...(profileJson.profile || {}) });
+    // Name lives on the profiles table (not health_profile) — read it there.
+    let name = '';
+    try {
+      const { data: prof } = await supabase.from('profiles').select('name').eq('id', user.id).single();
+      name = prof?.name || '';
+    } catch { /* non-blocking */ }
+    const profile = normalizeProfileData({ ...(profileJson.profile || {}), name });
     renderProfileForm(profile, user);
   } catch (error) {
     console.error('[Profile] Load failed', error);
     content.innerHTML = `
       <div class="profile stagger-children">
-        <div class="page-header"><h1>👤 Profile</h1></div>
+        <div class="page-header"><h1>Profile</h1></div>
         <div class="card"><p style="color:var(--text-secondary);">Failed to load profile. ${error.message || 'Please refresh the page.'}</p></div>
       </div>`;
   }
 }
 
+// Maps the snake_case health_profile row (the DB's real columns) onto the
+// form's internal camelCase model. Height/weight are always stored in cm/kg.
 function normalizeProfileData(profile) {
   return {
     name: profile.name || '',
     email: profile.email || '',
     age: Number(profile.age) || 0,
     sex: profile.sex || '',
-    height: Number(profile.height) || 0,
-    weight: Number(profile.weight) || 0,
-    goalWeight: Number(profile.goalWeight) || 0,
-    heightUnit: profile.heightUnit || 'cm',
-    weightUnit: profile.weightUnit || 'kg',
-    activityLevel: profile.activityLevel || 'sedentary',
-    liftingSessions: Number(profile.liftingSessions) || 0,
-    primaryGoal: profile.primaryGoal || '',
-    calorieTarget: Number(profile.calorieTarget) || 0,
-    proteinTarget: Number(profile.proteinTarget) || 0,
-    carbsTarget: Number(profile.carbsTarget) || 0,
-    fatTarget: Number(profile.fatTarget) || 0,
-    fiberTarget: Number(profile.fiberTarget) || 30,
+    height: Number(profile.height_cm) || 0,
+    weight: Number(profile.weight_kg) || 0,
+    goalWeight: Number(profile.goal_weight_kg) || 0,
+    heightUnit: 'cm',
+    weightUnit: 'kg',
+    activityLevel: profile.activity_level || 'sedentary',
+    liftingSessions: parseInt(profile.lifting_frequency, 10) || 0,
+    primaryGoal: profile.goal || '',
+    calorieTarget: Number(profile.target_calories ?? profile.custom_calories) || 0,
+    proteinTarget: Number(profile.target_protein) || 0,
+    carbsTarget: Number(profile.target_carbs) || 0,
+    fatTarget: Number(profile.target_fat) || 0,
+    fiberTarget: Number(profile.target_fiber) || 30,
     conditions: Array.isArray(profile.conditions) ? profile.conditions : profile.conditions ? safeParseConditions(profile.conditions) : [],
     allergies: profile.allergies || '',
   };
@@ -93,7 +91,7 @@ function renderProfileForm(profile, user) {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="profile stagger-children">
-      <div class="page-header"><h1>👤 Profile</h1><p>Manage your body stats, health goals, and nutrition targets.</p></div>
+      <div class="page-header"><h1>Profile</h1><p>Manage your body stats, health goals, and nutrition targets.</p></div>
       <div class="card" style="margin-bottom:var(--space-5);">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);align-items:center;">
           <div>
@@ -216,7 +214,7 @@ function renderProfileForm(profile, user) {
           <div class="input-group"><label>Allergies</label><textarea class="input-field" id="p-allergies" rows="4" placeholder="List any allergies...">${profile.allergies}</textarea></div>
         </div>
 
-        <button type="submit" id="save-profile-btn" class="btn btn-primary btn-block">Save Profile</button>
+        <button type="submit" id="save-profile-btn" class="btn btn-glass btn-block">Save Profile</button>
         <button id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign Out</button>
       </form>
     </div>`;
@@ -245,23 +243,7 @@ function attachProfileHandlers(profile, userId, initialBmr, initialTdee) {
     return age;
   }
 
-  function kgToLbs(value) {
-    return value * 2.2046226218;
-  }
-
-  function lbsToKg(value) {
-    return value / 2.2046226218;
-  }
-
-  function cmToInches(value) {
-    return value / 2.54;
-  }
-
-  function inchesToCm(value) {
-    return value * 2.54;
-  }
-
-  function convertValue(value, fromUnit, toUnit, type) {
+          function convertValue(value, fromUnit, toUnit, type) {
     if (!value || fromUnit === toUnit) return value;
     if (type === 'weight') {
       return toUnit === 'kg' ? lbsToKg(value) : kgToLbs(value);
@@ -357,42 +339,62 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
   document.getElementById('profile-form')?.addEventListener('submit', async event => {
     event.preventDefault();
 
-    const profileData = {
-      name: document.getElementById('p-name')?.value.trim() || '',
-      age: getNumberValue('p-age'),
-      sex: document.getElementById('p-sex')?.value || '',
-      height: getNumberValue('p-height'),
-      heightUnit: document.getElementById('p-height-unit')?.value || 'cm',
-      weight: getNumberValue('p-weight'),
-      weightUnit: document.getElementById('p-weight-unit')?.value || 'kg',
-      goalWeight: getNumberValue('p-goal-weight'),
-      activityLevel: document.getElementById('p-activity-level')?.value || 'sedentary',
-      liftingSessions: getNumberValue('p-lifting-sessions'),
-      primaryGoal: document.getElementById('p-primary-goal')?.value || '',
-      calorieTarget: getNumberValue('p-calorie-target'),
-      proteinTarget: getNumberValue('p-protein-target'),
-      carbsTarget: getNumberValue('p-carbs-target'),
-      fatTarget: getNumberValue('p-fat-target'),
-      fiberTarget: getNumberValue('p-fiber-target'),
+    const name = document.getElementById('p-name')?.value.trim() || '';
+    const age = getNumberValue('p-age');
+    const sex = document.getElementById('p-sex')?.value || '';
+    const heightRaw = getNumberValue('p-height');
+    const weightRaw = getNumberValue('p-weight');
+    const heightUnit = document.getElementById('p-height-unit')?.value || 'cm';
+    const weightUnit = document.getElementById('p-weight-unit')?.value || 'kg';
+    const activityLevel = document.getElementById('p-activity-level')?.value || 'sedentary';
+
+    // health_profile always stores cm / kg — convert before saving.
+    const height_cm = roundValue(heightUnit === 'in' ? inchesToCm(heightRaw) : heightRaw);
+    const weight_kg = roundValue(weightUnit === 'lb' ? lbsToKg(weightRaw) : weightRaw);
+    const goalWeightRaw = getNumberValue('p-goal-weight');
+    const goal_weight_kg = goalWeightRaw > 0
+      ? roundValue(weightUnit === 'lb' ? lbsToKg(goalWeightRaw) : goalWeightRaw)
+      : null;
+
+    const bmr = calculateBmr(weight_kg, height_cm, age, sex);
+    const tdee = calculateTdee(bmr, activityLevel);
+
+    // Payload uses the real snake_case health_profile columns.
+    const payload = {
+      userId,
+      sex,
+      age,
+      height_cm,
+      weight_kg,
+      goal_weight_kg,
+      goal: document.getElementById('p-primary-goal')?.value || '',
+      activity_level: activityLevel,
+      lifting_frequency: String(getNumberValue('p-lifting-sessions')),
+      target_calories: getNumberValue('p-calorie-target'),
+      target_protein: getNumberValue('p-protein-target'),
+      target_carbs: getNumberValue('p-carbs-target'),
+      target_fat: getNumberValue('p-fat-target'),
+      target_fiber: getNumberValue('p-fiber-target'),
+      bmr: Math.round(bmr),
+      tdee: Math.round(tdee),
       conditions: Array.from(document.querySelectorAll('.condition-checkbox:checked')).map(input => input.value),
       allergies: document.getElementById('p-allergies')?.value.trim() || '',
+      updated_at: new Date().toISOString(),
     };
 
-    const bmr = calculateBmr(profileData.weight, profileData.height, profileData.age, profileData.sex);
-    const tdee = calculateTdee(bmr, profileData.activityLevel);
-
     try {
-      const response = await fetch(`/api/health-profile`, {
+      const response = await apiFetch(`/api/health-profile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, ...profileData, bmr, tdee, updated_at: new Date().toISOString() }),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error('Save failed');
-      showToast('✅ Profile saved');
+      // Name lives on profiles (RLS lets a user update their own row).
+      try { await supabase.from('profiles').update({ name }).eq('id', userId); } catch { /* non-blocking */ }
+      showToast('Profile saved');
       renderProfile();
     } catch (error) {
       console.error('[Profile] Save failed', error);
-      showToast('❌ Failed to save profile');
+      showToast('Failed to save profile');
     }
   });
 }
@@ -433,13 +435,3 @@ function getDefaultProfile() {
   };
 }
 
-function showToast(message) {
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add('removing');
-    setTimeout(() => toast.remove(), 300);
-  }, 2500);
-}

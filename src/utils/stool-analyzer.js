@@ -1,13 +1,13 @@
 // Simulated stool analysis engine
 
 const bristolScale = [
-    { type: 1, name: 'Separate hard lumps', description: 'Severe constipation', health: 'concerning', icon: '🔴' },
-    { type: 2, name: 'Lumpy & sausage-like', description: 'Mild constipation', health: 'moderate', icon: '🟠' },
-    { type: 3, name: 'Sausage with cracks', description: 'Normal — slightly dry', health: 'good', icon: '🟡' },
-    { type: 4, name: 'Smooth, soft sausage', description: 'Ideal — optimal digestion', health: 'excellent', icon: '🟢' },
-    { type: 5, name: 'Soft blobs', description: 'Lacking fiber', health: 'moderate', icon: '🟡' },
-    { type: 6, name: 'Fluffy, mushy pieces', description: 'Mild inflammation', health: 'moderate', icon: '🟠' },
-    { type: 7, name: 'Watery, no solid', description: 'Diarrhea — possible infection', health: 'concerning', icon: '🔴' },
+    { type: 1, name: 'Separate hard lumps', description: 'Severe constipation', health: 'concerning', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' },
+    { type: 2, name: 'Lumpy & sausage-like', description: 'Mild constipation', health: 'moderate', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' },
+    { type: 3, name: 'Sausage with cracks', description: 'Normal — slightly dry', health: 'good', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-neutral);"></span>' },
+    { type: 4, name: 'Smooth, soft sausage', description: 'Ideal — optimal digestion', health: 'excellent', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-green);"></span>' },
+    { type: 5, name: 'Soft blobs', description: 'Lacking fiber', health: 'moderate', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-neutral);"></span>' },
+    { type: 6, name: 'Fluffy, mushy pieces', description: 'Mild inflammation', health: 'moderate', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' },
+    { type: 7, name: 'Watery, no solid', description: 'Diarrhea — possible infection', health: 'concerning', icon: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' },
 ];
 
 const colorAnalysis = [

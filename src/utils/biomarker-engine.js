@@ -1,7 +1,8 @@
 // Biomarker Analysis Engine — Evidence-based health signal extraction
 // Modules: rPPG Heart Rate, Face Analysis, Eye Analysis, Skin Lesion Triage, Body Composition
 
-import { QualityGate } from './camera-system.js';
+
+import { apiFetch } from '../utils/api.js';
 
 // ═══════════════════════════════════════════════════════
 //  1) rPPG HEART RATE — Extract HR from face video
@@ -199,15 +200,13 @@ export class RPPGEngine {
     }
 }
 
-const API = window.API_BASE || '/api';
-
 export async function analyzeFace(imageData) {
     const blob = await imageDataToBlob(imageData);
     const formData = new FormData();
     formData.append('image', blob, 'face.png');
     formData.append('scanType', 'face');
 
-    const res = await fetch(`${API}/biomarker-scan`, {
+    const res = await apiFetch(`/api/biomarker-scan`, {
         method: 'POST',
         body: formData,
     });
@@ -224,7 +223,7 @@ export async function analyzeEye(imageData) {
     formData.append('image', blob, 'eye.png');
     formData.append('scanType', 'eye');
 
-    const res = await fetch(`${API}/biomarker-scan`, {
+    const res = await apiFetch(`/api/biomarker-scan`, {
         method: 'POST',
         body: formData,
     });
@@ -241,7 +240,7 @@ export async function analyzeSkin(imageData) {
     formData.append('image', blob, 'skin.png');
     formData.append('scanType', 'skin');
 
-    const res = await fetch(`${API}/biomarker-scan`, {
+    const res = await apiFetch(`/api/biomarker-scan`, {
         method: 'POST',
         body: formData,
     });
@@ -258,7 +257,7 @@ export async function analyzeBodyComposition(imageData) {
     formData.append('image', blob, 'body.png');
     formData.append('scanType', 'body');
 
-    const res = await fetch(`${API}/biomarker-scan`, {
+    const res = await apiFetch(`/api/biomarker-scan`, {
         method: 'POST',
         body: formData,
     });
@@ -282,7 +281,7 @@ export async function analyzeTongue(imageInput) {
     const formData = new FormData();
     formData.append('image', blob, 'tongue.png');
     formData.append('scanType', 'tongue');
-    const res = await fetch(`${API_BASE}/biomarker-scan`, { method: 'POST', body: formData });
+    const res = await apiFetch(`/api/biomarker-scan`, { method: 'POST', body: formData });
     if (!res.ok) throw new Error('Tongue scan failed');
     return res.json();
 }
@@ -292,7 +291,7 @@ export async function analyzeNail(imageInput) {
     const formData = new FormData();
     formData.append('image', blob, 'nail.png');
     formData.append('scanType', 'nail');
-    const res = await fetch(`${API_BASE}/biomarker-scan`, { method: 'POST', body: formData });
+    const res = await apiFetch(`/api/biomarker-scan`, { method: 'POST', body: formData });
     if (!res.ok) throw new Error('Nail scan failed');
     return res.json();
 }

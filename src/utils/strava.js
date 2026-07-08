@@ -230,7 +230,7 @@ function mapStravaActivity(activity) {
         avgHeartRate: activity.average_heartrate || null,
         maxHeartRate: activity.max_heartrate || null,
         elevationGain: activity.total_elevation_gain || null,
-        avgSpeed: activity.average_speed ? (activity.average_speed * 3.6).toFixed(1) : null, // m/s → km/h
+        avgSpeed: activity.average_speed ? (activity.average_speed * 3.6).toFixed(1) : null, // m/s km/h
         date: activity.start_date_local,
         elapsedTime: activity.elapsed_time,
         movingTime: activity.moving_time,

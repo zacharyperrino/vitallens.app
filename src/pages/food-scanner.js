@@ -6,9 +6,10 @@ import { lookupBarcode, parseNutritionLabel, getHealthScore, getMealAnalysis } f
 import { initCamera, stopCamera, startBarcodeScanner, getScoreColor } from '../utils/product-scanner.js';
 import { meals, productScans, dailyNutrition } from '../lib/db.js';
 import { saveFoodCorrection, savePortionCorrection, checkMealMemory, saveMealMemory } from '../services/visionApi.js';
+import { apiFetch } from '../utils/api.js';
+import { trackEvent } from '../utils/analytics-events.js';
 
-const API = window.API_BASE || '/api';
-
+import { showToast } from '../utils/toast.js';
 const hasSeenGuide = () => localStorage.getItem('vl_scan_guide_seen') === '1';
 const markGuideSeen = () => localStorage.setItem('vl_scan_guide_seen', '1');
 let scanAttempts = parseInt(localStorage.getItem('vl_scan_attempts') || '0');
@@ -199,7 +200,7 @@ async function loadTCMConstitution() {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) return;
-    const res = await fetch(`${API}/tcm-profile?userId=${user.id}`);
+    const res = await apiFetch(`/api/tcm-profile?userId=${user.id}`);
     if (!res.ok) return;
     const { profile } = await res.json();
     if (!profile || !profile.constitution) return;
@@ -216,7 +217,7 @@ async function loadTCMConstitution() {
           <span style="font-size:10px;color:var(--text-tertiary);">${profile.total_foods_analyzed} foods analyzed</span>
         </div>
         <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:${thermalColor};margin-bottom:2px;">${profile.thermalType} · ${profile.moistureType}</div>
-        <div style="font-size:var(--text-xs);color:var(--text-secondary);">Dominant: ${profile.dominantFlavor} flavor → ${profile.dominantOrganSystem}</div>
+        <div style="font-size:var(--text-xs);color:var(--text-secondary);">Dominant: ${profile.dominantFlavor} flavor ${profile.dominantOrganSystem}</div>
       </div>`;
   } catch (e) { /* silent */ }
 }
@@ -226,7 +227,7 @@ function renderComboCard(combo) {
   return `
     <div class="card ${isGood ? 'combo-good' : 'combo-bad'}" style="margin-bottom:var(--space-3);">
       <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);">
-        <span style="font-size:18px;">${isGood ? '✅' : '⚠️'}</span>
+        <span style="font-size:18px;">${isGood ? icons.check : icons.alert}</span>
         <h4 style="font-size:var(--text-sm);">${combo.title}</h4>
         <span class="badge ${isGood ? 'badge-green' : 'badge-coral'}" style="margin-left:auto;">${isGood ? 'Optimal' : 'Avoid'}</span>
       </div>
@@ -250,7 +251,7 @@ export async function renderFoodScanner() {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.id) {
-      const res = await fetch(`${API}/meal-memory/list?userId=${user.id}`);
+      const res = await apiFetch(`/api/meal-memory/list?userId=${user.id}`);
       if (res.ok) { const j = await res.json(); savedMemories = j.memories || []; }
     }
   } catch (e) { console.warn('Could not load meal memories:', e.message); }
@@ -258,7 +259,7 @@ export async function renderFoodScanner() {
   content.innerHTML = `
     <div class="food-scanner stagger-children">
       <div class="page-header">
-        <h1>🍽️ Food Scanner</h1>
+        <h1>Food Scanner</h1>
         <p>Scan meals or product barcodes for health insights</p>
       </div>
 
@@ -305,22 +306,22 @@ export async function renderFoodScanner() {
           </div>
           <div style="display:flex;gap:0;border-top:1px solid var(--border);">
             <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="font-size:16px;">✋</div>
+              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.user}</div>
               <div style="font-size:9px;color:var(--text-tertiary);margin-top:1px;font-weight:600;">HAND</div>
               <div style="font-size:9px;color:var(--accent-teal);">= best accuracy</div>
             </div>
             <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="font-size:16px;">💡</div>
+              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.sun}</div>
               <div style="font-size:9px;color:var(--text-tertiary);margin-top:1px;font-weight:600;">LIGHTING</div>
               <div style="font-size:9px;color:var(--text-tertiary);">bright & even</div>
             </div>
             <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="font-size:16px;">📐</div>
+              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.camera}</div>
               <div style="font-size:9px;color:var(--text-tertiary);margin-top:1px;font-weight:600;">FULL PLATE</div>
               <div style="font-size:9px;color:var(--text-tertiary);">from above</div>
             </div>
             <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);">
-              <div style="font-size:16px;">🍴</div>
+              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.coffee}</div>
               <div style="font-size:9px;color:var(--text-tertiary);margin-top:1px;font-weight:600;">UTENSIL</div>
               <div style="font-size:9px;color:var(--text-tertiary);">also works</div>
             </div>
@@ -383,7 +384,7 @@ export async function renderFoodScanner() {
               ${icons.camera} Start Camera
             </button>
             <button class="btn btn-sm btn-outline" id="btn-capture-label">
-              📷 Capture Label
+              Capture Label
             </button>
           </div>
         </div>
@@ -406,7 +407,7 @@ export async function renderFoodScanner() {
         </div>
         <div id="product-scan-error" class="hidden">
           <div class="card" style="text-align:center;padding:var(--space-6);border-left:3px solid var(--accent-coral);">
-            <div style="font-size:32px;margin-bottom:var(--space-2);">⚠️</div>
+            <div style="margin-bottom:var(--space-2);color:var(--viz-amber);display:flex;justify-content:center;">${icons.alert}</div>
             <p style="font-size:var(--text-sm);color:var(--text-secondary);" id="scan-error-text">An error occurred</p>
             <button class="btn btn-sm btn-outline" id="btn-try-again" style="margin-top:var(--space-3);">Try Again</button>
           </div>
@@ -419,7 +420,7 @@ export async function renderFoodScanner() {
           ${recentScans.length > 0 ? recentScans.map(renderProductScanCard).join('') : renderEmptyScans()}
         </div>
         <p style="font-size:10px;color:var(--text-tertiary);text-align:center;margin-top:var(--space-4);line-height:1.4;">
-          ⚠️ Scores are for informational purposes only. Not medical advice.
+          Scores are for informational purposes only. Not medical advice.
         </p>
       </div>
     </div>
@@ -433,34 +434,34 @@ export async function renderFoodScanner() {
   modal.innerHTML = `
     <div style="background:var(--surface-1);border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:var(--space-6);width:100%;max-width:480px;padding-bottom:40px;">
       <div style="text-align:center;margin-bottom:var(--space-5);">
-        <div style="font-size:48px;margin-bottom:var(--space-3);">📸</div>
+        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;">${icons.camera}</div>
         <h3 style="margin-bottom:var(--space-2);">Get the most accurate scan</h3>
         <p style="font-size:var(--text-sm);color:var(--text-secondary);">Follow these tips for calorie estimates close to the real amount</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-5);">
         <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="font-size:32px;flex-shrink:0;">✋</div>
+          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.user}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Include your hand</div>
             <div style="font-size:var(--text-xs);color:var(--text-secondary);">Your hand gives the AI a size reference — this is the #1 accuracy factor</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="font-size:32px;flex-shrink:0;">📐</div>
+          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.camera}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Show the full plate</div>
             <div style="font-size:var(--text-xs);color:var(--text-secondary);">Capture everything from above — don't crop any part of the meal</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="font-size:32px;flex-shrink:0;">💡</div>
+          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.sun}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Good lighting</div>
             <div style="font-size:var(--text-xs);color:var(--text-secondary);">Natural light or bright room — avoid shadows across the food</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="font-size:32px;flex-shrink:0;">🍴</div>
+          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.coffee}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Fork or spoon works too</div>
             <div style="font-size:var(--text-xs);color:var(--text-secondary);">Any reference object helps — utensils, plates, cups all work</div>
@@ -525,7 +526,7 @@ function setupFoodUpload() {
   input?.addEventListener('click', () => {
     incrementScanAttempts();
     if (scanAttempts % 5 === 0 && scanAttempts > 0) {
-      showToast('📸 Tip: Include your hand in the photo for the most accurate calorie estimate');
+      showToast('Tip: Include your hand in the photo for the most accurate calorie estimate');
     }
   });
 
@@ -560,13 +561,13 @@ function setupMemoryHandlers() {
           protein: 0, carbs: 0, fat: 0, fiber: 0,
           confidence: null, foods: [], healthRating: null,
         });
-        btn.textContent = '✓ Logged';
+        btn.textContent = 'Logged';
         btn.style.background = 'var(--accent-green)';
-        showToast(`✅ ${name} logged — ${Math.round(calories)} cal`);
+        showToast(`${name} logged — ${Math.round(calories)} cal`);
       } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Quick Log';
-        showToast('❌ Failed to log meal');
+        showToast('Failed to log meal');
       }
     });
   });
@@ -579,7 +580,7 @@ function setupMemoryHandlers() {
         const { supabase } = await import('../lib/supabase.js');
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.id) return;
-        await fetch(`${API}/meal-memory/${id}?userId=${user.id}`, { method: 'DELETE' });
+        await apiFetch(`/api/meal-memory/${id}?userId=${user.id}`, { method: 'DELETE' });
         document.getElementById(`memory-card-${id}`)?.remove();
       } catch (e) {
         console.warn('[MealMemory] Delete failed:', e.message);
@@ -622,10 +623,10 @@ function setupCorrectionHandlers(result) {
       if (btnContainer) {
         btnContainer.innerHTML = `
           <span style="font-size:var(--text-sm);color:var(--text-tertiary);text-decoration:line-through;">${item.name}</span>
-          <span style="font-size:var(--text-sm);color:var(--accent-green);font-weight:var(--weight-semibold);">→ ${correctedLabel} ✓</span>
+          <span style="font-size:var(--text-sm);color:var(--accent-green);font-weight:var(--weight-semibold);">${correctedLabel}</span>
         `;
       }
-      showToast(`✅ Correction saved — future scans will recognize "${correctedLabel}"`);
+      showToast(`Correction saved — future scans will recognize "${correctedLabel}"`);
     });
     correctText?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') correctSave?.click();
@@ -657,7 +658,7 @@ async function compressImage(file, maxDimension = 1200, quality = 0.82) {
         ctx.drawImage(img, 0, 0, width, height);
         canvas.toBlob((blob) => {
           const compressed = new File([blob], file.name || 'meal.jpg', { type: 'image/jpeg', lastModified: Date.now() });
-          console.log(`[FoodScanner] Image compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+          console.log(`[FoodScanner] Image compressed: ${(file.size / 1024).toFixed(0)}KB ${(compressed.size / 1024).toFixed(0)}KB`);
           resolve(compressed);
         }, 'image/jpeg', quality);
       };
@@ -710,7 +711,7 @@ async function processFood(filesOrFile) {
         if (barcodes.length > 0) {
           const barcode = barcodes[0].rawValue;
           console.log(`[BarcodeAuto] Detected barcode in photo: ${barcode}`);
-          showToast(`📦 Barcode detected — looking up product...`);
+          showToast(`Barcode detected — looking up product...`);
           // Switch to product scan mode and handle
           card.innerHTML = `<div style="padding:var(--space-6);text-align:center;"><div class="spinner" style="margin:0 auto var(--space-3);"></div><p>Looking up barcode: ${barcode}...</p></div>`;
           await handleBarcodeDetected(barcode);
@@ -725,6 +726,15 @@ async function processFood(filesOrFile) {
     const compressedFiles = await Promise.all(files.map(f => compressImage(f)));
     const result = await getMealAnalysis(compressedFiles, selectedPortion);
 
+    // ── Analytics — vision scan completed ─────────────────
+    try {
+      const { supabase } = await import('../lib/supabase.js');
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      const detections = result.foods || [];
+      trackEvent('food_scan_completed', { userId, foodCount: detections.length, source: 'vision' });
+    } catch { /* analytics never blocks the scan */ }
+
     // ── Meal memory check ─────────────────────────────────
     const hash = generateMealHash(result.foods || []);
     const memory = await checkMealMemory(hash);
@@ -733,7 +743,7 @@ async function processFood(filesOrFile) {
       // Show memory prompt instead of full results
       card.innerHTML = `
                 <div style="padding:var(--space-5);">
-                    <div style="font-size:32px;margin-bottom:var(--space-3);">🧠</div>
+                    <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);">${icons.sparkle}</div>
                     <h4 style="margin-bottom:var(--space-1);">Looks familiar!</h4>
                     <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-1);">
                         This looks like <strong>${memory.meal_name}</strong>
@@ -742,8 +752,8 @@ async function processFood(filesOrFile) {
                         You've had this ${memory.scan_count} times · Avg ${memory.avg_calories} cal
                     </p>
                     <div style="display:flex;gap:var(--space-2);">
-                        <button id="memory-confirm-btn" class="btn btn-primary" style="flex:1;">✓ Log as usual</button>
-                        <button id="memory-edit-btn" class="btn btn-outline" style="flex:1;">✏️ Edit</button>
+                        <button id="memory-confirm-btn" class="btn btn-primary" style="flex:1;">Log as usual</button>
+                        <button id="memory-edit-btn" class="btn btn-outline" style="flex:1;">Edit</button>
                     </div>
                 </div>
             `;
@@ -760,15 +770,15 @@ async function processFood(filesOrFile) {
             foods: memory.foods,
           });
           await saveMealMemory(hash, memory.meal_name, result.foods, memory.avg_calories);
-          showToast(`✅ ${memory.meal_name} logged — ${memory.avg_calories} cal`);
+          showToast(`${memory.meal_name} logged — ${memory.avg_calories} cal`);
           card.innerHTML = `
                         <div style="padding:var(--space-4);text-align:center;">
-                            <div style="font-size:32px;margin-bottom:var(--space-2);">✅</div>
+                            <div style="margin-bottom:var(--space-2);color:var(--viz-green);display:flex;justify-content:center;">${icons.check}</div>
                             <p style="font-size:var(--text-sm);color:var(--text-secondary);">Logged successfully</p>
                         </div>
                     `;
         } catch (err) {
-          showToast('❌ Save failed — check connection');
+          showToast('Save failed — check connection');
         }
       });
 
@@ -786,13 +796,13 @@ async function processFood(filesOrFile) {
     console.error('[MealScan] Processing error:', err);
     card.innerHTML = `
             <div class="upload-zone" id="food-upload-zone" style="border-color:var(--accent-coral);">
-                <div style="color:var(--accent-coral);font-size:32px;margin-bottom:var(--space-2);">⚠️</div>
+                <div style="color:var(--viz-amber);margin-bottom:var(--space-2);display:flex;justify-content:center;">${icons.alert}</div>
                 <p style="color:var(--text-primary);">Failed to analyze meal</p>
                 <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">${err.message}</p>
                 <button class="btn btn-sm btn-outline" onclick="location.reload()">Try Again</button>
             </div>
         `;
-    showToast('❌ Analysis failed. Check server connection.');
+    showToast('Analysis failed. Check server connection.');
   }
 }
 
@@ -819,7 +829,7 @@ async function showNormalResults(result, hash, reader, resultsDiv, card) {
   setupItemActions(result);
   setupCorrectionHandlers(result);
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  showToast('✅ Meal analyzed! Adjust portions if needed.');
+  showToast('Meal analyzed! Adjust portions if needed.');
   applyCorrectionsUI(result.foods || []);
 
   // TCM toggle
@@ -844,7 +854,7 @@ function setupProductScan() {
     try {
       cameraStream = await initCamera(video);
       stopScanning = await startBarcodeScanner(video, handleBarcodeDetected);
-      document.getElementById('btn-start-camera').textContent = '📹 Scanning...';
+      document.getElementById('btn-start-camera').textContent = 'Scanning...';
       document.getElementById('btn-start-camera').disabled = true;
     } catch (err) { showProductError(err.message); }
   });
@@ -924,7 +934,7 @@ function renderCorrectionSection(foods, food) {
         ${items.map((item, i) => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
             <span style="font-size:var(--text-sm);">${item.name}</span>
-            <button class="btn btn-sm btn-outline" id="correct-btn-${i}" data-detected="${item.name}" data-grams="${item.grams || 150}" data-confidence="${item.confidence || 1}" style="font-size:var(--text-xs);padding:var(--space-1) var(--space-3);">✏️ Correct</button>
+            <button class="btn btn-sm btn-outline" id="correct-btn-${i}" data-detected="${item.name}" data-grams="${item.grams || 150}" data-confidence="${item.confidence || 1}" style="font-size:var(--text-xs);padding:var(--space-1) var(--space-3);">Correct</button>
           </div>
           <div id="correct-input-${i}" style="display:none;padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
             <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">What is this food actually?</p>
@@ -1088,12 +1098,12 @@ function renderFoodResults(result) {
               ${item.confidence < 0.85 ? `
 <div style="margin-top:var(--space-2);padding:var(--space-2);background:${item.confidence < 0.60 ? 'var(--accent-coral-dim)' : 'var(--surface-2)'};border-radius:var(--radius-md);">
   <p style="font-size:10px;color:${item.confidence < 0.60 ? 'var(--accent-coral)' : 'var(--accent-amber)'};margin-bottom:var(--space-2);font-weight:600;">
-    ${item.confidence < 0.60 ? '⚠️ Low confidence — is this correct?' : '🔶 Uncertain — confirm or correct'}
+    ${item.confidence < 0.60 ? 'Low confidence — is this correct?' : 'Uncertain — confirm or correct'}
   </p>
   <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
-    <button class="item-action-confirm" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-green);color:var(--accent-green);background:transparent;cursor:pointer;font-weight:600;">✓ Correct</button>
-    <button class="item-action-replace" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-amber);color:var(--accent-amber);background:transparent;cursor:pointer;font-weight:600;">✏️ Replace</button>
-    <button class="item-action-remove" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-coral);color:var(--accent-coral);background:transparent;cursor:pointer;font-weight:600;">✕ Remove</button>
+    <button class="item-action-confirm" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-green);color:var(--accent-green);background:transparent;cursor:pointer;font-weight:600;">Correct</button>
+    <button class="item-action-replace" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-amber);color:var(--accent-amber);background:transparent;cursor:pointer;font-weight:600;">Replace</button>
+    <button class="item-action-remove" data-index="${i}" style="flex:1;font-size:10px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--accent-coral);color:var(--accent-coral);background:transparent;cursor:pointer;font-weight:600;">Remove</button>
   </div>
   <div class="item-replace-input" data-index="${i}" style="display:none;margin-top:var(--space-2);">
     <div style="display:flex;gap:var(--space-2);">
@@ -1190,7 +1200,7 @@ function renderFoodResults(result) {
       <div id="tcm-constitution-card"></div>
 
       <button id="confirm-save-btn" class="btn btn-primary btn-block" style="margin-top:var(--space-2);">
-        ✅ Confirm & Save to Health Log
+        Confirm & Save to Health Log
       </button>
       <p style="font-size:var(--text-xs);color:var(--text-tertiary);text-align:center;margin-top:calc(-1 * var(--space-2));">
         Adjust portions above before saving
@@ -1206,12 +1216,12 @@ async function applyCorrectionsUI(foods) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) return;
 
-    const res = await fetch(`${API}/food-corrections?userId=${user.id}&limit=50`);
+    const res = await apiFetch(`/api/food-corrections?userId=${user.id}&limit=50`);
     if (!res.ok) return;
     const { corrections } = await res.json();
     if (!corrections || corrections.length === 0) return;
 
-    // Build lookup: corrected_label → { detected_label, count }
+    // Build lookup: corrected_label { detected_label, count }
     const lookup = {};
     corrections.forEach(c => {
       lookup[c.corrected_label.toLowerCase()] = {
@@ -1244,7 +1254,7 @@ async function applyCorrectionsUI(foods) {
       badge.title = isRule
         ? `Auto-corrected ${match.count}x — treated as rule`
         : `Corrected ${match.count}x — applied as hint`;
-      badge.textContent = isRule ? `✓ ${match.count}x rule` : `${match.count}x hint`;
+      badge.textContent = isRule ? `${match.count}x rule` : `${match.count}x hint`;
       nameEl.appendChild(badge);
     });
   } catch (e) {
@@ -1351,9 +1361,9 @@ function setupPortionSliders(result, hash = null) {
             totals.totalCalories
           );
         }
-        confirmBtn.innerHTML = '✅ Saved to Health Log!';
+        confirmBtn.innerHTML = 'Saved to Health Log!';
         confirmBtn.style.background = 'var(--accent-green)';
-        showToast('✅ Meal saved with your adjusted portions');
+        showToast('Meal saved with your adjusted portions');
         checkNutritionalGaps();
 
         // Update TCM constitution profile
@@ -1363,7 +1373,7 @@ function setupPortionSliders(result, hash = null) {
             const { supabase } = await import('../lib/supabase.js');
             const { data: { user } } = await supabase.auth.getUser();
             if (user?.id) {
-              await fetch(`${API}/tcm-profile/update`, {
+              await apiFetch(`/api/tcm-profile/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id, foods: tcmFoods }),
@@ -1375,7 +1385,7 @@ function setupPortionSliders(result, hash = null) {
         const scanAgainBtn = document.createElement('button');
         scanAgainBtn.className = 'btn btn-outline btn-block';
         scanAgainBtn.style.marginTop = 'var(--space-2)';
-        scanAgainBtn.textContent = '📷 Scan Another Meal';
+        scanAgainBtn.textContent = 'Scan Another Meal';
         scanAgainBtn.addEventListener('click', () => {
           location.reload();
         });
@@ -1384,8 +1394,8 @@ function setupPortionSliders(result, hash = null) {
       } catch (err) {
         console.error('[FoodScanner] Save failed:', err.message);
         confirmBtn.disabled = false;
-        confirmBtn.innerHTML = '✅ Confirm & Save to Health Log';
-        showToast('❌ Save failed — check connection');
+        confirmBtn.innerHTML = 'Confirm & Save to Health Log';
+        showToast('Save failed — check connection');
       }
     });
   }
@@ -1400,7 +1410,7 @@ function setupItemActions(result) {
       const i = btn.dataset.index;
       const actionDiv = btn.closest('div[style*="margin-top"]');
       if (actionDiv) {
-        actionDiv.innerHTML = `<p style="font-size:10px;color:var(--accent-green);font-weight:600;">✓ Confirmed</p>`;
+        actionDiv.innerHTML = `<p style="font-size:10px;color:var(--accent-green);font-weight:600;">Confirmed</p>`;
       }
       // Uncheck hidden checkbox so item stays included
       const cb = document.getElementById(`include-item-${i}`);
@@ -1430,7 +1440,7 @@ function setupItemActions(result) {
       btn.disabled = true;
 
       try {
-        const res = await fetch(`${API_BASE}/nutrition/search?query=${encodeURIComponent(query)}&grams=150`);
+        const res = await apiFetch(`/api/nutrition/search?query=${encodeURIComponent(query)}&grams=150`);
         if (!res.ok) throw new Error('Not found');
         const nutrition = await res.json();
 
@@ -1450,7 +1460,7 @@ function setupItemActions(result) {
 
           // Update action area
           const actionDiv = btn.closest('div[style*="margin-top"]');
-          if (actionDiv) actionDiv.innerHTML = `<p style="font-size:10px;color:var(--accent-green);font-weight:600;">✓ Replaced with ${nutrition.name || query}</p>`;
+          if (actionDiv) actionDiv.innerHTML = `<p style="font-size:10px;color:var(--accent-green);font-weight:600;">Replaced with ${nutrition.name || query}</p>`;
 
           // Save correction
           const origFood = result.foods?.[parseInt(i)];
@@ -1458,12 +1468,12 @@ function setupItemActions(result) {
 
           // Recalculate totals
           document.getElementById(`portion-slider-${i}`)?.dispatchEvent(new Event('input'));
-          showToast(`✅ Replaced with ${nutrition.name || query}`);
+          showToast(`Replaced with ${nutrition.name || query}`);
         }
       } catch (err) {
         btn.textContent = 'Go';
         btn.disabled = false;
-        showToast('❌ Food not found — try a simpler name');
+        showToast('Food not found — try a simpler name');
       }
     });
   });
@@ -1511,7 +1521,7 @@ async function searchAndAddFood(query, resultsDiv, result) {
   resultsDiv.innerHTML = `<div style="font-size:var(--text-xs);color:var(--text-tertiary);">Searching...</div>`;
 
   try {
-    const res = await fetch(`${API}/nutrition/search?query=${encodeURIComponent(query)}&grams=150`);
+    const res = await apiFetch(`/api/nutrition/search?query=${encodeURIComponent(query)}&grams=150`);
     if (!res.ok) throw new Error('Not found');
     const nutrition = await res.json();
 
@@ -1542,7 +1552,7 @@ async function searchAndAddFood(query, resultsDiv, result) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${nutrition.name}</div>
-            <div style="font-size:var(--text-xs);color:var(--accent-green);">✓ Added manually</div>
+            <div style="font-size:var(--text-xs);color:var(--accent-green);">Added manually</div>
           </div>
           <div style="text-align:right;">
             <span id="grams-display-${newIndex}" style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:var(--weight-bold);color:var(--accent-teal);">${grams}g</span>
@@ -1572,7 +1582,7 @@ async function searchAndAddFood(query, resultsDiv, result) {
       resultsDiv.innerHTML = '';
       document.getElementById('add-food-search').style.display = 'none';
       document.getElementById('add-food-input').value = '';
-      showToast(`✅ ${nutrition.name} added`);
+      showToast(`${nutrition.name} added`);
     });
 
   } catch (err) {
@@ -1597,7 +1607,7 @@ function renderMemoryCard(memory) {
     <div class="card card-sm" id="memory-card-${memory.id}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0;">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-blue-dim);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🧠</div>
+          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-blue-dim);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${icons.sparkle}</div>
           <div style="min-width:0;">
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${memory.meal_name}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${memory.avg_calories} cal avg · ${memory.scan_count}x scanned · ${scannedAgo}</div>
@@ -1646,7 +1656,7 @@ function renderMealCard(meal) {
     <div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-teal-dim);display:flex;align-items:center;justify-content:center;font-size:18px;">🍽️</div>
+          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-teal-dim);display:flex;align-items:center;justify-content:center;font-size:18px;">${icons.leaf}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${displayName}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${time} • P:${Math.round(meal.protein || 0)}g C:${Math.round(meal.carbs || 0)}g F:${Math.round(meal.fat || 0)}g</div>
@@ -1661,7 +1671,7 @@ function renderMealCard(meal) {
 function renderEmptyMeals() {
   return `
     <div class="card" style="text-align:center;padding:var(--space-8);">
-      <div style="font-size:40px;margin-bottom:var(--space-3);">🍽️</div>
+      <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.leaf}</div>
       <h4 style="margin-bottom:var(--space-2);">No meals logged yet</h4>
       <p style="font-size:var(--text-sm);">Scan your first meal to start tracking nutrition</p>
     </div>
@@ -1675,7 +1685,7 @@ function renderProductScanCard(scan) {
     <div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${color}22;display:flex;align-items:center;justify-content:center;font-size:18px;">🏷️</div>
+          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${color}22;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icons.barcode}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${scan.name}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${scan.brand || scan.barcode}</div>
@@ -1693,7 +1703,7 @@ function renderProductScanCard(scan) {
 function renderEmptyScans() {
   return `
     <div class="card" style="text-align:center;padding:var(--space-6);">
-      <div style="font-size:36px;margin-bottom:var(--space-2);">🏷️</div>
+      <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.barcode}</div>
       <h4 style="margin-bottom:var(--space-1);">No products scanned</h4>
       <p style="font-size:var(--text-sm);color:var(--text-secondary);">Scan a barcode or nutrition label to see results</p>
     </div>
@@ -1742,8 +1752,8 @@ async function checkNutritionalGaps() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id) {
         const [profileRes, suppRes] = await Promise.all([
-          fetch(`${API}/health-profile?userId=${user.id}`),
-          fetch(`${API}/supplements?userId=${user.id}`),
+          apiFetch(`/api/health-profile?userId=${user.id}`),
+          apiFetch(`/api/supplements?userId=${user.id}`),
         ]);
         if (profileRes.ok) {
           const { profile } = await profileRes.json();
@@ -1761,7 +1771,7 @@ async function checkNutritionalGaps() {
       }
     } catch (e) { /* use defaults */ }
 
-    // Supplement → nutrient coverage map
+    // Supplement nutrient coverage map
     const SUPP_COVERS = {
       'vitamin d': ['vitamin d', 'vitamin d3', 'd3'],
       'vitamin c': ['vitamin c'],
@@ -1834,12 +1844,12 @@ async function checkNutritionalGaps() {
       }
     };
 
-    checkGap('Protein', today.protein, targets.protein, 'protein', '🥩', 'Add eggs, chicken, or Greek yogurt to your next meal', 'var(--accent-blue)');
-    checkGap('Fiber', today.fiber, targets.fiber, 'fiber', '🥦', 'Add vegetables, beans, or fruit to your next meal', 'var(--accent-green)');
-    checkGap('Healthy Fats', today.fat, targets.fat, 'omega-3', '🥑', 'Add avocado, nuts, or olive oil to your next meal', 'var(--accent-coral)');
+    checkGap('Protein', today.protein, targets.protein, 'protein', icons.activity, 'Add eggs, chicken, or Greek yogurt to your next meal', 'var(--accent-blue)');
+    checkGap('Fiber', today.fiber, targets.fiber, 'fiber', icons.leaf, 'Add vegetables, beans, or fruit to your next meal', 'var(--accent-green)');
+    checkGap('Healthy Fats', today.fat, targets.fat, 'omega-3', icons.droplet, 'Add avocado, nuts, or olive oil to your next meal', 'var(--accent-coral)');
     if (today.calories < targets.calories * 0.5) gaps.push({
       nutrient: 'Calories',
-      icon: '⚡',
+      icon: icons.zap,
       current: Math.round(today.calories),
       target: targets.calories,
       suggestion: 'You may be under-eating today',
@@ -1897,15 +1907,6 @@ async function checkNutritionalGaps() {
   } catch (err) {
     console.warn('[NutritionalGap] Could not check gaps:', err.message);
   }
-}
-
-function showToast(message) {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.innerHTML = `<span>${message}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => { toast.classList.add('removing'); setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
 function saveHistory() {

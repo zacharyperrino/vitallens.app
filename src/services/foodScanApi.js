@@ -1,8 +1,7 @@
 // ─── Food Scan API Service ────────────────────────────────────
 import { batchNutritionLookup, aggregateNutrition } from './nutritionApi.js';
 import { analyzeImageWithVision } from './visionApi.js';
-
-const API_BASE = '/api';
+import { apiFetch } from '../utils/api.js';
 
 const PORTION_MULTIPLIERS = { small: 0.7, medium: 1.0, large: 1.4 };
 
@@ -17,7 +16,7 @@ const PORTION_BASELINES = {
 
 export async function lookupBarcode(barcode) {
     try {
-        const res = await fetch(`${API_BASE}/barcode-lookup`, {
+        const res = await apiFetch(`/api/barcode-lookup`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ barcode, userId: getDeviceId() }),
         });
@@ -30,7 +29,7 @@ export async function parseNutritionLabel(imageFile) {
     try {
         const formData = new FormData();
         formData.append('image', imageFile);
-        const res = await fetch(`${API_BASE}/ocr-parse`, { method: 'POST', body: formData });
+        const res = await apiFetch(`/api/ocr-parse`, { method: 'POST', body: formData });
         if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `OCR failed`); }
         return await res.json();
     } catch (err) { console.warn('[FoodScanApi] OCR error:', err.message); return getMockOcrResult(); }
@@ -38,22 +37,13 @@ export async function parseNutritionLabel(imageFile) {
 
 export async function getHealthScore(nutrition, additives = []) {
     try {
-        const res = await fetch(`${API_BASE}/health-score`, {
+        const res = await apiFetch(`/api/health-score`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nutrition, additives }),
         });
         if (!res.ok) throw new Error(`Score failed`);
         return await res.json();
     } catch (err) { return computeLocalScore(nutrition, additives); }
-}
-
-function generateMealHash(foods) {
-    const labels = foods
-        .map(f => (f.label || f.name || '').toLowerCase().trim())
-        .filter(Boolean)
-        .sort()
-        .join('|');
-    return btoa(labels).slice(0, 32);
 }
 
 export async function getMealAnalysis(imageFiles, portion = 'medium') {
@@ -66,7 +56,7 @@ export async function getMealAnalysis(imageFiles, portion = 'medium') {
     // Merge detections from all images
     const allDetections = visionResults.flatMap(r => r.detections || []);
     const mergedDetections = mergeMultiImageDetections(allDetections);
-    console.log(`[MealAnalysis] Multi-image merge: ${allDetections.length} total detections → ${mergedDetections.length} after merge`);
+    console.log(`[MealAnalysis] Multi-image merge: ${allDetections.length} total detections ${mergedDetections.length} after merge`);
     let detections = mergedDetections;
     if (detections.length === 0) throw new Error('No food detected. Try a clearer photo.');
 
@@ -76,7 +66,7 @@ export async function getMealAnalysis(imageFiles, portion = 'medium') {
     let restaurantDetected = false;
     let restaurantName = null;
     try {
-        const restaurantRes = await fetch(`${API_BASE}/restaurant/detect`, {
+        const restaurantRes = await apiFetch(`/api/restaurant/detect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -218,7 +208,29 @@ async function batchNutritionLookupWithRestaurant(detectionInputs) {
         });
     }
 
-    return results.filter(Boolean);
+    // No database match — keep the detected item with a conservative
+    // mixed-food estimate (~1.5 kcal/g) instead of silently dropping it,
+    // which undercounted meals and misaligned results with detectionInputs.
+    return results.map((r, i) => {
+        if (r) return r;
+        const det = detectionInputs[i];
+        console.warn(`[MealAnalysis] No nutrition match for "${det.label}" — using generic estimate`);
+        return {
+            name: det.display_name,
+            grams: det.grams,
+            calories: Math.round(det.grams * 1.5),
+            protein: Math.round(det.grams * 0.06),
+            carbs: Math.round(det.grams * 0.15),
+            fat: Math.round(det.grams * 0.06),
+            fiber: Math.round(det.grams * 0.15) / 10,
+            sugar: 0,
+            sodium: 0,
+            micronutrients: [],
+            healthRating: 50,
+            digestibility: 60,
+            source: 'Estimated (no database match)',
+        };
+    });
 }
 
 // ── Multi-image merge ─────────────────────────────────────────

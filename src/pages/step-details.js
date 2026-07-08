@@ -23,7 +23,7 @@ export function renderStepDetails() {
           <h1>Steps</h1>
         </div>
         <button class="btn btn-sm btn-outline sync-btn" id="sync-steps">
-          ${icons.refresh || '🔄'} Sync
+          ${icons.refresh} Sync
         </button>
       </div>
 

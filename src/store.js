@@ -9,7 +9,7 @@ const defaultData = {
         gender: '',
         height: '',
         weight: '',
-        avatar: '🧬',
+        avatar: '',
         goals: [],
     },
     healthScore: 78,

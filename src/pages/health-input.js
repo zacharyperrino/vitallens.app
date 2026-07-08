@@ -1,10 +1,10 @@
 // ─── Health Input Page — Labs, Exercise, Sleep, Habits, Substances, Background, Goals, Environment ─
 import { icons } from '../icons.js';
-import { labResults, exerciseLog, sleepLog, habits } from '../lib/db.js'; // ← Supabase
+import { labResults, exerciseLog, sleepLog, habits } from '../lib/db.js'; // Supabase
+import { apiFetch } from '../utils/api.js';
 
-const API = typeof window !== 'undefined' && 
-  window.API_BASE ? window.API_BASE : '/api';
 
+import { showToast } from '../utils/toast.js';
 let activeTab = 'labs';
 let currentUserId = null;
 
@@ -14,7 +14,7 @@ export async function renderHealthInput() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="health-input stagger-children">
-      <div class="page-header"><h1>📋 Health Data</h1><p>Log your health metrics, labs, habits & more</p></div>
+      <div class="page-header"><h1>Health Data</h1><p>Log your health metrics, labs, habits & more</p></div>
       <div class="tab-bar" id="health-tabs">
         <div class="tab-item active" data-tab="labs">Labs</div>
         <div class="tab-item" data-tab="exercise">Exercise</div>
@@ -71,13 +71,13 @@ async function renderLabs() {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
 
     <div class="card">
-      <h4 style="margin-bottom:var(--space-2);">📄 Upload Lab Report</h4>
+      <h4 style="margin-bottom:var(--space-2);">Upload Lab Report</h4>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">
         Upload a PDF or photo of your blood panel, hormone panel, or any lab report. AI will extract all markers automatically.
       </p>
       <div class="upload-zone" id="lab-pdf-zone" style="padding:var(--space-4);cursor:pointer;">
         <input type="file" accept=".pdf,image/*" id="lab-pdf-input" style="display:none;">
-        <div style="font-size:32px;margin-bottom:var(--space-2);">🧪</div>
+        <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
         <p style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Drop PDF or photo here</p>
         <p style="font-size:var(--text-xs);color:var(--text-tertiary);">Supports PDF, JPG, PNG up to 20MB</p>
         <button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" onclick="document.getElementById('lab-pdf-input').click();event.stopPropagation();">
@@ -133,7 +133,7 @@ async function renderLabs() {
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${l.panel_type || displayName}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
               ${date}${markerCount > 1 ? ` • ${markerCount} markers` : ''}
-              ${hasAbnormal ? ' • <span style="color:var(--accent-coral);">⚠️ Abnormal values</span>' : ''}
+              ${hasAbnormal ? ' • <span style="color:var(--accent-coral);">Abnormal values</span>' : ''}
             </div>
           </div>
           <div style="text-align:right;">
@@ -245,11 +245,11 @@ function renderExerciseCard(e) {
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div style="display:flex;align-items:center;gap:var(--space-3);">
         <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isStrava ? 'rgba(252,82,0,0.15)' : 'var(--accent-blue-dim)'};display:flex;align-items:center;justify-content:center;">
-          ${isStrava ? `<span style="color:#FC5200;width:20px;height:20px;">${icons.strava}</span>` : '🏃'}
+          ${isStrava ? `<span style="color:#FC5200;width:20px;height:20px;">${icons.strava}</span>` : `<span style="color:var(--text-secondary);width:20px;height:20px;">${icons.activity}</span>`}
         </div>
         <div>
           <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${e.name || e.type}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${e.duration}min • ${e.intensity}${e.distance ? ' • ' + e.distance : ''}${e.heart_rate ? ' • ❤️ ' + Math.round(e.heart_rate) + 'bpm' : ''}</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${e.duration}min • ${e.intensity}${e.distance ? ' • ' + e.distance : ''}${e.heart_rate ? ' • ' + Math.round(e.heart_rate) + 'bpm' : ''}</div>
         </div>
       </div>
       <span style="font-weight:var(--weight-semibold);color:${isStrava ? '#FC5200' : 'var(--accent-blue)'};">${e.calories || '—'} kcal</span>
@@ -289,10 +289,10 @@ async function renderSleep() {
     ${log.length > 0 ? log.map(s => `<div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-purple-dim);display:flex;align-items:center;justify-content:center;">😴</div>
+          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icons.moon}</div>
           <div>
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${s.hours}h — ${s.quality}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.bedtime || ''} → ${s.wake_time || s.wake || ''}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.bedtime || ''} ${s.wake_time || s.wake || ''}</div>
           </div>
         </div>
         <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.date || ''}</div>
@@ -314,11 +314,11 @@ async function renderHabits() {
       <h4 style="margin-bottom:var(--space-4);">Lifestyle Habits</h4>
       <div style="display:flex;flex-direction:column;gap:var(--space-4);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="display:flex;align-items:center;gap:var(--space-3);"><span style="font-size:18px;">🚬</span><span style="font-size:var(--text-sm);">Smoking</span></div>
+          <div style="display:flex;align-items:center;gap:var(--space-3);"><span style="color:var(--text-secondary);display:flex;">${icons.wind}</span><span style="font-size:var(--text-sm);">Smoking</span></div>
           <div class="toggle ${h.smoking ? 'active' : ''}" id="toggle-smoking"></div>
         </div>
         <div class="divider" style="margin:0;"></div>
-        <div class="input-group"><label>🍺 Alcohol Consumption</label>
+        <div class="input-group"><label>Alcohol Consumption</label>
           <select class="input-field" id="habit-alcohol">
             <option ${h.alcohol === 'none' ? 'selected' : ''}>none</option>
             <option ${h.alcohol === 'light' ? 'selected' : ''}>light</option>
@@ -326,7 +326,7 @@ async function renderHabits() {
             <option ${h.alcohol === 'heavy' ? 'selected' : ''}>heavy</option>
           </select>
         </div>
-        <div class="input-group"><label>☕ Caffeine Intake</label>
+        <div class="input-group"><label>Caffeine Intake</label>
           <select class="input-field" id="habit-caffeine">
             <option ${h.caffeine === 'none' ? 'selected' : ''}>none</option>
             <option ${h.caffeine === 'light' ? 'selected' : ''}>light</option>
@@ -334,13 +334,13 @@ async function renderHabits() {
             <option ${h.caffeine === 'heavy' ? 'selected' : ''}>heavy</option>
           </select>
         </div>
-        <div class="input-group"><label>💧 Daily Water (glasses)</label>
+        <div class="input-group"><label>Daily Water (glasses)</label>
           <input class="input-field" type="number" id="habit-water" value="${h.water_glasses || 8}" min="0" max="20">
         </div>
-        <div class="input-group"><label>😰 Stress Level (1-10)</label>
+        <div class="input-group"><label>Stress Level (1-10)</label>
           <input class="input-field" type="number" id="habit-stress" value="${h.stress_level || ''}" min="1" max="10" placeholder="5">
         </div>
-        <div class="input-group"><label>😊 Mood</label>
+        <div class="input-group"><label>Mood</label>
           <select class="input-field" id="habit-mood">
             <option value="">Select...</option>
             <option ${h.mood === 'great' ? 'selected' : ''}>great</option>
@@ -363,7 +363,7 @@ async function renderHabits() {
 async function renderSubstances() {
   let supplements = [];
   try {
-    const res = await fetch(`${API}/supplements?userId=${encodeURIComponent(currentUserId)}`);
+    const res = await apiFetch(`/api/supplements?userId=${encodeURIComponent(currentUserId)}`);
     if (res.ok) {
       const data = await res.json();
       supplements = data.supplements || [];
@@ -444,7 +444,7 @@ async function renderSubstances() {
 async function renderBackground() {
   let profile = null;
   try {
-    const res = await fetch(`${API}/health-profile?userId=${encodeURIComponent(currentUserId)}`);
+    const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(currentUserId)}`);
     if (res.ok) {
       const data = await res.json();
       profile = data.profile || {};
@@ -493,7 +493,7 @@ async function renderBackground() {
 async function renderGoals() {
   let goals = null;
   try {
-    const res = await fetch(`${API}/user-goals?userId=${encodeURIComponent(currentUserId)}`);
+    const res = await apiFetch(`/api/user-goals?userId=${encodeURIComponent(currentUserId)}`);
     if (res.ok) {
       const data = await res.json();
       goals = data.goals || {};
@@ -540,7 +540,7 @@ async function renderEnvironment() {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
       <h4 style="margin-bottom:var(--space-4);">Environmental Factors</h4>
-      ${locationValue ? `<div style="font-size:var(--text-xl);font-weight:700;color:var(--accent-teal);margin-bottom:var(--space-3);">📍 ${locationValue}</div>` : ''}
+      ${locationValue ? `<div style="font-size:var(--text-xl);font-weight:700;color:var(--accent-teal);margin-bottom:var(--space-3);">${locationValue}</div>` : ''}
       <div class="card card-sm" style="margin-bottom:var(--space-4);">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
           <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
@@ -565,7 +565,7 @@ async function renderEnvironment() {
         ${fetchedAt ? `<div style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--text-secondary);">Last updated: ${fetchedAt}</div>` : ''}
       </div>
       <form id="env-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>📍 Location / City</label>
+        <div class="input-group"><label>Location / City</label>
           <input class="input-field" type="text" id="env-location" value="" placeholder="e.g. Los Angeles, CA">
         </div>
         ${!locationValue ? `<div style="font-size:var(--text-sm);color:var(--text-tertiary);">Enter your city or zip code to fetch live air quality,<br>UV index, and water safety data for your area.</div>` : ''}
@@ -582,7 +582,7 @@ async function loadLatestEnvironment() {
     const userId = user?.id;
     if (!userId) return null;
 
-    const res = await fetch(`${API}/environment/latest?userId=${encodeURIComponent(userId)}`);
+    const res = await apiFetch(`/api/environment/latest?userId=${encodeURIComponent(userId)}`);
     if (!res.ok) return null;
 
     const json = await res.json();
@@ -597,7 +597,7 @@ async function refreshEnvironmentData() {
   const locationInput = document.getElementById('env-location');
   const location = locationInput?.value?.trim();
   if (!location) {
-    showToast('⚠️ Enter a location before refreshing');
+    showToast('Enter a location before refreshing');
     return;
   }
 
@@ -605,7 +605,7 @@ async function refreshEnvironmentData() {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id;
-    const res = await fetch(`${API}/environment?userId=${encodeURIComponent(userId || '')}&location=${encodeURIComponent(location)}`);
+    const res = await apiFetch(`/api/environment?userId=${encodeURIComponent(userId || '')}&location=${encodeURIComponent(location)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to refresh environment');
@@ -613,11 +613,11 @@ async function refreshEnvironmentData() {
 
     const json = await res.json();
     // The server persists a snapshot when userId is provided
-    showToast('✅ Environment data saved');
+    showToast('Environment data saved');
     renderTabContent();
   } catch (err) {
     console.error('[HealthInput] Refresh failed', err);
-    showToast(`❌ ${err.message}`);
+    showToast(`${err.message}`);
   }
 }
 
@@ -741,8 +741,7 @@ function renderStravaActivities(activities) {
 }
 
 function getActivityEmoji(type) {
-  const map = { Running: '🏃', Walking: '🚶', Cycling: '🚴', Swimming: '🏊', 'Weight Training': '🏋️', Yoga: '🧘', HIIT: '⚡', Pilates: '🤸', Dance: '💃', Sports: '⚽' };
-  return map[type] || '🏃';
+  return icons.activity;
 }
 
 function timeAgo(timestamp) {
@@ -774,11 +773,11 @@ function setupFormHandlers() {
         markers: { [name]: { value: parseFloat(value), unit } },
         collectedAt: date || null,
       });
-      showToast('✅ Lab result saved');
+      showToast('Lab result saved');
       renderTabContent();
     } catch (err) {
       console.error('Lab save failed:', err);
-      showToast('❌ Failed to save lab result');
+      showToast('Failed to save lab result');
     }
   });
 
@@ -804,7 +803,7 @@ function setupFormHandlers() {
     const notes = document.getElementById('res-notes')?.value.trim();
 
     if (!name) {
-      showToast('⚠️ Please enter the exercise name');
+      showToast('Please enter the exercise name');
       return;
     }
 
@@ -830,11 +829,11 @@ function setupFormHandlers() {
         total_volume_kg: totalVolume,
         source: 'manual',
       });
-      showToast('✅ Resistance workout logged');
+      showToast('Resistance workout logged');
       renderTabContent();
     } catch (err) {
       console.error('Resistance save failed:', err);
-      showToast('❌ Failed to log resistance workout');
+      showToast('Failed to log resistance workout');
     }
   });
 
@@ -847,7 +846,7 @@ function setupFormHandlers() {
     const notes = document.getElementById('cardio-notes')?.value.trim();
 
     if (!type || !duration) {
-      showToast('⚠️ Please select cardio type and duration');
+      showToast('Please select cardio type and duration');
       return;
     }
 
@@ -862,11 +861,11 @@ function setupFormHandlers() {
         notes: notes || null,
         source: 'manual',
       });
-      showToast('✅ Cardio session logged');
+      showToast('Cardio session logged');
       renderTabContent();
     } catch (err) {
       console.error('Cardio save failed:', err);
-      showToast('❌ Failed to log cardio');
+      showToast('Failed to log cardio');
     }
   });
 
@@ -881,11 +880,11 @@ function setupFormHandlers() {
 
     try {
       await sleepLog.log({ hours, quality, bedtime, wakeTime: wake, notes });
-      showToast('✅ Sleep logged');
+      showToast('Sleep logged');
       renderTabContent();
     } catch (err) {
       console.error('Sleep save failed:', err);
-      showToast('❌ Failed to log sleep');
+      showToast('Failed to log sleep');
     }
   });
 
@@ -903,10 +902,10 @@ function setupFormHandlers() {
         stressLevel: parseInt(document.getElementById('habit-stress')?.value || '0') || null,
         mood: document.getElementById('habit-mood')?.value || null,
       });
-      showToast('✅ Habits saved');
+      showToast('Habits saved');
     } catch (err) {
       console.error('Habits save failed:', err);
-      showToast('❌ Failed to save habits');
+      showToast('Failed to save habits');
     }
   });
 
@@ -919,23 +918,23 @@ function setupFormHandlers() {
     const notes = document.getElementById('substance-notes').value;
 
     if (!name || !category) {
-      showToast('⚠️ Please fill in name and category');
+      showToast('Please fill in name and category');
       return;
     }
 
     try {
-      const res = await fetch(`${API}/supplements`, {
+      const res = await apiFetch(`/api/supplements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserId, name, category, dose, frequency, notes }),
       });
 
       if (!res.ok) throw new Error('Failed to save');
-      showToast('✅ Substance added');
+      showToast('Substance added');
       renderTabContent();
     } catch (err) {
       console.error('Substance save failed:', err);
-      showToast('❌ Failed to add substance');
+      showToast('Failed to add substance');
     }
   });
 
@@ -944,15 +943,15 @@ function setupFormHandlers() {
       if (!confirm('Remove this substance?')) return;
       const id = btn.dataset.id;
       try {
-        const res = await fetch(`${API}/supplements/${id}?userId=${encodeURIComponent(currentUserId)}`, {
+        const res = await apiFetch(`/api/supplements/${id}?userId=${encodeURIComponent(currentUserId)}`, {
           method: 'DELETE',
         });
         if (!res.ok) throw new Error('Failed to delete');
-        showToast('✅ Substance removed');
+        showToast('Substance removed');
         renderTabContent();
       } catch (err) {
         console.error('Delete failed:', err);
-        showToast('❌ Failed to remove substance');
+        showToast('Failed to remove substance');
       }
     });
   });
@@ -963,18 +962,18 @@ function setupFormHandlers() {
     const allergies = document.getElementById('bg-allergies').value;
 
     try {
-      const res = await fetch(`${API}/health-profile`, {
+      const res = await apiFetch(`/api/health-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserId, conditions: selectedConditions, allergies }),
       });
 
       if (!res.ok) throw new Error('Failed to save');
-      showToast('✅ Health background saved');
+      showToast('Health background saved');
       renderTabContent();
     } catch (err) {
       console.error('Background save failed:', err);
-      showToast('❌ Failed to save health background');
+      showToast('Failed to save health background');
     }
   });
 
@@ -985,18 +984,18 @@ function setupFormHandlers() {
     const health_concerns = document.getElementById('goals-concerns').value;
 
     try {
-      const res = await fetch(`${API}/user-goals`, {
+      const res = await apiFetch(`/api/user-goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserId, goals_text, dietary_restrictions, health_concerns }),
       });
 
       if (!res.ok) throw new Error('Failed to save');
-      showToast('✅ Goals saved');
+      showToast('Goals saved');
       renderTabContent();
     } catch (err) {
       console.error('Goals save failed:', err);
-      showToast('❌ Failed to save goals');
+      showToast('Failed to save goals');
     }
   });
 
@@ -1040,7 +1039,7 @@ function setupFormHandlers() {
       const formData = new FormData();
       formData.append('pdf', file, file.name);
 
-      const res = await fetch(`${API}/parse-labs`, {
+      const res = await apiFetch(`/api/parse-labs`, {
         method: 'POST',
         body: formData,
       });
@@ -1056,21 +1055,21 @@ function setupFormHandlers() {
       if (markerCount === 0) {
         statusEl.innerHTML = `
           <div style="padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);color:var(--accent-coral);font-size:var(--text-sm);">
-            ⚠️ No lab markers found. Try a clearer image or different file.
+            No lab markers found. Try a clearer image or different file.
           </div>`;
         return;
       }
 
       statusEl.innerHTML = `
         <div style="padding:var(--space-3);background:var(--accent-teal-dim);border-radius:var(--radius-md);color:var(--accent-teal);font-size:var(--text-sm);">
-          ✅ Found ${markerCount} markers from ${parsed.panel_type || 'lab report'}${parsed.lab_name ? ` (${parsed.lab_name})` : ''}
+          Found ${markerCount} markers from ${parsed.panel_type || 'lab report'}${parsed.lab_name ? ` (${parsed.lab_name})` : ''}
         </div>`;
 
       const markerRows = Object.entries(parsed.markers || {}).map(([name, data]) => {
         const statusColor = data.status === 'high' || data.status === 'critical'
           ? 'var(--accent-coral)' : data.status === 'low'
             ? 'var(--accent-amber)' : 'var(--accent-green)';
-        const statusIcon = data.status === 'high' ? '↑' : data.status === 'low' ? '↓' : data.status === 'critical' ? '⚠️' : '✓';
+        const statusIcon = data.status === 'high' ? '↑' : data.status === 'low' ? '↓' : data.status === 'critical' ? '!' : '✓';
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
             <span style="font-size:var(--text-sm);">${name}</span>
@@ -1093,7 +1092,7 @@ function setupFormHandlers() {
           </div>
           ${parsed.notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Notes: ${parsed.notes}</p>` : ''}
           <button id="confirm-save-labs" class="btn btn-primary btn-block">
-            💾 Save ${markerCount} Markers to Health Log
+            Save ${markerCount} Markers to Health Log
           </button>
         </div>`;
 
@@ -1111,22 +1110,22 @@ function setupFormHandlers() {
             collectedAt: parsed.collected_at || null,
           });
 
-          btn.innerHTML = '✅ Saved to Health Log!';
+          btn.innerHTML = 'Saved to Health Log!';
           btn.style.background = 'var(--accent-green)';
-          showToast(`✅ ${markerCount} lab markers saved!`);
+          showToast(`${markerCount} lab markers saved!`);
           setTimeout(() => renderTabContent(), 1500);
         } catch (err) {
           console.error('[Labs] Save failed:', err);
           btn.disabled = false;
-          btn.innerHTML = `💾 Save ${markerCount} Markers to Health Log`;
-          showToast('❌ Save failed — check connection.');
+          btn.innerHTML = `Save ${markerCount} Markers to Health Log`;
+          showToast('Save failed — check connection.');
         }
       });
     } catch (err) {
       console.error('[Labs] Parse failed:', err);
       statusEl.innerHTML = `
         <div style="padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);color:var(--accent-coral);font-size:var(--text-sm);">
-          ❌ ${err.message}
+          ${err.message}
         </div>`;
     }
   }
@@ -1138,19 +1137,19 @@ function setupStravaHandlers() {
   document.getElementById('strava-save-connect')?.addEventListener('click', async () => {
     const clientId = document.getElementById('strava-client-id')?.value?.trim();
     const clientSecret = document.getElementById('strava-client-secret')?.value?.trim();
-    if (!clientId || !clientSecret) { showToast('⚠️ Please enter both Client ID and Secret'); return; }
+    if (!clientId || !clientSecret) { showToast('Please enter both Client ID and Secret'); return; }
     try {
       const { saveStravaConfig, getAuthorizationUrl } = await import('../utils/strava.js');
       saveStravaConfig({ clientId, clientSecret });
       window.location.href = getAuthorizationUrl();
-    } catch (err) { showToast('❌ ' + err.message); }
+    } catch (err) { showToast(err.message); }
   });
 
   document.getElementById('strava-authorize')?.addEventListener('click', async () => {
     try {
       const { getAuthorizationUrl } = await import('../utils/strava.js');
       window.location.href = getAuthorizationUrl();
-    } catch (err) { showToast('❌ ' + err.message); }
+    } catch (err) { showToast(err.message); }
   });
 
   document.getElementById('strava-reset')?.addEventListener('click', async () => {
@@ -1159,8 +1158,8 @@ function setupStravaHandlers() {
       disconnectStrava();
       saveStravaConfig({ clientId: null, clientSecret: null });
       renderTabContent();
-      showToast('🔄 Strava credentials cleared');
-    } catch (err) { showToast('❌ ' + err.message); }
+      showToast('Strava credentials cleared');
+    } catch (err) { showToast(err.message); }
   });
 
   document.getElementById('strava-sync')?.addEventListener('click', async () => {
@@ -1170,10 +1169,10 @@ function setupStravaHandlers() {
     try {
       const { syncActivities } = await import('../utils/strava.js');
       const activities = await syncActivities();
-      showToast(`✅ Synced ${activities.length} activities from Strava`);
+      showToast(`Synced ${activities.length} activities from Strava`);
       renderTabContent();
     } catch (err) {
-      showToast('❌ Sync failed: ' + err.message);
+      showToast('Sync failed: ' + err.message);
       btn.disabled = false;
     }
   });
@@ -1184,8 +1183,8 @@ function setupStravaHandlers() {
         const { disconnectStrava } = await import('../utils/strava.js');
         disconnectStrava();
         renderTabContent();
-        showToast('🔌 Strava disconnected');
-      } catch (err) { showToast('❌ ' + err.message); }
+        showToast('Strava disconnected');
+      } catch (err) { showToast(err.message); }
     }
   });
 
@@ -1193,9 +1192,9 @@ function setupStravaHandlers() {
     try {
       const { importAllActivities } = await import('../utils/strava.js');
       const count = importAllActivities();
-      showToast(`✅ Imported ${count} activities`);
+      showToast(`Imported ${count} activities`);
       renderTabContent();
-    } catch (err) { showToast('❌ ' + err.message); }
+    } catch (err) { showToast(err.message); }
   });
 
   document.querySelectorAll('.strava-import-btn').forEach(btn => {
@@ -1205,17 +1204,9 @@ function setupStravaHandlers() {
         const stravaId = parseInt(btn.dataset.stravaId);
         const cfg = getStravaConfig();
         const activity = cfg.activities?.find(a => a.stravaId === stravaId);
-        if (activity) { importActivity(activity); showToast(`✅ Imported "${activity.name}"`); renderTabContent(); }
-      } catch (err) { showToast('❌ ' + err.message); }
+        if (activity) { importActivity(activity); showToast(`Imported "${activity.name}"`); renderTabContent(); }
+      } catch (err) { showToast(err.message); }
     });
   });
 }
 
-function showToast(msg) {
-  const c = document.getElementById('toast-container') || document.body;
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.innerHTML = `<span>${msg}</span>`;
-  c.appendChild(t);
-  setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, 3000);
-}

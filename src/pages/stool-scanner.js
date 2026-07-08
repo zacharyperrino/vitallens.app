@@ -3,6 +3,7 @@ import { analyzeStool } from '../utils/stool-analyzer.js';
 import { createRingProgress } from '../utils/charts.js';
 import { supabase } from '../lib/supabase.js';
 import { getUserId } from '../lib/db.js';
+import { apiFetch } from '../utils/api.js';
 
 export async function renderStoolScanner() {
   const content = document.getElementById('page-content');
@@ -10,7 +11,7 @@ export async function renderStoolScanner() {
 
   content.innerHTML = `
     <div class="stool-scanner stagger-children">
-      <div class="page-header"><h1>🧪 Stool Analysis</h1><p>Gut health insights from stool assessment</p></div>
+      <div class="page-header"><h1>Stool Analysis</h1><p>Gut health insights from stool assessment</p></div>
       <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--space-5);" id="stool-upload-card">
         <div class="upload-zone" id="stool-upload-zone">
           <input type="file" accept="image/*" id="stool-file-input">
@@ -23,7 +24,7 @@ export async function renderStoolScanner() {
       <div class="section-heading" style="margin-top:var(--space-4);"><h3>Bristol Stool Scale</h3></div>
       <div class="card" style="margin-bottom:var(--space-5);">
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
-          ${[{ t: 1, l: 'Hard lumps', c: '🔴' }, { t: 2, l: 'Lumpy sausage', c: '🟠' }, { t: 3, l: 'Cracked sausage', c: '🟡' }, { t: 4, l: 'Smooth & soft ✓', c: '🟢' }, { t: 5, l: 'Soft blobs', c: '🟡' }, { t: 6, l: 'Fluffy/mushy', c: '🟠' }, { t: 7, l: 'Watery', c: '🔴' }].map(b =>
+          ${[{ t: 1, l: 'Hard lumps', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' }, { t: 2, l: 'Lumpy sausage', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' }, { t: 3, l: 'Cracked sausage', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-neutral);"></span>' }, { t: 4, l: 'Smooth & soft', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-green);"></span>' }, { t: 5, l: 'Soft blobs', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-neutral);"></span>' }, { t: 6, l: 'Fluffy/mushy', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' }, { t: 7, l: 'Watery', c: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--viz-amber);"></span>' }].map(b =>
             `<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;${b.t === 4 ? 'background:var(--accent-green-dim);border-radius:var(--radius-sm);padding:var(--space-2) var(--space-3);margin:0 calc(-1 * var(--space-3));' : ''}">
               <span style="font-size:14px;">${b.c}</span>
               <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);min-width:28px;">Type ${b.t}</span>
@@ -41,7 +42,7 @@ export async function renderStoolScanner() {
             <div><div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Type ${s.bristol_type || '?'}</div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">${d}</div></div>
             <span style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${scoreColor};">${score}%</span>
           </div></div>`;
-    }).join('') : `<div class="card" style="text-align:center;padding:var(--space-8);"><div style="font-size:40px;margin-bottom:var(--space-3);">🧪</div><h4>No analyses yet</h4><p style="font-size:var(--text-sm);">Upload to begin tracking gut health</p></div>`}
+    }).join('') : `<div class="card" style="text-align:center;padding:var(--space-8);"><div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div><h4>No analyses yet</h4><p style="font-size:var(--text-sm);">Upload to begin tracking gut health</p></div>`}
       </div>
     </div>`;
 
@@ -110,7 +111,7 @@ async function processScan(file) {
         await renderStoolScanner();
       } catch (err) {
         console.error('[StoolScanner] Save failed', err);
-        card.innerHTML = `<div style="text-align:center;padding:var(--space-6);color:var(--accent-coral);"><div style="margin-bottom:var(--space-2);">⚠️ Could not save stool scan.</div><div style="font-size:var(--text-sm);">${err.message || 'Please try again.'}</div></div>`;
+        card.innerHTML = `<div style="text-align:center;padding:var(--space-6);color:var(--accent-coral);"><div style="margin-bottom:var(--space-2);">Could not save stool scan.</div><div style="font-size:var(--text-sm);">${err.message || 'Please try again.'}</div></div>`;
       }
     };
     img.src = e.target.result;
@@ -132,7 +133,7 @@ async function saveStoolScan(scan) {
 async function ingestStoolScan(scan) {
   try {
     const userId = await getUserId();
-    await fetch('/api/ingest', {
+    await apiFetch('/api/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, eventType: 'stool_scan', data: scan }),
@@ -158,7 +159,7 @@ function renderStoolResults(r) {
         <div style="font-size:var(--text-xs);color:var(--text-secondary);">${r.bristolType.name}</div>
       </div>
       <div class="card card-sm" style="text-align:center;">
-        <div style="font-size:24px;">🎨</div>
+        <div style="color:var(--text-tertiary);">${icons.eye}</div>
         <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);">${r.color.color}</div>
         <div style="font-size:var(--text-xs);color:var(--text-secondary);">${r.color.health === 'good' ? 'Normal' : 'Review'}</div>
       </div>
@@ -175,11 +176,11 @@ function renderStoolResults(r) {
     <div class="card"><h4 style="margin-bottom:var(--space-2);">Color Analysis</h4><p style="font-size:var(--text-sm);color:var(--text-secondary);">${r.color.meaning}</p></div>
     <div class="section-heading"><h3>Potential Deficiencies</h3></div>
     ${r.deficiencies.map(d => `<div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
-      <h4 style="font-size:var(--text-sm);margin-bottom:var(--space-1);">⚡ ${d.name}</h4>
+      <h4 style="font-size:var(--text-sm);margin-bottom:var(--space-1);">${d.name}</h4>
       <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-1);">${d.sign}</p>
       <p style="font-size:var(--text-xs);color:var(--accent-teal);">${d.recommendation}</p>
     </div>`).join('')}
     <div class="section-heading"><h3>Recommendations</h3></div>
-    ${r.recommendations.map(rec => `<div class="card card-sm"><p style="font-size:var(--text-sm);color:var(--text-secondary);">💡 ${rec}</p></div>`).join('')}
+    ${r.recommendations.map(rec => `<div class="card card-sm"><p style="font-size:var(--text-sm);color:var(--text-secondary);">${rec}</p></div>`).join('')}
   </div>`;
 }

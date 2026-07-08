@@ -2,12 +2,12 @@
 // Replaces the static foods.js nutrition database.
 // Docs: https://fdc.nal.usda.gov/api-guide.html
 
-const API_BASE = '/api';
+import { apiFetch } from '../utils/api.js';
 
 // ── In-memory cache ───────────────────────────────────────────
 const nutritionCache = new Map();
 
-// ── Label → search query map ──────────────────────────────────
+// ── Label search query map ──────────────────────────────────
 const LABEL_TO_QUERY = {
     // Proteins
     steak: 'beef steak grilled', beef_steak: 'beef steak grilled',
@@ -177,8 +177,8 @@ export async function getNutritionForFood(yoloLabel, grams = 150, cookingMethod 
  */
 export async function searchFood(query, grams = 100) {
     const encodedQuery = encodeURIComponent(query);
-    const res = await fetch(
-        `${API_BASE}/nutrition/search?query=${encodedQuery}&grams=${grams}`,
+    const res = await apiFetch(
+        `/api/nutrition/search?query=${encodedQuery}&grams=${grams}`,
         { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) {
@@ -194,8 +194,8 @@ export async function searchFood(query, grams = 100) {
 export async function getFoodById(fdcId, grams = 100) {
     const cacheKey = `fdc_${fdcId}_${grams}`;
     if (nutritionCache.has(cacheKey)) return nutritionCache.get(cacheKey);
-    const res = await fetch(
-        `${API_BASE}/nutrition/food/${fdcId}?grams=${grams}`,
+    const res = await apiFetch(
+        `/api/nutrition/food/${fdcId}?grams=${grams}`,
         { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) throw new Error(`Nutrition lookup failed: ${res.status}`);

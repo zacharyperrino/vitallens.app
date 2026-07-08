@@ -5,8 +5,7 @@
 import { icons } from '../icons.js';
 import { getScoreColor, getScoreLabel } from '../utils/product-scanner.js';
 import { createDonutChart } from '../utils/charts.js';
-
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
 
 /**
  * Render product detail results.
@@ -20,7 +19,7 @@ export function renderProductResults() {
     content.innerHTML = `
       <div class="food-scanner stagger-children">
         <div class="card" style="text-align:center;padding:var(--space-8);">
-          <div style="font-size:48px;margin-bottom:var(--space-3);">🔍</div>
+          <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.scan}</div>
           <h3>No Product Data</h3>
           <p style="font-size:var(--text-sm);color:var(--text-secondary);">Scan a product barcode to see results here.</p>
           <button class="btn btn-primary" onclick="location.hash='#/food-scanner'" style="margin-top:var(--space-4);">Go to Scanner</button>
@@ -83,11 +82,11 @@ export function renderProductResults() {
       <!-- Positives & Negatives -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
         <div class="card" style="border-left:3px solid #4CAF50;">
-          <h4 style="font-size:var(--text-xs);color:#4CAF50;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">✓ Positives</h4>
+          <h4 style="font-size:var(--text-xs);color:#4CAF50;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Positives</h4>
           ${(healthScore.positives || []).map(p => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${p}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">—</p>'}
         </div>
         <div class="card" style="border-left:3px solid #F44336;">
-          <h4 style="font-size:var(--text-xs);color:#F44336;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">✗ Negatives</h4>
+          <h4 style="font-size:var(--text-xs);color:#F44336;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Negatives</h4>
           ${(healthScore.negatives || []).map(n => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${n}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">—</p>'}
         </div>
       </div>
@@ -110,9 +109,9 @@ export function renderProductResults() {
           <div style="flex:1;">
             ${renderNutrientRow('Protein', n.protein, 'g', pPct, 'var(--accent-blue)')}
             ${renderNutrientRow('Carbs', n.carbs, 'g', cPct, 'var(--accent-amber)')}
-            ${renderNutrientRow('  ↳ Sugar', n.sugar, 'g', null, 'var(--accent-coral)')}
+            ${renderNutrientRow('  Sugar', n.sugar, 'g', null, 'var(--accent-coral)')}
             ${renderNutrientRow('Fat', n.fat, 'g', fPct, 'var(--accent-coral)')}
-            ${renderNutrientRow('  ↳ Sat. Fat', n.saturated_fat, 'g', null, '#e57373')}
+            ${renderNutrientRow('  Sat. Fat', n.saturated_fat, 'g', null, '#e57373')}
             ${renderNutrientRow('Fiber', n.fiber, 'g', null, 'var(--accent-green)')}
             ${renderNutrientRow('Sodium', n.sodium, 'mg', null, 'var(--text-secondary)')}
           </div>
@@ -166,7 +165,7 @@ export function renderProductResults() {
       </div>
 
       <p style="font-size:var(--text-xs);color:var(--text-tertiary);text-align:center;padding:var(--space-3) var(--space-4);line-height:1.5;">
-        ⚠️ This score is for informational purposes and does not constitute medical or dietary advice.
+        This score is for informational purposes and does not constitute medical or dietary advice.
         Data sourced from Open Food Facts. Always consult a healthcare professional.
       </p>
     </div>
@@ -201,7 +200,7 @@ async function logProductToFoodLog(product, n) {
     const mealName = `${product.brand ? product.brand + ' ' : ''}${product.name}`;
 
     // Save to meals table
-    await fetch(`${API}/ingest`, {
+    await apiFetch(`/api/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -223,7 +222,7 @@ async function logProductToFoodLog(product, n) {
     });
 
     // Update daily_nutrition via RPC
-    await fetch(`${API}/meal-memory`, {
+    await apiFetch(`/api/meal-memory`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -250,7 +249,7 @@ async function logProductToFoodLog(product, n) {
     btn.textContent = 'Logged';
     btn.style.background = 'var(--accent-green)';
     status.style.display = 'block';
-    status.textContent = `✅ ${mealName} — ${calories} cal logged to today`;
+    status.textContent = `${mealName} — ${calories} cal logged to today`;
     console.log(`[ProductLog] Logged: ${mealName} — ${calories} cal, ${protein}g protein`);
   } catch (err) {
     btn.disabled = false;

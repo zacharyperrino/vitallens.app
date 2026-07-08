@@ -1,11 +1,11 @@
 // ─── Hygiene Product Scanner Page ────────────────────────────
 import { icons } from '../icons.js';
-import { initCamera, stopCamera, startBarcodeScanner, getScoreColor } from '../utils/product-scanner.js';
+import { initCamera, stopCamera, startBarcodeScanner } from '../utils/product-scanner.js';
 import { mountReact } from '../components/mountReact.js';
 import HygieneScanResult from '../components/HygieneScanResult.jsx';
+import { apiFetch } from '../utils/api.js';
 
-const API = window.API_BASE || '/api';
-
+import { showToast } from '../utils/toast.js';
 let cameraStream = null;
 let stopScanning = null;
 
@@ -19,7 +19,7 @@ export async function renderHygieneScanner() {
     // Load recent scans
     let recentScans = [];
     try {
-        const res = await fetch(`${API}/hygiene/history?userId=${userId}&limit=10`);
+        const res = await apiFetch(`/api/hygiene/history?userId=${userId}&limit=10`);
         if (res.ok) {
             const data = await res.json();
             recentScans = data.scans || [];
@@ -29,7 +29,7 @@ export async function renderHygieneScanner() {
     content.innerHTML = `
     <div class="stagger-children" style="padding-bottom:var(--space-8);">
       <div class="page-header">
-        <h1>🧴 Hygiene Scanner</h1>
+        <h1>Hygiene Scanner</h1>
         <p>Scan personal care products to observe ingredient patterns</p>
       </div>
 
@@ -38,7 +38,7 @@ export async function renderHygieneScanner() {
         <div id="camera-container" style="position:relative;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);">
           <video id="hygiene-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
           <div id="camera-placeholder" style="text-align:center;color:var(--text-tertiary);">
-            <div style="font-size:48px;margin-bottom:var(--space-2);">🧴</div>
+            <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
             <div style="font-size:var(--text-sm);">Point camera at product barcode</div>
           </div>
           <div id="scan-overlay" style="display:none;position:absolute;inset:0;border:2px solid var(--accent-teal);border-radius:var(--radius-md);pointer-events:none;">
@@ -60,7 +60,7 @@ export async function renderHygieneScanner() {
           <input type="text" id="manual-barcode" placeholder="Or enter barcode manually..."
             style="flex:1;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);">
           <button id="manual-scan-btn" class="btn" style="background:var(--surface-2);border:1px solid var(--border);">
-            ${icons.search || '🔍'}
+            ${icons.scan}
           </button>
         </div>
       </div>
@@ -75,7 +75,7 @@ export async function renderHygieneScanner() {
         ${recentScans.map(s => renderScanCard(s)).join('')}
       </div>` : `
       <div class="card" style="text-align:center;padding:var(--space-6);">
-        <div style="font-size:32px;margin-bottom:var(--space-2);">🧴</div>
+        <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
         <div style="font-size:var(--text-sm);color:var(--text-secondary);">No hygiene scans yet — scan a product to start tracking ingredient patterns.</div>
       </div>`}
 
@@ -142,7 +142,7 @@ function renderFullResults(product, userId) {
 
       ${concerns.length === 0 ? `
       <div style="padding:var(--space-3);background:var(--accent-green-dim);border-radius:var(--radius-md);margin-bottom:var(--space-3);">
-        <div style="font-size:var(--text-xs);color:var(--accent-green);">✓ No commonly flagged ingredients noticed in this product.</div>
+        <div style="font-size:var(--text-xs);color:var(--accent-green);">No commonly flagged ingredients noticed in this product.</div>
       </div>` : ''}
 
       ${highConcerns.length > 0 ? `
@@ -195,7 +195,7 @@ function setupHygieneHandlers(userId) {
         resultsEl.innerHTML = `<div class="card" style="text-align:center;padding:var(--space-4);"><div class="spinner" style="margin:0 auto;"></div><div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-2);">Looking up product...</div></div>`;
 
         try {
-            const res = await fetch(`${API}/hygiene/scan`, {
+            const res = await apiFetch(`/api/hygiene/scan`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ barcode, userId }),
@@ -211,12 +211,12 @@ function setupHygieneHandlers(userId) {
             resultsEl.innerHTML = '<div id="hygiene-result-react"></div>';
 mountReact(HygieneScanResult, 'hygiene-result-react', { 
     product,
-    onLog: () => showToast('✅ Product logged to your hygiene history')
+    onLog: () => showToast('Product logged to your hygiene history')
 });
 
             // Wire log button
             document.getElementById('log-hygiene-btn')?.addEventListener('click', () => {
-                showToast('✅ Product logged to your hygiene history');
+                showToast('Product logged to your hygiene history');
             });
 
         } catch (err) {
@@ -266,10 +266,3 @@ mountReact(HygieneScanResult, 'hygiene-result-react', {
     });
 }
 
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);font-size:var(--text-sm);color:var(--text-primary);z-index:1000;';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}

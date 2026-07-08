@@ -3,13 +3,13 @@
 // Usage: import { db } from './lib/db.js'
 
 import { supabase } from './supabase.js';
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
 
 // ── RAG ingestion helper ─────────────────────────────────────
 async function ingestEvent(eventType, data) {
     try {
         const userId = await getUserId();
-        fetch(`${API}/ingest`, {
+        apiFetch(`/api/ingest`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, eventType, data }),
@@ -590,7 +590,7 @@ export const chatHistory = {
     },
 };
 
-// ── localStorage → Supabase migration ───────────────────────
+// ── localStorage Supabase migration ───────────────────────
 
 export async function migrateFromLocalStorage() {
     const raw = localStorage.getItem('vitallens_data');

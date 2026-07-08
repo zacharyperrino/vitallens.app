@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
 
 export default function NutritionTracker({ userId }) {
     const [nutrition, setNutrition] = useState(null);
@@ -12,8 +11,8 @@ export default function NutritionTracker({ userId }) {
             try {
                 const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
                 const [nutritionRes, profileRes] = await Promise.allSettled([
-                    fetch(`${API}/daily-nutrition?userId=${userId}&date=${today}`),
-                    fetch(`${API}/health-profile?userId=${userId}`),
+                    apiFetch(`/api/daily-nutrition?userId=${userId}&date=${today}`),
+                    apiFetch(`/api/health-profile?userId=${userId}`),
                 ]);
 
                 if (nutritionRes.status === 'fulfilled' && nutritionRes.value.ok) {

@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
 
 export default function WellnessScoreCard({ userId }) {
     const [scores, setScores] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`${API}/weekly-report/latest?userId=${userId}`)
+        apiFetch(`/api/weekly-report/latest?userId=${userId}`)
             .then(r => r.json())
             .then(({ reports }) => {
                 if (reports?.length > 0) setScores(reports[0]);
@@ -71,7 +70,7 @@ export default function WellnessScoreCard({ userId }) {
                 <div style={{ marginBottom: 'var(--space-3)' }}>
                     <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--accent-amber)', marginBottom: 'var(--space-1)' }}>PATTERNS TO EXPLORE</div>
                     {gaps.map((g, i) => (
-                        <div key={i} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '2px 0' }}>→ {g}</div>
+                        <div key={i} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '2px 0' }}>{g}</div>
                     ))}
                 </div>
             )}

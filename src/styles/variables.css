@@ -1,54 +1,91 @@
 :root {
-  /* === Color Palette — Dark Mode Primary === */
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1a2235;
-  --bg-card: rgba(26, 34, 53, 0.7);
-  --bg-card-hover: rgba(30, 40, 65, 0.85);
-  --bg-glass: rgba(255, 255, 255, 0.04);
-  --bg-glass-heavy: rgba(255, 255, 255, 0.08);
-  --bg-input: rgba(255, 255, 255, 0.06);
+  /* ═══════════════════════════════════════════════════════════
+     VitalLens — "Quiet Luxury" light theme
+     Warm, calm, editorial. One accent. No gradients, no glows.
+     ═══════════════════════════════════════════════════════════ */
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-medium: rgba(255, 255, 255, 0.15);
-  --border-accent: rgba(0, 212, 170, 0.3);
+  /* === Backgrounds — warm off-white and beige === */
+  --bg-primary: #F5F0E8;      /* page canvas */
+  --bg-secondary: #FBF8F3;    /* raised sections */
+  --bg-tertiary: #FFFFFF;     /* cards */
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FBF8F3;
+  --bg-input: #FFFFFF;
+  --bg-chip: #F0EAE0;         /* beige chip/tag background */
 
-  /* Text */
-  --text-primary: #f0f2f5;
-  --text-secondary: #8b95a8;
-  --text-tertiary: #5a6478;
-  --text-inverse: #0a0e1a;
+  /* Elevated surface scale (was referenced app-wide but never defined) */
+  --surface-0: #F5F0E8;
+  --surface-1: #FBF8F3;
+  --surface-2: #F0EAE0;
+  --surface-3: #E9E1D4;
 
-  /* Accent Colors */
-  --accent-teal: #00D4AA;
-  --accent-teal-dim: rgba(0, 212, 170, 0.15);
-  --accent-teal-glow: rgba(0, 212, 170, 0.4);
-  --accent-amber: #FFB547;
-  --accent-amber-dim: rgba(255, 181, 71, 0.15);
-  --accent-coral: #FF6B8A;
-  --accent-coral-dim: rgba(255, 107, 138, 0.15);
-  --accent-purple: #A78BFA;
-  --accent-purple-dim: rgba(167, 139, 250, 0.15);
-  --accent-blue: #60A5FA;
-  --accent-blue-dim: rgba(96, 165, 250, 0.15);
-  --accent-green: #34D399;
-  --accent-green-dim: rgba(52, 211, 153, 0.15);
-  --accent-red: #F87171;
-  --accent-red-dim: rgba(248, 113, 113, 0.15);
+  /* === Borders — warm hairlines do the work shadows used to === */
+  --border: #EDE7DC;
+  --border-subtle: #F0EBE2;
+  --border-light: #EDE7DC;
+  --border-medium: #DFD7C8;
+  --border-accent: rgba(46, 111, 242, 0.35);
 
-  /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #00D4AA 0%, #00B4D8 50%, #A78BFA 100%);
-  --gradient-warm: linear-gradient(135deg, #FFB547 0%, #FF6B8A 100%);
-  --gradient-cool: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
-  --gradient-health: linear-gradient(135deg, #00D4AA 0%, #34D399 100%);
-  --gradient-danger: linear-gradient(135deg, #FF6B8A 0%, #F87171 100%);
-  --gradient-card: linear-gradient(145deg, rgba(26, 34, 53, 0.8) 0%, rgba(17, 24, 39, 0.6) 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+  /* === Text — charcoal, never pure black === */
+  --text-primary: #2A2A2A;
+  --text-secondary: #6B6B6B;
+  --text-tertiary: #9A9A9A;
+  --text-inverse: #FFFFFF;
 
-  /* === Typography === */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* === Accent — ONE. Blue, reserved for primary CTAs === */
+  --accent: #2E6FF2;
+  --accent-hover: #1F5CD9;
+  --accent-dim: rgba(46, 111, 242, 0.10);
+
+  /* Data-viz states only — muted, desaturated, calm. Not for chrome. */
+  --viz-green: #6F8F6A;
+  --viz-green-dim: rgba(111, 143, 106, 0.14);
+  --viz-amber: #C09A55;
+  --viz-amber-dim: rgba(192, 154, 85, 0.16);
+  --viz-neutral: #8C877C;
+  --viz-neutral-dim: rgba(140, 135, 124, 0.14);
+
+  /* ── TRANSITIONAL ALIASES ─────────────────────────────────────
+     Legacy names still referenced by inline styles across pages
+     (~500 call sites). Remapped to the calm palette so nothing
+     breaks between checkpoints. DELETE in checkpoint 3 as pages
+     are migrated to the semantic tokens above.
+     Coral / purple / red are gone as design colors — they resolve
+     to calm equivalents, never alarm hues. */
+  --accent-teal: var(--viz-green);
+  --accent-teal-dim: var(--viz-green-dim);
+  --accent-teal-glow: transparent;
+  --accent-green: var(--viz-green);
+  --accent-green-dim: var(--viz-green-dim);
+  --accent-amber: var(--viz-amber);
+  --accent-amber-dim: var(--viz-amber-dim);
+  --accent-coral: var(--viz-amber);
+  --accent-coral-dim: var(--viz-amber-dim);
+  --accent-red: var(--viz-amber);
+  --accent-red-dim: var(--viz-amber-dim);
+  --accent-purple: var(--viz-neutral);
+  --accent-purple-dim: var(--viz-neutral-dim);
+  --accent-blue: var(--accent);
+  --accent-blue-dim: var(--accent-dim);
+
+  /* Legacy glass/gradient hooks — flattened to solids. DELETE in ckpt 3. */
+  --bg-glass: #FFFFFF;
+  --bg-glass-heavy: #FBF8F3;
+  --gradient-primary: var(--accent);
+  --gradient-warm: var(--viz-amber);
+  --gradient-cool: var(--accent);
+  --gradient-health: var(--viz-green);
+  --gradient-danger: var(--viz-amber);
+  --gradient-card: var(--bg-card);
+  --gradient-surface: var(--bg-secondary);
+  --shadow-glow-teal: none;
+  --shadow-glow-amber: none;
+  --shadow-glow-coral: none;
+  --shadow-glow-purple: none;
+
+  /* === Typography — Lora serif throughout === */
+  --font-body: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-heading: 'Lora', Georgia, 'Times New Roman', serif;
 
   --text-xs: 0.6875rem;    /* 11px */
   --text-sm: 0.8125rem;    /* 13px */
@@ -56,54 +93,62 @@
   --text-md: 1rem;         /* 16px */
   --text-lg: 1.125rem;     /* 18px */
   --text-xl: 1.375rem;     /* 22px */
-  --text-2xl: 1.75rem;     /* 28px */
-  --text-3xl: 2.25rem;     /* 36px */
-  --text-4xl: 3rem;        /* 48px */
+  --text-2xl: 1.875rem;    /* 30px — headlines grow */
+  --text-3xl: 2.5rem;      /* 40px */
+  --text-4xl: 3.25rem;     /* 52px */
+  --text-5xl: 4rem;        /* 64px (was referenced, never defined) */
 
   --weight-light: 300;
+  --weight-normal: 400;    /* (was referenced, never defined) */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
-  --weight-bold: 700;
-  --weight-extrabold: 800;
+  --weight-bold: 600;      /* headlines lighter — bold caps at 600 */
+  --weight-extrabold: 600;
+
+  --leading-tight: 1.2;
+  --leading-base: 1.65;    /* generous body line-height */
+
+  /* Tags/chips — uppercase, letter-spaced */
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.12em;
 
   /* === Spacing === */
-  --space-1: 0.25rem;   /* 4px */
-  --space-2: 0.5rem;    /* 8px */
-  --space-3: 0.75rem;   /* 12px */
-  --space-4: 1rem;      /* 16px */
-  --space-5: 1.25rem;   /* 20px */
-  --space-6: 1.5rem;    /* 24px */
-  --space-8: 2rem;      /* 32px */
-  --space-10: 2.5rem;   /* 40px */
-  --space-12: 3rem;     /* 48px */
-  --space-16: 4rem;     /* 64px */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
 
-  /* === Border Radius === */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  /* === Border radius — crisp rectangles, a hint of softness ===
+     --radius-full survives ONLY for true circles (avatars, dots,
+     rings, toggle switches). Nothing else should read as a pill. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
   --radius-full: 9999px;
 
-  /* === Shadows === */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-glow-teal: 0 0 24px rgba(0, 212, 170, 0.2);
-  --shadow-glow-amber: 0 0 24px rgba(255, 181, 71, 0.2);
-  --shadow-glow-coral: 0 0 24px rgba(255, 107, 138, 0.2);
-  --shadow-glow-purple: 0 0 24px rgba(167, 139, 250, 0.2);
+  /* === Shadows — nearly invisible; whitespace + hairlines lead === */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.10);
 
-  /* === Transitions === */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* === Motion — unhurried === */
+  --transition-fast: 200ms ease-out;
+  --transition-base: 300ms ease-out;
+  --transition-slow: 500ms ease-out;
+  --transition-spring: 400ms ease-out; /* springs retired; alias kept for ckpt 3 */
 
-  /* === Layout === */
+  /* === Layout (unchanged) === */
   --nav-height: 72px;
   --header-height: 60px;
   --max-width: 480px;

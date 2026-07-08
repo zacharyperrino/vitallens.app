@@ -1,6 +1,9 @@
 import { supabase } from '../lib/supabase.js';
+import { icons } from '../icons.js';
 import { doshaData, doshaQuiz, faceMappingZones, tongueDiagnosis } from '../utils/eastern-medicine-data.js';
+import { apiFetch } from '../utils/api.js';
 
+import { showToast } from '../utils/toast.js';
 let activeTab = 'dosha';
 let quizStep = 0;
 let quizAnswers = [];
@@ -23,7 +26,7 @@ export async function renderEasternMedicine() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="eastern-med stagger-children">
-      <div class="page-header"><h1>🧘 Eastern Medicine</h1><p>Ayurveda, Chinese medicine & holistic wellness</p></div>
+      <div class="page-header"><h1>Eastern Medicine</h1><p>Ayurveda, Chinese medicine & holistic wellness</p></div>
       <div id="em-summary"></div>
       <div class="tab-bar" id="em-tabs">
         <div class="tab-item active" data-tab="dosha">Dosha Quiz</div>
@@ -52,7 +55,7 @@ async function loadProfileData() {
 
 async function fetchTCMProfile() {
   try {
-    const res = await fetch(`/api/tcm-profile?userId=${encodeURIComponent(userId)}`);
+    const res = await apiFetch(`/api/tcm-profile?userId=${encodeURIComponent(userId)}`);
     if (!res.ok) throw new Error('Failed to load TCM profile');
     const data = await res.json();
     tcmProfile = data.profile || null;
@@ -64,7 +67,7 @@ async function fetchTCMProfile() {
 
 async function fetchHealthProfile() {
   try {
-    const res = await fetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
+    const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
     if (!res.ok) throw new Error('Failed to load health profile');
     const data = await res.json();
     healthProfile = data.profile || null;
@@ -96,7 +99,7 @@ function renderSummaryPanel() {
           <h3 style="margin:0;">Your TCM Constitution</h3>
           <p style="margin:var(--space-1) 0 0;color:var(--text-secondary);">No constitution data available yet. Start the Dosha quiz or analyze meals to build your profile.</p>
         </div>
-        <div style="font-size:24px;">🧠</div>
+        <div style="color:var(--text-tertiary);">${icons.sparkle}</div>
       </div>
     </div>`;
   }
@@ -241,23 +244,23 @@ function renderDoshaProfile(doshaKey) {
         ${d.qualities.map(q => `<span class="badge" style="background:${d.colorDim};color:${d.color};">${q}</span>`).join('')}
       </div>
     </div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">🧬 Body Type</h4><p style="font-size:var(--text-sm);">${d.bodyType}</p></div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">🧠 Personality</h4><p style="font-size:var(--text-sm);">${d.personality}</p></div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">⚠️ Imbalance Signs</h4>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Body Type</h4><p style="font-size:var(--text-sm);">${d.bodyType}</p></div>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Personality</h4><p style="font-size:var(--text-sm);">${d.personality}</p></div>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Imbalance Signs</h4>
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">${d.imbalanceSigns.map(s => `<span class="badge badge-amber">${s}</span>`).join('')}</div>
     </div>
     <div class="grid-2" style="gap:var(--space-4);">
-      <div class="card"><h4 style="margin-bottom:var(--space-2);font-size:var(--text-sm);">✅ Foods to Favor</h4>
+      <div class="card"><h4 style="margin-bottom:var(--space-2);font-size:var(--text-sm);">Foods to Favor</h4>
         ${d.foods.favor.map(f => `<div style="font-size:var(--text-xs);color:var(--accent-green);padding:var(--space-1) 0;">• ${f}</div>`).join('')}
       </div>
-      <div class="card"><h4 style="margin-bottom:var(--space-2);font-size:var(--text-sm);">❌ Foods to Avoid</h4>
+      <div class="card"><h4 style="margin-bottom:var(--space-2);font-size:var(--text-sm);">Foods to Avoid</h4>
         ${d.foods.avoid.map(f => `<div style="font-size:var(--text-xs);color:var(--accent-coral);padding:var(--space-1) 0;">• ${f}</div>`).join('')}
       </div>
     </div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">🌿 Recommended Herbs</h4>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Recommended Herbs</h4>
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">${d.herbs.map(h => `<span class="badge badge-green">${h}</span>`).join('')}</div>
     </div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">🧘 Lifestyle Tips</h4>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Lifestyle Tips</h4>
       ${d.lifestyle.map(l => `<div style="font-size:var(--text-sm);color:var(--text-secondary);padding:var(--space-1) 0;">• ${l}</div>`).join('')}
     </div>
     <button class="btn btn-secondary btn-block" id="retake-quiz">Retake Quiz</button>
@@ -270,7 +273,7 @@ function renderFaceMap() {
       <h4 style="margin-bottom:var(--space-2);">Chinese Face Mapping</h4>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">Each facial zone connects to internal organs via TCM meridians. Tap a zone to learn more.</p>
       <div class="face-map" style="background:var(--bg-glass-heavy);border-radius:var(--radius-xl);border:1px solid var(--border-subtle);position:relative;min-height:360px;">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:80px;opacity:0.15;">👤</div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.15;color:var(--text-primary);">${icons.user}</div>
         ${faceMappingZones.map(z => `<div class="face-map-zone" data-zone="${z.id}" style="position:absolute;top:${z.position.top};left:${z.position.left};width:${z.position.width};height:${z.position.height};border-radius:var(--radius-md);"></div>`).join('')}
       </div>
     </div>
@@ -288,14 +291,14 @@ function renderFaceMap() {
 function renderTongue() {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card" style="text-align:center;">
-      <div style="font-size:48px;margin-bottom:var(--space-2);">👅</div>
+      <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
       <h4>Tongue Diagnosis</h4>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);">In TCM, the tongue reflects internal organ health.</p>
     </div>
     ${tongueDiagnosis.map(t => `<div class="card card-sm">
       <h4 style="font-size:var(--text-sm);margin-bottom:var(--space-1);color:var(--accent-amber);">${t.condition}</h4>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">${t.meaning}</p>
-      <p style="font-size:var(--text-xs);color:var(--accent-teal);">💡 ${t.recommendation}</p>
+      <p style="font-size:var(--text-xs);color:var(--accent-teal);">${t.recommendation}</p>
     </div>`).join('')}
   </div>`;
 }
@@ -336,7 +339,7 @@ function setupEMHandlers() {
             <div style="margin:var(--space-2) 0;"><p style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:var(--space-1);">Signs to Watch:</p>
               ${zone.signs.map(s => `<p style="font-size:var(--text-xs);color:var(--text-secondary);padding:var(--space-1) 0;">• ${s}</p>`).join('')}</div>
             <div><p style="font-size:var(--text-xs);font-weight:var(--weight-semibold);margin-bottom:var(--space-1);">Recommendations:</p>
-              ${zone.recommendations.map(r => `<p style="font-size:var(--text-xs);color:var(--accent-teal);padding:var(--space-1) 0;">✨ ${r}</p>`).join('')}</div>
+              ${zone.recommendations.map(r => `<p style="font-size:var(--text-xs);color:var(--accent-teal);padding:var(--space-1) 0;">${r}</p>`).join('')}</div>
           </div>`;
       detail.scrollIntoView({ behavior: 'smooth' });
     });
@@ -345,26 +348,15 @@ function setupEMHandlers() {
 
 async function saveDoshaResult(doshaKey) {
   try {
-    await fetch('/api/health-profile', {
+    await apiFetch('/api/health-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, dosha: doshaKey }),
     });
-    showToast('✅ Dosha saved to your health profile');
+    showToast('Dosha saved to your health profile');
   } catch (err) {
     console.error('[EasternMedicine] Save dosha failed:', err);
-    showToast('❌ Could not save dosha result');
+    showToast('Could not save dosha result');
   }
 }
 
-function showToast(message) {
-  const container = document.getElementById('toast-container') || document.body;
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.innerHTML = `<span>${message}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add('removing');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}

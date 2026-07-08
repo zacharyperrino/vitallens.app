@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-
-const API = window.API_BASE || '/api';
+import { icons } from '../icons.js';
+import { apiFetch } from '../utils/api.js';
 
 export default function PatternDiscoveryHero({ userId }) {
     const [correlations, setCorrelations] = useState([]);
@@ -9,7 +9,7 @@ export default function PatternDiscoveryHero({ userId }) {
 
     async function fetchPatterns() {
         try {
-            const res = await fetch(`${API}/correlate/latest?userId=${userId}&limit=8`);
+            const res = await apiFetch(`/api/correlate/latest?userId=${userId}&limit=8`);
             if (!res.ok) throw new Error('Failed');
             const { correlations } = await res.json();
             setCorrelations(correlations || []);
@@ -23,7 +23,7 @@ export default function PatternDiscoveryHero({ userId }) {
     async function runFreshAnalysis() {
         setRefreshing(true);
         try {
-            await fetch(`${API}/correlate/run`, {
+            await apiFetch(`/api/correlate/run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId }),
@@ -45,7 +45,7 @@ export default function PatternDiscoveryHero({ userId }) {
 
     if (meaningful.length === 0) return (
         <div style={{ background: 'linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', border: '1px solid var(--border)', textAlign: 'center' }}>
-            <div style={{ fontSize: '32px', marginBottom: 'var(--space-3)' }}>🔍</div>
+            <div style={{ marginBottom: 'var(--space-3)', color: 'var(--text-tertiary)' }} dangerouslySetInnerHTML={{ __html: icons.scan }} />
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>No patterns discovered yet</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>Log meals, sleep, and check-ins for a few days, then run a pattern analysis.</div>
             <button className="btn btn-primary" style={{ fontSize: 'var(--text-xs)' }} onClick={runFreshAnalysis} disabled={refreshing}>
@@ -70,7 +70,7 @@ export default function PatternDiscoveryHero({ userId }) {
                 <div style={{ fontSize: '10px', fontWeight: 700, color: directionColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{strengthLabel}</div>
             </div>
 
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textTransform: 'capitalize' }}>{domainA} → {domainB}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textTransform: 'capitalize' }}>{domainA} {domainB}</div>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>{top.description}</div>
 
             {top.actionable && (
@@ -87,7 +87,7 @@ export default function PatternDiscoveryHero({ userId }) {
                         const col = c.direction === 'positive' ? 'var(--accent-green)' : c.direction === 'negative' ? 'var(--accent-coral)' : 'var(--accent-amber)';
                         return (
                             <div key={i} style={{ padding: 'var(--space-1) var(--space-2)', background: 'var(--surface-1)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '10px', color: 'var(--text-tertiary)' }}>
-                                <span style={{ color: col }}>●</span> {parts[0]?.replace(/_/g, ' ')} → {parts[1]?.replace(/_/g, ' ')}
+                                <span style={{ color: col }}>●</span> {parts[0]?.replace(/_/g, ' ')} {parts[1]?.replace(/_/g, ' ')}
                             </div>
                         );
                     })}
@@ -97,7 +97,7 @@ export default function PatternDiscoveryHero({ userId }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Pattern observations · not medical advice</div>
                 <button onClick={runFreshAnalysis} disabled={refreshing} style={{ fontSize: '10px', color: 'var(--accent-teal)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    {refreshing ? 'Analyzing...' : 'Run fresh analysis →'}
+                    {refreshing ? 'Analyzing...' : 'Run fresh analysis'}
                 </button>
             </div>
         </div>

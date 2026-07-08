@@ -1,5 +1,5 @@
 // Simple hash-based SPA router
-import { getSession } from './pages/auth.js';
+import { getSession, isOnboardingComplete } from './pages/auth.js';
 import { renderAuth } from './pages/auth.js';
 
 // Routes that don't require login
@@ -20,6 +20,11 @@ export class Router {
             const session = await getSession();
             if (!session) {
                 renderAuth();
+                return;
+            }
+            // ── Onboarding gate — redirect new users until done ──
+            if (hash !== '/onboarding' && !(await isOnboardingComplete())) {
+                window.location.hash = '#/onboarding';
                 return;
             }
         }

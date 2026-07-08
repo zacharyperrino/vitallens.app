@@ -1,3 +1,5 @@
+import { icons } from '../icons.js';
+
 // Health score computation algorithm
 
 export function computeHealthScore(data) {
@@ -77,7 +79,7 @@ export function getHealthInsights(healthData) {
     if (score.breakdown.sleep < 70) {
         insights.push({
             type: 'warning',
-            icon: '😴',
+            icon: icons.moon,
             title: 'Sleep Needs Attention',
             text: 'Your sleep score is below optimal. Aim for 7-8 hours of quality sleep. Consider limiting screen time before bed.',
             color: 'var(--accent-amber)',
@@ -87,7 +89,7 @@ export function getHealthInsights(healthData) {
     if (score.breakdown.habits < 60) {
         insights.push({
             type: 'alert',
-            icon: '⚠️',
+            icon: icons.alert,
             title: 'Habit Impact on Health',
             text: 'Certain habits are significantly impacting your health score. Small changes can lead to major improvements.',
             color: 'var(--accent-coral)',
@@ -97,7 +99,7 @@ export function getHealthInsights(healthData) {
     if (score.breakdown.nutrition > 80) {
         insights.push({
             type: 'positive',
-            icon: '🥗',
+            icon: icons.leaf,
             title: 'Great Nutrition',
             text: 'Your nutritional intake is well-balanced. Keep up the good work with diverse, whole foods.',
             color: 'var(--accent-green)',
@@ -107,7 +109,7 @@ export function getHealthInsights(healthData) {
     if (score.breakdown.exercise < 65) {
         insights.push({
             type: 'suggestion',
-            icon: '🏃',
+            icon: icons.activity,
             title: 'Move More',
             text: 'Increasing physical activity can boost your overall health score significantly. Even 20 minutes daily helps.',
             color: 'var(--accent-blue)',
@@ -117,7 +119,7 @@ export function getHealthInsights(healthData) {
     // Always add a positive insight
     insights.push({
         type: 'positive',
-        icon: '💡',
+        icon: icons.sparkle,
         title: 'Daily Tip',
         text: getTip(),
         color: 'var(--accent-teal)',

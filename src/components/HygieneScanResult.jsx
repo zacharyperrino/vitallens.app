@@ -43,7 +43,7 @@ export default function HygieneScanResult({ product, onLog }) {
 
             {concerns.length === 0 && (
                 <div style={{ padding: 'var(--space-3)', background: 'var(--accent-green-dim)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent-green)' }}>✓ No commonly flagged ingredients noticed.</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent-green)' }}>No commonly flagged ingredients noticed.</div>
                 </div>
             )}
 
@@ -80,7 +80,7 @@ export default function HygieneScanResult({ product, onLog }) {
                 disabled={logged}
                 style={{ opacity: logged ? 0.6 : 1 }}
             >
-                {logged ? '✓ Logged' : 'Log This Product'}
+                {logged ? 'Logged' : 'Log This Product'}
             </button>
         </div>
     );

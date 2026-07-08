@@ -18,37 +18,12 @@ html {
 body {
     font-family: var(--font-body);
     font-size: var(--text-base);
-    line-height: 1.6;
+    line-height: var(--leading-base);
     color: var(--text-primary);
     background: var(--bg-primary);
     min-height: 100%;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
-}
-
-/* Background ambient glow */
-body::before {
-    content: '';
-    position: fixed;
-    top: -200px;
-    left: -200px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(0, 212, 170, 0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-}
-
-body::after {
-    content: '';
-    position: fixed;
-    bottom: -200px;
-    right: -200px;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(167, 139, 250, 0.05) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
 }
 
 #app {
@@ -84,11 +59,11 @@ body::after {
 
 /* === Selection === */
 ::selection {
-    background: var(--accent-teal-dim);
-    color: var(--accent-teal);
+    background: var(--accent-dim);
+    color: var(--accent);
 }
 
-/* === Typography === */
+/* === Typography — serif headlines, larger and lighter === */
 h1,
 h2,
 h3,
@@ -96,8 +71,9 @@ h4,
 h5,
 h6 {
     font-family: var(--font-heading);
-    font-weight: var(--weight-bold);
-    line-height: 1.2;
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+    letter-spacing: -0.01em;
     color: var(--text-primary);
 }
 
@@ -123,13 +99,13 @@ p {
 }
 
 a {
-    color: var(--accent-teal);
+    color: var(--accent);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
 a:hover {
-    color: var(--accent-blue);
+    color: var(--accent-hover);
 }
 
 img {
@@ -165,11 +141,11 @@ button {
     border: 0;
 }
 
+/* Formerly a gradient-clipped text effect — now flat editorial charcoal */
 .text-gradient {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-primary);
 }
 
 .flex-between {

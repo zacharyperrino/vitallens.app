@@ -1,6 +1,8 @@
 // ─── Auth Page — Sign In / Sign Up ──────────────────────────
+import { icons } from '../icons.js';
 import { supabase } from '../lib/supabase.js';
 import { migrateFromLocalStorage } from '../lib/db.js';
+import { trackEvent } from '../utils/analytics-events.js';
 
 export function renderAuth() {
     const content = document.getElementById('page-content');
@@ -14,7 +16,7 @@ export function renderAuth() {
 
       <!-- Logo -->
       <div style="text-align:center;margin-bottom:var(--space-8);">
-        <div style="font-size:48px;margin-bottom:var(--space-3);">🧬</div>
+        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;">${icons.activity}</div>
         <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-1);">VitalLens</h1>
         <p style="font-size:var(--text-sm);color:var(--text-secondary);">Your personal health intelligence platform</p>
       </div>
@@ -62,7 +64,7 @@ export function renderAuth() {
             </div>
 
             <!-- Submit button -->
-            <button id="auth-submit" class="btn btn-primary btn-block" style="margin-top:var(--space-2);">
+            <button id="auth-submit" class="btn btn-glass btn-block" style="margin-top:var(--space-2);">
               Sign In
             </button>
 
@@ -159,8 +161,11 @@ export function renderAuth() {
                 btn.textContent = 'Create Account';
 
             } else {
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
+
+                const user = data.user;
+                if (user) trackEvent('user_logged_in', { userId: user.id });
 
                 const alreadyMigrated = localStorage.getItem('vitallens_migrated');
                 if (!alreadyMigrated) {
@@ -243,6 +248,36 @@ export function renderAuth() {
 export async function getSession() {
     const { data: { session } } = await supabase.auth.getSession();
     return session;
+}
+
+// ─── Onboarding gate ─────────────────────────────────────────
+// Reads profiles.onboarding_completed for the current user. Cached
+// so the router guard doesn't hit the DB on every navigation.
+let _onboardingComplete = null;
+
+export async function isOnboardingComplete() {
+    if (_onboardingComplete !== null) return _onboardingComplete;
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return false;
+        const { data } = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', user.id)
+            .single();
+        _onboardingComplete = !!data?.onboarding_completed;
+        return _onboardingComplete;
+    } catch {
+        // On a transient read failure, don't trap the user in a redirect
+        // loop — allow this navigation but leave the cache unset so the
+        // next navigation re-checks.
+        return true;
+    }
+}
+
+// Call after the user finishes onboarding so the guard stops redirecting.
+export function markOnboardingComplete() {
+    _onboardingComplete = true;
 }
 
 export async function signOut() {

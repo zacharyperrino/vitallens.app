@@ -1,11 +1,10 @@
 import { icons } from '../icons.js';
-import { createLineChart, createBarChart, createInteractiveTrendChart } from '../utils/charts.js';
+import { createBarChart, createInteractiveTrendChart } from '../utils/charts.js';
 import { mountReact } from '../components/mountReact.js';
 import WellnessScoreCard from '../components/WellnessScoreCard.jsx';
 import PatternDiscoveryHero from '../components/PatternDiscoveryHero.jsx';
 import NutritionTracker from '../components/NutritionTracker.jsx';
-
-const API = window.API_BASE || '/api';
+import { apiFetch } from '../utils/api.js';
 
 export async function renderAnalytics() {
   const content = document.getElementById('page-content');
@@ -28,11 +27,11 @@ export async function renderAnalytics() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 
     const [nutritionRes, mealsRes, biomarkerRes, suppRes, envRes] = await Promise.allSettled([
-      fetch(`${API}/daily-nutrition?userId=${userId}&date=${today}`),
+      apiFetch(`/api/daily-nutrition?userId=${userId}&date=${today}`),
       supabase.from('meals').select('name, calories, protein, carbs, fat, fiber, logged_at').eq('user_id', userId).gte('logged_at', sevenDaysAgo).order('logged_at', { ascending: true }),
-      fetch(`${API}/biomarker-history?userId=${userId}&limit=20`),
-      fetch(`${API}/supplements?userId=${userId}`),
-      fetch(`${API}/environment/latest?userId=${userId}`),
+      apiFetch(`/api/biomarker-history?userId=${userId}&limit=20`),
+      apiFetch(`/api/supplements?userId=${userId}`),
+      apiFetch(`/api/environment/latest?userId=${userId}`),
     ]);
 
     const { data: weeklyNutrition } = await supabase
@@ -42,7 +41,7 @@ export async function renderAnalytics() {
       .gte('date', sevenDaysAgo)
       .order('date', { ascending: true });
 
-    const profileRes = await fetch(`${API}/health-profile?userId=${userId}`);
+    const profileRes = await apiFetch(`/api/health-profile?userId=${userId}`);
     const { profile } = profileRes.ok ? await profileRes.json() : { profile: null };
 
     const meals = mealsRes.status === 'fulfilled' ? mealsRes.value.data || [] : [];
@@ -246,7 +245,7 @@ mountReact(WellnessScoreCard, 'weekly-score-react', { userId });
 
 async function renderPatternDiscoveryHero(userId) {
   try {
-    const res = await fetch(`${API}/correlate/latest?userId=${userId}&limit=8`);
+    const res = await apiFetch(`/api/correlate/latest?userId=${userId}&limit=8`);
     if (!res.ok) return renderPatternDiscoveryEmpty();
     const { correlations } = await res.json();
     const meaningful = (correlations || []).filter(c => c.correlation_type !== 'summary' && c.confidence >= 0.6);
@@ -268,7 +267,7 @@ async function renderPatternDiscoveryHero(userId) {
         <div style="width:8px;height:8px;border-radius:50%;background:${directionColor};"></div>
         <div style="font-size:10px;font-weight:700;color:${directionColor};text-transform:uppercase;letter-spacing:0.1em;">${strengthLabel}</div>
       </div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-2);text-transform:capitalize;">${domainA} → ${domainB}</div>
+      <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-2);text-transform:capitalize;">${domainA} ${domainB}</div>
       <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);line-height:1.5;">${top.description}</div>
       ${top.actionable ? `
       <div style="padding:var(--space-2) var(--space-3);background:var(--surface-1);border-radius:var(--radius-md);border-left:3px solid ${directionColor};margin-bottom:var(--space-3);">
@@ -281,13 +280,13 @@ async function renderPatternDiscoveryHero(userId) {
           const parts = c.correlation_type?.split('-') || [];
           const col = c.direction === 'positive' ? 'var(--accent-green)' : c.direction === 'negative' ? 'var(--accent-coral)' : 'var(--accent-amber)';
           return `<div style="padding:var(--space-1) var(--space-2);background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border);font-size:10px;color:var(--text-tertiary);">
-            <span style="color:${col};">●</span> ${parts[0]?.replace(/_/g, ' ')} → ${parts[1]?.replace(/_/g, ' ')}
+            <span style="color:${col};">●</span> ${parts[0]?.replace(/_/g, ' ')} ${parts[1]?.replace(/_/g, ' ')}
           </div>`;
         }).join('')}
       </div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:10px;color:var(--text-tertiary);font-style:italic;">Pattern observations · not medical advice</div>
-        <button id="refresh-patterns-btn" style="font-size:10px;color:var(--accent-teal);background:none;border:none;cursor:pointer;padding:0;">Run fresh analysis →</button>
+        <button id="refresh-patterns-btn" style="font-size:10px;color:var(--accent-teal);background:none;border:none;cursor:pointer;padding:0;">Run fresh analysis</button>
       </div>
     </div>`;
   } catch { return renderPatternDiscoveryEmpty(); }
@@ -296,7 +295,7 @@ async function renderPatternDiscoveryHero(userId) {
 function renderPatternDiscoveryEmpty() {
   return `
   <div style="background:linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%);border-radius:var(--radius-lg);padding:var(--space-6);border:1px solid var(--border);text-align:center;">
-    <div style="font-size:32px;margin-bottom:var(--space-3);">🔍</div>
+    <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.scan}</div>
     <div style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--space-2);">No patterns discovered yet</div>
     <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">Log meals, sleep, and check-ins for a few days, then run a pattern analysis to see connections in your data.</div>
     <button id="refresh-patterns-btn" class="btn btn-primary" style="font-size:var(--text-xs);">Run Pattern Analysis</button>
@@ -305,7 +304,7 @@ function renderPatternDiscoveryEmpty() {
 
 async function renderPredictionsSection(userId) {
   try {
-    const res = await fetch(`${API}/predictions/latest?userId=${userId}`);
+    const res = await apiFetch(`/api/predictions/latest?userId=${userId}`);
     if (!res.ok) return renderPredictionsEmpty();
     const { prediction } = await res.json();
     if (!prediction) return renderPredictionsEmpty();
@@ -382,7 +381,7 @@ function renderPredictionsEmpty() {
 
 async function renderCorrelationSection(userId) {
   try {
-    const res = await fetch(`${API}/correlate/latest?userId=${userId}&limit=8`);
+    const res = await apiFetch(`/api/correlate/latest?userId=${userId}&limit=8`);
     if (!res.ok) return renderCorrelationEmpty();
     const { correlations } = await res.json();
     const meaningful = correlations.filter(c => c.correlation_type !== 'summary');
@@ -440,8 +439,8 @@ function renderCorrelationEmpty() {
 async function renderWeeklyReportSection(userId) {
   try {
     const [narrativeRes, reportRes] = await Promise.allSettled([
-      fetch(`${API}/weekly-report/narrative?userId=${userId}`),
-      fetch(`${API}/weekly-report/latest?userId=${userId}`),
+      apiFetch(`/api/weekly-report/narrative?userId=${userId}`),
+      apiFetch(`/api/weekly-report/latest?userId=${userId}`),
     ]);
 
     const narrativeData = narrativeRes.status === 'fulfilled' && narrativeRes.value.ok
@@ -501,7 +500,7 @@ async function renderWeeklyReportSection(userId) {
         ${gaps.length > 0 ? `
         <div style="margin-bottom:var(--space-3);">
           <div style="font-size:10px;font-weight:600;color:var(--accent-amber);margin-bottom:var(--space-1);">PATTERNS TO EXPLORE</div>
-          ${gaps.map(g => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:2px 0;">→ ${g}</div>`).join('')}
+          ${gaps.map(g => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:2px 0;">${g}</div>`).join('')}
         </div>` : ''}
         ${r.top_correlation || r.report_data?.top_connection ? `
         <div style="padding:var(--space-2);background:var(--accent-teal-dim);border-radius:var(--radius-md);margin-bottom:var(--space-3);">
@@ -535,7 +534,7 @@ function setupAnalyticsHandlers(userId) {
   const correlationSection = document.getElementById('correlation-section');
   hero.innerHTML = '<div style="text-align:center;padding:var(--space-6);"><div class="spinner" style="margin:0 auto;"></div></div>';
   try {
-    const res = await fetch(`${API}/correlate/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+    const res = await apiFetch(`/api/correlate/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
     if (!res.ok) throw new Error('Server error');
     hero.innerHTML = await renderPatternDiscoveryHero(userId);
     correlationSection.innerHTML = await renderCorrelationSection(userId);
@@ -551,7 +550,7 @@ function setupAnalyticsHandlers(userId) {
     btn.textContent = 'Analyzing...';
     section.innerHTML = '<div style="text-align:center;padding:var(--space-6);"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-3);">Finding trend patterns and ranking suggestions...</p></div>';
     try {
-      const res = await fetch(`${API}/predictions/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+      const res = await apiFetch(`/api/predictions/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
       if (!res.ok) throw new Error('Server error');
       section.innerHTML = await renderPredictionsSection(userId);
       setupAnalyticsHandlers(userId);
@@ -567,7 +566,7 @@ function setupAnalyticsHandlers(userId) {
     btn.textContent = 'Analyzing...';
     section.innerHTML = '<div style="text-align:center;padding:var(--space-6);"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-3);">Finding patterns across your wellness data...</p></div>';
     try {
-      const res = await fetch(`${API}/correlate/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+      const res = await apiFetch(`/api/correlate/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
       if (!res.ok) throw new Error('Server error');
       section.innerHTML = await renderCorrelationSection(userId);
       setupAnalyticsHandlers(userId);
@@ -583,7 +582,7 @@ function setupAnalyticsHandlers(userId) {
     btn.textContent = 'Generating...';
     section.innerHTML = '<div style="text-align:center;padding:var(--space-6);"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-3);">Writing your weekly summary...</p></div>';
     try {
-      const res = await fetch(`${API}/weekly-report/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+      const res = await apiFetch(`/api/weekly-report/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
       if (!res.ok) throw new Error('Server error');
       section.innerHTML = await renderWeeklyReportSection(userId);
       setupAnalyticsHandlers(userId);

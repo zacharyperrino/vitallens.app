@@ -4,22 +4,24 @@
 import { icons } from '../icons.js';
 import { CameraSystem, QualityGate } from '../utils/camera-system.js';
 import { RPPGEngine, analyzeFace, analyzeEye, analyzeSkin, analyzeBodyComposition, analyzeTongue, analyzeNail } from '../utils/biomarker-engine.js';
-import { createRadarChart } from '../utils/charts.js';
-import { bodyScans, hrReadings } from '../lib/db.js';
 
+import { bodyScans, hrReadings } from '../lib/db.js';
+import { apiFetch } from '../utils/api.js';
+
+import { showToast } from '../utils/toast.js';
 let activeMode = 'face';
 let camera = null;
 let rppgEngine = null;
 let isScanning = false;
 
 const MODES = [
-  { id: 'heart', icon: '💓', label: 'Heart Rate', desc: 'rPPG pulse measurement', guide: 'face', facingMode: 'user' },
-  { id: 'face', icon: '👤', label: 'Face Scan', desc: 'Facial mapping & acne analysis', guide: 'face', facingMode: 'user' },
-  { id: 'eye', icon: '👁️', label: 'Eye Check', desc: 'Anemia, jaundice & ocular signals', guide: 'eye', facingMode: 'user' },
-  { id: 'skin', icon: '🔬', label: 'Skin Check', desc: 'Lesion triage (ABCDE criteria)', guide: 'skin', facingMode: 'environment' },
-  { id: 'tongue', icon: '👅', label: 'Tongue', desc: 'TCM & nutritional indicators', guide: 'face', facingMode: 'user' },
-  { id: 'nail', icon: '💅', label: 'Nail Scan', desc: 'Systemic health from nails', guide: 'skin', facingMode: 'environment' },
-  { id: 'body', icon: '🧍', label: 'Body Scan', desc: 'Posture & composition', guide: 'body', facingMode: 'environment' },
+  { id: 'heart', icon: icons.heart, label: 'Heart Rate', desc: 'rPPG pulse measurement', guide: 'face', facingMode: 'user' },
+  { id: 'face', icon: icons.user, label: 'Face Scan', desc: 'Facial mapping & acne analysis', guide: 'face', facingMode: 'user' },
+  { id: 'eye', icon: icons.eye, label: 'Eye Check', desc: 'Anemia, jaundice & ocular signals', guide: 'eye', facingMode: 'user' },
+  { id: 'skin', icon: icons.sun, label: 'Skin Check', desc: 'Lesion triage (ABCDE criteria)', guide: 'skin', facingMode: 'environment' },
+  { id: 'tongue', icon: icons.droplet, label: 'Tongue', desc: 'TCM & nutritional indicators', guide: 'face', facingMode: 'user' },
+  { id: 'nail', icon: icons.star, label: 'Nail Scan', desc: 'Systemic health from nails', guide: 'skin', facingMode: 'environment' },
+  { id: 'body', icon: icons.body, label: 'Body Scan', desc: 'Posture & composition', guide: 'body', facingMode: 'environment' },
 ];
 
 export async function renderBodyScanner() {
@@ -36,7 +38,7 @@ export async function renderBodyScanner() {
   content.innerHTML = `
     <div class="body-scanner stagger-children">
       <div class="page-header">
-        <h1>🔬 Biomarker Scanner</h1>
+        <h1>Biomarker Scanner</h1>
         <p>AI-powered clinical health signal analysis</p>
       </div>
 
@@ -56,7 +58,7 @@ export async function renderBodyScanner() {
       <div id="scan-results" class="hidden"></div>
 
       <div class="disclaimer-banner" style="margin-top:var(--space-4);">
-        <span class="icon">⚠️</span>
+        <span class="icon">${icons.alert}</span>
         <span>Screening signals only — <strong>not a medical diagnosis</strong>. Consult a qualified healthcare provider for clinical evaluation.</span>
       </div>
 
@@ -97,12 +99,12 @@ function renderScannerForMode(mode) {
       </div>
       <div class="card" style="margin-top:var(--space-3);">
         <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);">
-          <span style="font-size:24px;">💓</span>
+          <span style="color:var(--accent);">${icons.heart}</span>
           <div><h4>Heart Rate Measurement</h4><p style="font-size:var(--text-xs);color:var(--text-tertiary);">${instructions}</p></div>
         </div>
         <div id="hr-live-display" style="display:none;text-align:center;padding:var(--space-4) 0;">
           <div class="hr-display" style="justify-content:center;">
-            <div class="hr-pulse">💓</div>
+            <div class="hr-pulse" style="color:var(--accent);">${icons.heart}</div>
             <div><div class="hr-value" id="hr-value">--</div><div class="hr-label">BPM</div></div>
           </div>
           <div style="margin-top:var(--space-3);">
@@ -137,7 +139,7 @@ function renderScannerForMode(mode) {
           ${icons.camera} Start Camera
         </button>
         <label class="btn btn-secondary" style="flex:1;cursor:pointer;">
-          📁 Upload Photo
+          Upload Photo
           <input type="file" accept="image/*" id="upload-input" style="display:none;">
         </label>
       </div>
@@ -201,7 +203,7 @@ async function startCameraScan() {
   const started = await camera.start(viewfinder);
 
   if (!started) {
-    showToast('❌ Camera access denied. Please grant camera permission.');
+    showToast('Camera access denied. Please grant camera permission.');
     startBtn.disabled = false;
     startBtn.innerHTML = `${icons.camera} Start Camera`;
     isScanning = false;
@@ -213,7 +215,7 @@ async function startCameraScan() {
   if (activeMode === 'heart') {
     startHeartRateScan();
   } else {
-    startBtn.innerHTML = '📸 Capture & Analyze';
+    startBtn.innerHTML = 'Capture & Analyze';
     startBtn.disabled = false;
     startBtn.onclick = () => captureAndAnalyze();
     camera.onFrame(frame => {
@@ -343,7 +345,7 @@ function processUploadedImage(file) {
       }
 
       const quality = QualityGate.assess(imageData);
-      if (!quality.pass) showToast(`⚠️ Image quality: ${quality.blur.label} sharpness. Results may be less accurate.`);
+      if (!quality.pass) showToast(`Image quality: ${quality.blur.label} sharpness. Results may be less accurate.`);
 
       setTimeout(async () => {
         let result;
@@ -372,7 +374,7 @@ function processUploadedImage(file) {
           const { supabase } = await import('../lib/supabase.js');
           const { data: { user } } = await supabase.auth.getUser();
           if (user?.id) {
-            await fetch('/api/biomarker-history', {
+            await apiFetch('/api/biomarker-history', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -406,7 +408,7 @@ async function fetchAndRenderDelta(scanType, currentScore) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) return;
 
-    const res = await fetch(`/api/biomarker-history/latest?userId=${user.id}&type=${scanType}`);
+    const res = await apiFetch(`/api/biomarker-history/latest?userId=${user.id}&type=${scanType}`);
     if (!res.ok) return;
     const { latest, previous } = await res.json();
 
@@ -486,10 +488,10 @@ function showAnalysisResults(result, previewUrl) {
       <div id="scan-delta-card"></div>
       ${html}
       <div class="disclaimer-banner">
-        <span class="icon">⚠️</span>
+        <span class="icon">${icons.alert}</span>
         <span>${result.disclaimer || 'Screening tool only. Not a medical diagnosis. Consult a physician for clinical evaluation.'}</span>
       </div>
-      <button class="btn btn-primary btn-block" id="new-scan-btn" style="margin-bottom:var(--space-4);">🔄 New Scan</button>
+      <button class="btn btn-primary btn-block" id="new-scan-btn" style="margin-bottom:var(--space-4);">New Scan</button>
     </div>`;
 
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -686,7 +688,7 @@ function renderFaceResults(r, m) {
           <span style="font-size:var(--text-xs);padding:2px 8px;border-radius:4px;background:${sColor}22;color:${sColor};font-weight:600;">${zone.severity}</span>
         </div>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;margin-bottom:var(--space-1);">${zone.condition}</p>
-        ${zone.possible_system ? `<p style="font-size:var(--text-xs);color:var(--accent-teal);">🔗 ${zone.possible_system}</p>` : ''}
+        ${zone.possible_system ? `<p style="font-size:var(--text-xs);color:var(--accent-teal);">${zone.possible_system}</p>` : ''}
       </div>`;
   }).join('')}` : ''}
 
@@ -737,23 +739,23 @@ function renderEyeResults(r, m) {
     <!-- Conjunctiva -->
     ${r.conjunctiva ? `
     <div class="card card-sm" style="border-left:3px solid ${r.conjunctiva.pallor_present ? 'var(--accent-coral)' : 'var(--accent-green)'};">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">👁️ Conjunctiva</div>
+      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Conjunctiva</div>
       <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
         <span style="font-size:var(--text-xs);color:var(--text-secondary);">Color</span>
         <span style="font-size:var(--text-xs);font-weight:600;">${r.conjunctiva.color?.replace(/_/g, ' ')}</span>
       </div>
       ${r.conjunctiva.pallor_present ? `
       <div style="padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">⚠️ Conjunctival pallor detected — ${r.conjunctiva.pallor_severity}</p>
+        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">Conjunctival pallor detected — ${r.conjunctiva.pallor_severity}</p>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">${r.conjunctiva.pallor_notes || ''}</p>
         <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:4px;">May indicate: ${r.conjunctiva.possible_cause || 'iron deficiency anemia, B12 deficiency'}</p>
-      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);">✓ No pallor detected</p>`}
+      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);">No pallor detected</p>`}
     </div>` : ''}
 
     <!-- Sclera -->
     ${r.sclera ? `
     <div class="card card-sm" style="border-left:3px solid ${r.sclera.icterus_present ? 'var(--accent-amber)' : 'var(--accent-green)'};">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">⚪ Sclera</div>
+      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Sclera</div>
       <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
         <span style="font-size:var(--text-xs);color:var(--text-secondary);">Color</span>
         <span style="font-size:var(--text-xs);font-weight:600;">${r.sclera.color?.replace(/_/g, ' ')}</span>
@@ -764,15 +766,15 @@ function renderEyeResults(r, m) {
       </div>
       ${r.sclera.icterus_present ? `
       <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">⚠️ Scleral icterus detected</p>
+        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">Scleral icterus detected</p>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">May indicate elevated bilirubin. Consult a physician.</p>
-      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);margin-top:var(--space-2);">✓ No icterus detected</p>`}
+      </div>` : `<p style="font-size:var(--text-xs);color:var(--accent-green);margin-top:var(--space-2);">No icterus detected</p>`}
     </div>` : ''}
 
     <!-- Periorbital -->
     ${r.periorbital ? `
     <div class="card card-sm">
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">🔲 Periorbital Area</div>
+      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">Periorbital Area</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
         <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
           <div style="font-size:10px;color:var(--text-tertiary);">Puffiness</div>
@@ -785,7 +787,7 @@ function renderEyeResults(r, m) {
       </div>
       ${r.periorbital.xanthelasma_present ? `
       <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-top:var(--space-2);">
-        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">⚠️ Xanthelasma detected — may indicate elevated cholesterol</p>
+        <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">Xanthelasma detected — may indicate elevated cholesterol</p>
       </div>` : ''}
     </div>` : ''}
 
@@ -831,7 +833,7 @@ function renderSkinResults(r, m) {
       </div>
       ${r.lesion_assessment?.urgency !== 'routine' ? `
       <div style="margin-top:var(--space-2);padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);">
-        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">⚠️ ${r.lesion_assessment.urgency?.replace(/_/g, ' ')} — ${r.lesion_assessment.likely_classification?.replace(/_/g, ' ')}</p>
+        <p style="font-size:var(--text-xs);color:var(--accent-coral);font-weight:600;">${r.lesion_assessment.urgency?.replace(/_/g, ' ')} — ${r.lesion_assessment.likely_classification?.replace(/_/g, ' ')}</p>
       </div>` : ''}
     </div>` : ''}
 
@@ -884,7 +886,7 @@ function renderTongueResults(r, m) {
           <div style="font-size:var(--text-sm);font-weight:600;">${r.body.teeth_marks ? 'Present' : 'None'}</div>
         </div>
       </div>
-      ${r.body.color_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);">🔗 ${r.body.color_significance}</p>` : ''}
+      ${r.body.color_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);">${r.body.color_significance}</p>` : ''}
       ${r.body.cracks?.present ? `
       <div style="margin-top:var(--space-2);padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);">
         <p style="font-size:var(--text-xs);color:var(--accent-amber);font-weight:600;">Cracks detected: ${r.body.cracks.locations?.join(', ')}</p>
@@ -914,13 +916,13 @@ function renderTongueResults(r, m) {
           <div style="font-size:var(--text-sm);font-weight:600;">${r.coating.texture?.replace(/_/g, ' ')}</div>
         </div>
       </div>
-      ${r.coating.coating_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:var(--space-2);">🔗 ${r.coating.coating_significance}</p>` : ''}
+      ${r.coating.coating_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:var(--space-2);">${r.coating.coating_significance}</p>` : ''}
     </div>` : ''}
 
     <!-- TCM Interpretation -->
     ${r.tcm_interpretation ? `
     <div class="card" style="border-left:3px solid var(--accent-teal);">
-      <h4 style="margin-bottom:var(--space-2);">🌿 TCM Interpretation</h4>
+      <h4 style="margin-bottom:var(--space-2);">TCM Interpretation</h4>
       <p style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-bottom:var(--space-2);">${r.tcm_interpretation.primary_pattern}</p>
       ${r.tcm_interpretation.organ_systems_implicated?.length > 0 ? `
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-1);margin-bottom:var(--space-2);">
@@ -934,7 +936,7 @@ function renderTongueResults(r, m) {
     <!-- Nutritional Deficiencies -->
     ${r.nutritional_deficiency_flags?.length > 0 ? `
     <div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
-      <h4 style="margin-bottom:var(--space-2);">⚡ Nutritional Flags</h4>
+      <h4 style="margin-bottom:var(--space-2);">Nutritional Flags</h4>
       ${r.nutritional_deficiency_flags.map(d =>
     `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:var(--space-1) 0;">• ${d}</div>`
   ).join('')}
@@ -978,18 +980,18 @@ function renderNailResults(r, m) {
           <div style="font-size:var(--text-sm);font-weight:600;">${r.surface_texture?.overall?.replace(/_/g, ' ')}</div>
         </div>
       </div>
-      ${r.color_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:var(--space-2);">🔗 ${r.color_significance}</p>` : ''}
+      ${r.color_significance ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:var(--space-2);">${r.color_significance}</p>` : ''}
     </div>
 
     ${r.shape?.clubbing_present ? `
     <div class="card card-sm" style="border-left:3px solid var(--accent-coral);">
-      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-coral);">⚠️ Clubbing detected — ${r.shape.clubbing_grade}</p>
+      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-coral);">Clubbing detected — ${r.shape.clubbing_grade}</p>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">${r.shape.clubbing_significance || 'May indicate lung, heart, or liver disease. Consult a physician.'}</p>
     </div>` : ''}
 
     ${r.fungal_infection?.suspected ? `
     <div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
-      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-amber);">🍄 Fungal infection suspected — ${r.fungal_infection.pattern?.replace(/_/g, ' ')}</p>
+      <p style="font-size:var(--text-sm);font-weight:600;color:var(--accent-amber);">Fungal infection suspected — ${r.fungal_infection.pattern?.replace(/_/g, ' ')}</p>
       <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-top:4px;">Severity: ${r.fungal_infection.severity}. ${r.fungal_infection.nails_affected || ''}</p>
     </div>` : ''}
 
@@ -1199,7 +1201,7 @@ function renderBodyResults(r, m) {
           <span style="font-size:var(--text-xs);font-weight:600;">${item.value?.replace(/_/g, ' ') || '—'}</span>
         </div>`).join('')}
       </div>
-      ${r.posture.primary_concern ? `<p style="font-size:var(--text-xs);color:var(--accent-amber);margin-top:var(--space-2);">⚠️ ${r.posture.primary_concern}</p>` : ''}
+      ${r.posture.primary_concern ? `<p style="font-size:var(--text-xs);color:var(--accent-amber);margin-top:var(--space-2);">${r.posture.primary_concern}</p>` : ''}
     </div>` : ''}
 
     ${r.body_composition ? `
@@ -1272,7 +1274,7 @@ function renderLabSuggestions(labs) {
   if (!labs?.length) return '';
   return `
     <div class="card" style="border-left:3px solid var(--accent-teal);">
-      <h4 style="margin-bottom:var(--space-2);">🧪 Suggested Lab Tests</h4>
+      <h4 style="margin-bottom:var(--space-2);">Suggested Lab Tests</h4>
       ${labs.map(l => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:var(--space-1) 0;">• ${l}</div>`).join('')}
       <p style="font-size:10px;color:var(--text-tertiary);margin-top:var(--space-2);">These tests would help confirm or rule out the visual findings above.</p>
     </div>`;
@@ -1301,9 +1303,9 @@ function showHeartRateResults(result) {
   resultsDiv.innerHTML = `
     <div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);margin-top:var(--space-4);">
       <div class="card" style="text-align:center;">
-        <h3 style="margin-bottom:var(--space-4);">💓 Heart Rate Results</h3>
+        <h3 style="margin-bottom:var(--space-4);">Heart Rate Results</h3>
         <div class="hr-display" style="justify-content:center;margin-bottom:var(--space-4);">
-          <div class="hr-pulse">💓</div>
+          <div class="hr-pulse" style="color:var(--accent);">${icons.heart}</div>
           <div>
             <div class="hr-value" style="color:${zoneColor};">${result.hr}</div>
             <div class="hr-label">BPM</div>
@@ -1332,10 +1334,10 @@ function showHeartRateResults(result) {
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${getHRInterpretation(result.hr)}</p>
       </div>
       <div class="disclaimer-banner">
-        <span class="icon">⚠️</span>
+        <span class="icon">${icons.alert}</span>
         <span>rPPG heart rate measurement is an estimation technique. For clinical accuracy use a dedicated pulse oximeter or medical-grade device.</span>
       </div>
-      <button class="btn btn-primary btn-block" id="new-scan-btn">🔄 New Scan</button>
+      <button class="btn btn-primary btn-block" id="new-scan-btn">New Scan</button>
     </div>`;
 
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1360,7 +1362,7 @@ function renderHRTrend(readings) {
   return `
     <div class="card" style="margin-top:var(--space-4);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
-        <h4>📊 Recent HR Trend</h4>
+        <h4>Recent HR Trend</h4>
         <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--accent-teal);">Avg: ${avg} BPM</span>
       </div>
       <div style="display:flex;align-items:flex-end;gap:var(--space-2);height:60px;">
@@ -1377,14 +1379,14 @@ function renderHRTrend(readings) {
 function renderScanHistory(history) {
   if (history.length === 0) {
     return `<div class="card" style="text-align:center;padding:var(--space-8);">
-      <div style="font-size:40px;margin-bottom:var(--space-3);">🔬</div>
+      <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.body}</div>
       <h4>No scans yet</h4>
       <p style="font-size:var(--text-sm);color:var(--text-tertiary);">Select a mode above and take your first scan</p>
     </div>`;
   }
 
   return history.map(s => {
-    const m = MODES.find(x => x.id === s.scan_type) || { icon: '🔬', label: s.scan_type };
+    const m = MODES.find(x => x.id === s.scan_type) || { icon: icons.body, label: s.scan_type };
     const t = s.scanned_at
       ? new Date(s.scanned_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       : 'Recently';
@@ -1448,8 +1450,3 @@ function updateCaptureProgressRing(progress) {
     </svg>`;
 }
 
-function showToast(msg) {
-  const c = document.getElementById('toast-container');
-  const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `<span>${msg}</span>`;
-  c.appendChild(t); setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, 4000);
-}

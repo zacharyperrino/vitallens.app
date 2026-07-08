@@ -1,5 +1,4 @@
 import { Router } from './router.js';
-import { store } from './store.js';
 import { icons } from './icons.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderFoodScanner } from './pages/food-scanner.js';
@@ -16,22 +15,13 @@ import { checkOAuthCallback, exchangeCodeForToken } from './utils/strava.js';
 import { getSession, renderAuth } from './pages/auth.js';
 import { meals } from './lib/db.js';
 import { renderHygieneScanner } from './pages/hygiene-scanner.js';
-
-// Use a dynamic API base that switches between local dev and deployed routes
-window.API_BASE = window.location.hostname === 'localhost'
-  ? '/api'
-  : '/api';
-
-const API_BASE = window.API_BASE || (location.origin.startsWith('http') ? `${location.origin}/api` : '/api');
+import { renderOnboarding } from './pages/onboarding.js';
+import { apiFetch } from './utils/api.js';
+import { showToast } from './utils/toast.js';
 const NOTIFICATION_PERMISSION_KEY = 'vitallens_notifications_permission_requested';
 const NOTIFICATION_ENABLED_KEY = 'vitallens_notifications_enabled';
 const LAST_WEEKLY_REPORT_KEY = 'vitallens_last_weekly_report_week';
-const WEEKLY_REPORT_POLL_INTERVAL = 30 * 60 * 1000; // 30 minutes
 const NOTIFICATION_WIDGET_ID = 'notification-settings-widget';
-
-function getApiUrl(path) {
-  return `${API_BASE}${path}`;
-}
 
 function getNotificationPreference() {
   const value = localStorage.getItem(NOTIFICATION_ENABLED_KEY);
@@ -335,7 +325,7 @@ async function setupNotificationTriggers(userId) {
 
 async function scheduleSupplementReminders(userId) {
   try {
-    const res = await fetch(getApiUrl(`/supplements?userId=${encodeURIComponent(userId)}`));
+    const res = await apiFetch(`/api/supplements?userId=${encodeURIComponent(userId)}`);
     if (!res.ok) return;
     const data = await res.json();
     const supplements = Array.isArray(data.supplements) ? data.supplements : [];
@@ -410,7 +400,7 @@ async function setupWeeklyReportNotifier(userId) {
   const checkReports = async () => {
     if (!getNotificationPreference()) return;
     try {
-      const res = await fetch(getApiUrl(`/weekly-report/latest?userId=${encodeURIComponent(userId)}`));
+      const res = await apiFetch(`/api/weekly-report/latest?userId=${encodeURIComponent(userId)}`);
       if (!res.ok) return;
       const data = await res.json();
       const latest = Array.isArray(data.reports) ? data.reports[0] : null;
@@ -459,92 +449,6 @@ function initNav() {
   });
 }
 
-function showOnboarding() {
-  const slides = [
-    { emoji: '🔬', title: 'Welcome to VitalLens', desc: 'Your personal wellness journal that notices patterns between your lifestyle and how you feel.' },
-    { emoji: '🍎', title: 'Scan Your Food', desc: 'Get instant nutrition analysis and build your meal history over time.' },
-    { emoji: '👤', title: 'Wellness Check-ins', desc: 'Track skin, posture, and wellness patterns through regular photo check-ins.' },
-    { emoji: '🧘', title: 'Eastern Wisdom', desc: 'TCM constitution, dosha insights, and holistic wellness guidance.' },
-    { emoji: '📊', title: 'Discover Patterns', desc: 'The longer you log, the more VitalLens notices about your unique patterns.' },
-    { emoji: '📥', title: 'Start With Your Data', desc: 'Log your first meal, sleep, or check-in now to start building your pattern history.', isImport: true },
-];
-
-  let current = 0;
-  const overlay = document.createElement('div');
-  overlay.className = 'onboarding-overlay';
-  overlay.id = 'onboarding';
-  document.body.appendChild(overlay);
-
-  function renderSlide() {
-    const slide = slides[current];
-    overlay.innerHTML = `
-      <div class="onboarding-slide animate-fade-in-up">
-        <div class="onboarding-icon">${slide.emoji}</div>
-        <h2 style="font-size:var(--text-2xl);">${slide.title}</h2>
-        <p style="font-size:var(--text-base);color:var(--text-secondary);max-width:280px;">${slide.desc}</p>
-        ${slide.isImport ? `
-        <div style="display:flex;flex-direction:column;gap:var(--space-2);width:100%;max-width:280px;margin-top:var(--space-3);">
-          <button class="btn btn-primary" id="onboard-log-meal" style="width:100%;">🍎 Log First Meal</button>
-          <button class="btn" id="onboard-log-sleep" style="width:100%;background:var(--surface-2);border:1px solid var(--border);">😴 Log Last Night's Sleep</button>
-          <button class="btn" id="onboard-skip-import" style="width:100%;background:none;border:none;color:var(--text-tertiary);font-size:var(--text-xs);">Skip for now</button>
-        </div>
-        ` : `
-        <div class="onboarding-dots">
-          ${slides.map((_, i) => `<div class="onboarding-dot ${i === current ? 'active' : ''}"></div>`).join('')}
-        </div>
-        <button class="btn btn-primary btn-lg" id="onboarding-next">
-          ${current === slides.length - 1 ? 'Get Started' : 'Next'}
-        </button>
-        ${current > 0 ? '<button class="btn btn-ghost" id="onboarding-skip">Skip</button>' : ''}
-        `}
-      </div>
-    `;
-
-    overlay.querySelector('#onboarding-next')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (current < slides.length - 1) {
-            current++;
-            renderSlide();
-        } else {
-            finishOnboarding();
-        }
-    });
-
-    overlay.querySelector('#onboarding-skip')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        finishOnboarding();
-    });
-
-    overlay.querySelector('#onboard-log-meal')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        finishOnboarding();
-        location.hash = '#/food-scanner';
-    });
-
-    overlay.querySelector('#onboard-log-sleep')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        finishOnboarding();
-        location.hash = '#/health-input';
-    });
-
-    overlay.querySelector('#onboard-skip-import')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        finishOnboarding();
-    });
-}
-
-  function finishOnboarding() {
-    store.set('onboardingComplete', true);
-    overlay.style.opacity = '0';
-    overlay.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => overlay.remove(), 300);
-  }
-
-  renderSlide();
-}
-
 async function init() {
   const session = await getSession();
   if (!session) {
@@ -574,6 +478,7 @@ async function init() {
     '/health-chat': renderHealthChat,
     '/step-details': renderStepDetails,
     '/product-results': renderProductResults,
+    '/onboarding': renderOnboarding,
   });
 
   const stravaCode = checkOAuthCallback();
@@ -586,7 +491,7 @@ async function init() {
         if (c) {
           const t = document.createElement('div');
           t.className = 'toast';
-          t.innerHTML = '<span>✅ Strava connected! Sync your activities.</span>';
+          t.innerHTML = '<span>Strava connected! Sync your activities.</span>';
           c.appendChild(t);
           setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, 3000);
         }
@@ -597,16 +502,15 @@ async function init() {
       if (c) {
         const t = document.createElement('div');
         t.className = 'toast';
-        t.innerHTML = `<span>❌ Strava auth failed: ${err.message}</span>`;
+        t.innerHTML = `<span>Strava auth failed: ${err.message}</span>`;
         c.appendChild(t);
         setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, 4000);
       }
     }
   }
 
-  if (!store.get('onboardingComplete')) {
-    showOnboarding();
-  }
+  // First-run onboarding is a DB-gated route (profiles.onboarding_completed),
+  // enforced by the router guard and rendered by pages/onboarding.js.
 
   router.resolve();
 }
@@ -618,7 +522,9 @@ if (document.readyState === 'loading') {
 }
 
 // ── Service Worker Registration ────────────────────────────────
-if ('serviceWorker' in navigator) {
+// Production only — in dev the SW's cache-first shell serving fights
+// Vite's live modules (stale HTML/CSS, broken hot reloads).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
