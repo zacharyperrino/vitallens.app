@@ -94,7 +94,16 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
 6. **Supabase dashboard:** enable leaked-password protection (Auth → Policies → Password security — 30-second toggle); confirm you're on a plan with daily backups/PITR.
 7. Finish **Oura OAuth** (real client id/secret) if you want real steps/sleep before a native wrap.
 8. Turn on **PostHog** — set `VITE_POSTHOG_KEY` (the old commented snippet is gone; the loader in `analytics-events.js` activates on that env var; until then `trackEvent` logs to console). Zero product analytics is the biggest blind spot for your unit-economics story.
-8b. **Verify the email-confirmation leg of signup once, by hand.** The fresh-user journey (consent gate → onboarding → targets → dashboard) is already E2E-verified (Part A.2 #9), but that test used an admin-confirmed user — the signup → "check your email" → confirm-link → first sign-in path hasn't been exercised with a real inbox.
+8b. ~~Verify the email-confirmation leg~~ — **tested with a real inbox (2026-07-09) and it exposed a LAUNCH-BLOCKING BUG, now your top config fix:**
+   - **The "Confirm signup" email contains NO confirmation link.** A real signup was made with a plus-addressed Gmail; the email arrived but its body is only the "powered by Supabase" footer — the template content with `{{ .ConfirmationURL }}` is missing. Real users could sign up and never be able to confirm or sign in.
+   - Everything downstream is proven healthy: the confirmation URL (generated server-side as a stand-in) confirmed the account, redirected to the app with a session, and first sign-in correctly landed on the consent gate. **Only the email template is broken.**
+   - **Fix (2 min):** Supabase dashboard → Authentication → Emails (Templates) → *Confirm signup* → set the body to include the link, e.g.:
+     ```html
+     <h2>Confirm your signup</h2>
+     <p>Follow this link to confirm your VitalLens account:</p>
+     <p><a href="{{ .ConfirmationURL }}">Confirm your email</a></p>
+     ```
+     Then do one real signup end-to-end to confirm the button arrives. (Also check the *Reset password* and *Magic link* templates while you're there — if one template was emptied, others may be too.)
 
 ### Data (this is what makes the scanner "Cal AI grade")
 9. **Populate `server/evals/meals/`** with 10–20 photos of **weighed** meals + ground-truth grams/calories, then run `npm run eval:food`. Until this exists, scanner accuracy is an assertion, not a measurement. This is the single highest-leverage thing you can do for the core product.
