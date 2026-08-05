@@ -548,4 +548,14 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       })
       .catch(err => console.warn('[SW] Registration failed:', err));
   });
+} else if ('serviceWorker' in navigator) {
+  // Dev: actively remove any service worker left over from a previous prod
+  // build — a stale SW serves cached shell assets and blanks the dev site.
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+    if (regs.length) console.log(`[SW] Unregistered ${regs.length} stale service worker(s) — reload once more.`);
+  });
+  if (window.caches?.keys) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
 }
