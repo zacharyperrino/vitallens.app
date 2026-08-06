@@ -92,6 +92,7 @@ An honesty note you asked me not to sugar-coat: I can engineer to *no known gaps
    - Spend caps (`MAX_USER_MONTHLY_USD`, `MAX_USER_MONTHLY_USD_PREMIUM`, `MAX_GLOBAL_MONTHLY_USD`) if you want different numbers than the 5/50/250 defaults.
    - *(Optional)* `INTERNAL_API_BASE` — only if the API can't reach itself at `localhost:${PORT}` in prod (e.g. serverless/multi-instance hosting).
 6. **Supabase dashboard:** enable leaked-password protection (Auth → Policies → Password security — 30-second toggle); confirm you're on a plan with daily backups/PITR.
+6b. **Upgrade Supabase off the free tier before launch.** Free projects auto-pause after ~1 week of inactivity — DNS disappears, and every request fails with "Failed to fetch" until manually restored (happened 2026-08-05; restore takes ~2 min). Pro (~$25/mo) never pauses and adds daily backups. Until upgraded: open the app at least weekly, or expect to restore the project from the dashboard before any demo.
 7. Finish **Oura OAuth** (real client id/secret) if you want real steps/sleep before a native wrap.
 8. Turn on **PostHog** — set `VITE_POSTHOG_KEY` (the old commented snippet is gone; the loader in `analytics-events.js` activates on that env var; until then `trackEvent` logs to console). Zero product analytics is the biggest blind spot for your unit-economics story.
 8b. ~~Verify the email-confirmation leg~~ — **tested with a real inbox (2026-07-09) and it exposed a LAUNCH-BLOCKING BUG, now your top config fix:**
