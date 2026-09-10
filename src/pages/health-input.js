@@ -1,6 +1,6 @@
 // ─── Health Input Page — Labs, Exercise, Sleep, Habits, Substances, Background, Goals, Environment ─
 import { icons } from '../icons.js';
-import { labResults, exerciseLog, sleepLog, habits } from '../lib/db.js'; // Supabase
+import { labResults, exerciseLog, sleepLog, habits, getUserId } from '../lib/db.js'; // Supabase
 import { apiFetch } from '../utils/api.js';
 
 
@@ -9,7 +9,9 @@ let activeTab = 'labs';
 let currentUserId = null;
 
 export async function renderHealthInput() {
-  currentUserId = localStorage.getItem('vitallens_user_id') || 'default-user';
+  // The old localStorage key was never written anywhere, so this was
+  // permanently the literal 'default-user' and every request 403'd silently.
+  currentUserId = await getUserId();
 
   const content = document.getElementById('page-content');
   content.innerHTML = `

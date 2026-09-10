@@ -22,7 +22,7 @@ export async function lookupBarcode(barcode) {
         });
         if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Lookup failed (${res.status})`); }
         return await res.json();
-    } catch (err) { console.warn('[FoodScanApi] Barcode lookup error:', err.message); return getMockProduct(barcode); }
+    } catch (err) { console.warn('[FoodScanApi] Barcode lookup error:', err.message); throw err; }
 }
 
 export async function parseNutritionLabel(imageFile) {
@@ -32,7 +32,7 @@ export async function parseNutritionLabel(imageFile) {
         const res = await apiFetch(`/api/ocr-parse`, { method: 'POST', body: formData });
         if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `OCR failed`); }
         return await res.json();
-    } catch (err) { console.warn('[FoodScanApi] OCR error:', err.message); return getMockOcrResult(); }
+    } catch (err) { console.warn('[FoodScanApi] OCR error:', err.message); throw err; }
 }
 
 export async function getHealthScore(nutrition, additives = []) {
@@ -316,14 +316,3 @@ function computeLocalScore(n, additives = []) {
     return { score, rating, color: score >= 75 ? '#4CAF50' : score >= 50 ? '#FFC107' : '#F44336', positives: [], negatives: [], breakdown: {} };
 }
 
-function getMockProduct(barcode) {
-    return {
-        product: { barcode, name: 'Unknown Product', brand: '', ingredients: '', nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, fiber: 0, sodium: 0 }, nutriscore: null, nova_group: null, image_url: null },
-        healthScore: { score: 50, rating: 'Good', color: '#FFC107', positives: [], negatives: ['Server not connected'], breakdown: {} },
-        additives: { analyzed: [], summary: { total: 0, high: 0, moderate: 0, low: 0 } },
-    };
-}
-
-function getMockOcrResult() {
-    return { nutrition: { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturated_fat: 0, fiber: 0, sodium: 0 }, servingSize: { amount: 100, unit: 'g' }, rawText: '[Mock] Server not connected', confidence: 0, warnings: ['Server not connected'] };
-}

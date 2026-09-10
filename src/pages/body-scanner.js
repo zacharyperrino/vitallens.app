@@ -307,7 +307,7 @@ function captureAndAnalyze() {
         overallScore: result.overallScore,
         results: result.results || result,
         recommendations: result.recommendations,
-        riskTier: result.riskTier || null,
+        riskTier: null,
       });
     } catch (dbErr) { console.error('[BodyScanner] Failed to save scan:', dbErr.message); }
 
@@ -363,7 +363,7 @@ function processUploadedImage(file) {
             overallScore: result.overallScore,
             results: result.results || result,
             recommendations: result.recommendations,
-            riskTier: result.riskTier || null,
+            riskTier: null,
           });
         } catch (dbErr) { console.error('[BodyScanner] Failed to save scan:', dbErr.message); }
 
@@ -379,7 +379,7 @@ function processUploadedImage(file) {
                 userId: user.id,
                 scanType: activeMode,
                 score: result.overallScore,
-                riskTier: result.riskTier,
+                riskTier: null,
                 result,
               }),
             });
@@ -627,12 +627,11 @@ function renderFaceResults(r, m) {
     ${r.wellness_signals?.length > 0 ? `
     <div class="section-heading"><h3>Wellness Signals</h3></div>
     ${r.wellness_signals.map(sig => {
-      const urgencyColor = sig.urgency === 'seek_attention' ? 'var(--accent-coral)' : sig.urgency === 'discuss_with_doctor' ? 'var(--accent-amber)' : 'var(--text-tertiary)';
+      const urgencyColor = 'var(--text-tertiary)';
       return `
       <div class="card card-sm" style="border-left:3px solid ${urgencyColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-1);">
           <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${sig.indicator}</span>
-          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${urgencyColor}22;color:${urgencyColor};">${(sig.urgency || '').replace(/_/g,' ')}</span>
         </div>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${sig.significance}</p>
         ${sig.confidence ? `<p style="font-size:10px;color:var(--text-tertiary);margin-top:var(--space-1);">Confidence: ${sig.confidence}</p>` : ''}
@@ -705,12 +704,11 @@ function renderFaceResults(r, m) {
     ${r.systemic_flags?.length > 0 ? `
     <div class="section-heading"><h3>Systemic Signals</h3></div>
     ${r.systemic_flags.map(flag => {
-    const urgencyColor = flag.urgency === 'urgent' ? 'var(--accent-coral)' : flag.urgency === 'consult' ? 'var(--accent-amber)' : 'var(--text-tertiary)';
+    const urgencyColor = 'var(--text-tertiary)';
     return `
       <div class="card card-sm" style="border-left:3px solid ${urgencyColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-1);">
           <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${flag.indicator}</span>
-          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${urgencyColor}22;color:${urgencyColor};">${flag.urgency}</span>
         </div>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${flag.significance}</p>
         ${flag.confidence ? `<p style="font-size:10px;color:var(--text-tertiary);margin-top:var(--space-1);">Confidence: ${flag.confidence}</p>` : ''}
@@ -874,17 +872,6 @@ function renderBodyResults(r, m) {
       ${r.posture.primary_observation ? `<p style="font-size:var(--text-xs);color:var(--accent-amber);margin-top:var(--space-3);">${r.posture.primary_observation}</p>` : ''}
     </div>` : ''}
 
-    <!-- Scoliosis Screen -->
-    ${r.scoliosis_screen ? `
-    <div class="card card-sm" style="border-left:3px solid ${scoliosisColors[r.scoliosis_screen.screen_result] || 'var(--text-tertiary)'};">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">
-        <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Scoliosis Screen</span>
-        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${scoliosisColors[r.scoliosis_screen.screen_result]}22;color:${scoliosisColors[r.scoliosis_screen.screen_result]};">${(r.scoliosis_screen.screen_result || '').replace(/_/g,' ')}</span>
-      </div>
-      ${r.scoliosis_screen.curve_pattern && r.scoliosis_screen.curve_pattern !== 'none' ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);">Curve pattern: ${r.scoliosis_screen.curve_pattern.replace(/_/g,' ')}</p>` : ''}
-      ${r.scoliosis_screen.recommended_action && r.scoliosis_screen.recommended_action !== 'none' ? `<p style="font-size:var(--text-xs);color:var(--accent-amber);margin-top:4px;">Recommended: ${r.scoliosis_screen.recommended_action.replace(/_/g,' ')}</p>` : ''}
-    </div>` : ''}
-
     <!-- Anterior Pelvic Tilt -->
     ${r.anterior_pelvic_tilt?.present ? `
     <div class="card card-sm" style="border-left:3px solid var(--accent-amber);">
@@ -989,12 +976,11 @@ function renderBodyResults(r, m) {
     ${r.wellness_observations?.length > 0 ? `
     <div class="section-heading"><h3>Wellness Observations</h3></div>
     ${r.wellness_observations.map(obs => {
-      const urgencyColor = obs.urgency === 'seek_attention' ? 'var(--accent-coral)' : obs.urgency === 'discuss_with_doctor' ? 'var(--accent-amber)' : 'var(--text-tertiary)';
+      const urgencyColor = 'var(--text-tertiary)';
       return `
       <div class="card card-sm" style="border-left:3px solid ${urgencyColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-1);">
           <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${obs.finding}</span>
-          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${urgencyColor}22;color:${urgencyColor};">${(obs.urgency || '').replace(/_/g,' ')}</span>
         </div>
         ${obs.location ? `<p style="font-size:10px;color:var(--text-tertiary);">Location: ${obs.location}</p>` : ''}
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${obs.significance}</p>
@@ -1069,14 +1055,13 @@ function renderSystemicFlags(flags) {
   return `
     <div class="section-heading"><h3>Systemic Signals</h3></div>
     ${flags.map(flag => {
-    const urgencyColor = flag.urgency === 'urgent' ? 'var(--accent-coral)' : flag.urgency === 'consult' ? 'var(--accent-amber)' : 'var(--text-tertiary)';
+    const urgencyColor = 'var(--text-tertiary)';
     const label = flag.indicator || flag.finding || '';
     const detail = flag.significance || '';
     return `
       <div class="card card-sm" style="border-left:3px solid ${urgencyColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-1);">
           <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${label}</span>
-          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${urgencyColor}22;color:${urgencyColor};">${flag.urgency || 'monitor'}</span>
         </div>
         <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${detail}</p>
         ${flag.confidence ? `<p style="font-size:10px;color:var(--text-tertiary);margin-top:var(--space-1);">Confidence: ${flag.confidence}</p>` : ''}
@@ -1100,14 +1085,11 @@ function renderRecommendations(recs) {
   }).join('')}`;
 }
 
-function renderLabSuggestions(labs) {
-  if (!labs?.length) return '';
-  return `
-    <div class="card" style="border-left:3px solid var(--accent-teal);">
-      <h4 style="margin-bottom:var(--space-2);">Suggested Lab Tests</h4>
-      ${labs.map(l => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:var(--space-1) 0;">• ${l}</div>`).join('')}
-      <p style="font-size:10px;color:var(--text-tertiary);margin-top:var(--space-2);">These tests would help confirm or rule out the visual findings above.</p>
-    </div>`;
+// Recommending lab tests to "confirm or rule out" visual findings is a
+// clinical act and contradicts the app's wellness-only framing. The call
+// sites stay valid; nothing renders.
+function renderLabSuggestions() {
+  return '';
 }
 
 function renderGenericResults(r, m) {

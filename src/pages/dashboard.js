@@ -142,10 +142,6 @@ export async function renderDashboard() {
             <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.body}</div>
             <span class="action-label">Body Scan</span>
           </div>
-          <div class="quick-action" onclick="location.hash='#/stool-scanner'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.droplet}</div>
-            <span class="action-label">Stool Check</span>
-          </div>
           <div class="quick-action" onclick="location.hash='#/health-input'">
             <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.clipboard}</div>
             <span class="action-label">Log Data</span>
@@ -196,7 +192,9 @@ export async function renderDashboard() {
               ${icons.trending} ${health.trend >= 0 ? '+' : ''}${health.trend} pts
             </span>
           </div>
-          ${createLineChart(weeklyScores.length ? weeklyScores : [72, 74, 71, 76, 78, 75, 78], 340, 80)}
+          ${weeklyScores.length >= 2
+            ? createLineChart(weeklyScores, 340, 80)
+            : `<div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);color:var(--text-secondary);">Your trend appears after a few days of logging.</div>`}
           <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);">
             ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${d}</span>`).join('')}
           </div>

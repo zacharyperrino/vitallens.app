@@ -3,7 +3,6 @@ import { icons } from './icons.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderFoodScanner } from './pages/food-scanner.js';
 import { renderBodyScanner } from './pages/body-scanner.js';
-import { renderStoolScanner } from './pages/stool-scanner.js';
 import { renderHealthInput } from './pages/health-input.js';
 import { renderEasternMedicine } from './pages/eastern-medicine.js';
 import { renderAnalytics } from './pages/analytics.js';
@@ -471,7 +470,6 @@ async function init() {
     '/food-scanner': renderFoodScanner,
     '/hygiene-scanner': renderHygieneScanner,
     '/body-scanner': renderBodyScanner,
-    '/stool-scanner': renderStoolScanner,
     '/health-input': renderHealthInput,
     '/eastern-medicine': renderEasternMedicine,
     '/analytics': renderAnalytics,

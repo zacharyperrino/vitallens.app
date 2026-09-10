@@ -1,7 +1,6 @@
 // Food Scanner Page — Meal Scan & Product Scan Modes
 import { icons } from '../icons.js';
 import { esc } from '../utils/esc.js';
-import { getRandomFoodCombo } from '../utils/food-analyzer.js';
 import { createDonutChart } from '../utils/charts.js';
 import { lookupBarcode, parseNutritionLabel, getHealthScore, getMealAnalysis } from '../services/foodScanApi.js';
 import { initCamera, stopCamera, startBarcodeScanner, getScoreColor } from '../utils/product-scanner.js';
@@ -339,13 +338,6 @@ export async function renderFoodScanner() {
             </select>
           </div>
         </div>
-        <div class="section-heading">
-          <h3>Food Pairing Insight</h3>
-          <span class="see-all" id="shuffle-combo" style="cursor:pointer;">Shuffle</span>
-        </div>
-        <div id="food-combo-card">
-          <div id="food-combo-placeholder"></div>
-        </div>
         ${savedMemories.length > 0 ? `
         <div class="section-heading" style="margin-top:var(--space-6);">
           <h3>Saved Meals</h3>
@@ -474,14 +466,9 @@ export async function renderFoodScanner() {
   document.body.appendChild(modal);
 
   setupModeToggle();
-  document.getElementById('food-combo-placeholder').innerHTML = renderComboCard(getRandomFoodCombo());
   setupFoodUpload();
   setupProductScan();
   setupMemoryHandlers();
-
-  document.getElementById('shuffle-combo')?.addEventListener('click', () => {
-    document.getElementById('food-combo-placeholder').innerHTML = renderComboCard(getRandomFoodCombo());
-  });
 }
 
 // ─── Mode Toggle ─────────────────────────────────────────────

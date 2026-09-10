@@ -10,7 +10,9 @@ export function isHealthKitAvailable() {
 }
 
 function isMockEnabled() {
-    return true; // Force mock mode for browser testing
+    // Never fabricate step data. Mock mode shipped random step counts
+    // rendered as real measurements; steps come only from a real source.
+    return false;
 }
 
 /**
