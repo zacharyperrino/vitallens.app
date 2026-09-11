@@ -210,7 +210,7 @@ self.addEventListener('message', (event) => {
 
 // ── Push ──────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
-  let data = {};
+  let data;
   try { data = event.data?.json() || {}; } catch { data = { body: event.data?.text?.() || '' }; }
   const { title = 'VitalLens', body = 'You have a new update.', url = '/' } = data;
   event.waitUntil(self.registration.showNotification(title, {
