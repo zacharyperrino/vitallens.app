@@ -5,6 +5,7 @@ import PatternDiscoveryHero from '../components/PatternDiscoveryHero.jsx';
 import NutritionTracker from '../components/NutritionTracker.jsx';
 import { apiFetch } from '../utils/api.js';
 import { esc } from '../utils/esc.js';
+import { daysAgoLocalISO, startOfDayISO, daysSince } from '../utils/dates.js';
 
 // ── Shared helpers ──────────────────────────────────────────────
 function plainReason(err) {
@@ -24,7 +25,7 @@ function pageErrorState(what, err, retryId) {
   return `<div class="empty-state" role="alert"><h3>Couldn't load ${what}</h3><p>${plainReason(err)}</p><button type="button" class="btn btn-sm" id="${retryId}" data-retry-page>Try again</button></div>`;
 }
 
-const loadingBlock = (text) => `<div style="text-align:center;padding:var(--space-6);" role="status"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-3);">${text}</p></div>`;
+const loadingBlock = (text) => `<div style="text-align:center;padding:var(--space-6);" role="status"><div class="spinner" style="margin:0 auto;"></div><p class="mt-3 text-tertiary text-xs">${text}</p></div>`;
 
 const listify = (items) => items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
@@ -46,7 +47,7 @@ export async function renderAnalytics() {
 
     const userId = user.id;
     const uid = encodeURIComponent(userId);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    const sevenDaysAgo = daysAgoLocalISO(7);
 
     const [mealsRes, biomarkerRes, suppRes, envRes, weeklyRes, profileRes] = await Promise.allSettled([
       supabase.from('meals').select('name, calories, protein, carbs, fat, fiber, logged_at').eq('user_id', userId).gte('logged_at', sevenDaysAgo).order('logged_at', { ascending: true }),
@@ -94,8 +95,8 @@ export async function renderAnalytics() {
 
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const last7 = nutrition ? Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(Date.now() - (6 - i) * 86400000);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = daysAgoLocalISO(6 - i);
+      const d = new Date(startOfDayISO(dateStr));
       const dayData = nutrition.find(n => n.date === dateStr);
       return {
         label: dayLabels[d.getDay() === 0 ? 6 : d.getDay() - 1],
@@ -139,8 +140,8 @@ export async function renderAnalytics() {
         : '<a href="#/profile" style="color:var(--accent);">Set a target in Profile</a> to compare against it.';
 
     const vsTarget = (avg, target) => {
-      if (avg == null) return '<div style="font-size:var(--text-sm);color:var(--text-tertiary);">Nothing logged</div>';
-      if (!target) return '<div style="font-size:var(--text-sm);color:var(--text-tertiary);">No target set</div>';
+      if (avg == null) return '<div class="text-sm text-tertiary">Nothing logged</div>';
+      if (!target) return '<div class="text-sm text-tertiary">No target set</div>';
       const pct = Math.round((avg / target) * 100);
       const onTrack = avg >= target * 0.9;
       return `<div style="font-size:var(--text-sm);font-weight:600;color:${onTrack ? 'var(--viz-green)' : 'var(--viz-amber)'};">${pct}% ${onTrack ? '· near target' : '· below target'}</div>`;
@@ -170,19 +171,19 @@ export async function renderAnalytics() {
         ${renderStatBox(supplements ? supplements.length : null, 'Supplements', 'var(--viz-amber)')}
       </div>
 
-      <div id="nutrition-tracker-react" style="margin-bottom:var(--space-4);"></div>
+      <div id="nutrition-tracker-react" class="mb-4"></div>
 
       <!-- 7-Day Calorie Trend -->
       <div class="section-heading"><h3>Calories — last 7 days</h3></div>
       ${last7 ? `
       <div class="card" style="margin-bottom:var(--space-5);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);gap:var(--space-3);">
+        <div class="flex-between gap-3 mb-3">
           <div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">7-day average (logged days)</div>
+            <div class="text-tertiary text-xs">7-day average (logged days)</div>
             <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:var(--text-primary);">${avgCal != null ? `${Math.round(avgCal)} kcal` : '—'}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">vs target</div>
+            <div class="text-tertiary text-xs">vs target</div>
             ${vsTarget(avgCal, calTarget)}
           </div>
         </div>
@@ -191,22 +192,22 @@ export async function renderAnalytics() {
           value: Math.round(d.calories),
         })), 340, 100, 'var(--viz-green)', 'calorie-chart')}
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);" aria-hidden="true">
-          ${last7.map(d => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${d.label}</span>`).join('')}
+          ${last7.map(d => `<span class="text-tertiary text-xs">${d.label}</span>`).join('')}
         </div>
-        <p class="disclaimer" style="margin-top:var(--space-2);">${targetNote(calTarget, ' kcal')} Days with no logged meals are shown in grey.</p>
+        <p class="disclaimer mt-2">${targetNote(calTarget, ' kcal')} Days with no logged meals are shown in grey.</p>
       </div>` : pageErrorState('your calorie trend', null, 'analytics-retry-calories')}
 
       <!-- 7-Day Protein Trend -->
       <div class="section-heading"><h3>Protein — last 7 days</h3></div>
       ${last7 ? `
       <div class="card" style="margin-bottom:var(--space-5);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);gap:var(--space-3);">
+        <div class="flex-between gap-3 mb-3">
           <div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">7-day average (logged days)</div>
+            <div class="text-tertiary text-xs">7-day average (logged days)</div>
             <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:var(--text-primary);">${avgProt != null ? `${Math.round(avgProt)}g` : '—'}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">vs target</div>
+            <div class="text-tertiary text-xs">vs target</div>
             ${vsTarget(avgProt, protTarget)}
           </div>
         </div>
@@ -216,9 +217,9 @@ export async function renderAnalytics() {
           color: d.protein <= 0 ? 'var(--surface-3)' : (!protTarget || d.protein >= protTarget * 0.9) ? 'var(--accent)' : 'var(--viz-amber)',
         })), 340, 100)}
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);" aria-hidden="true">
-          ${last7.map(d => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${d.label}</span>`).join('')}
+          ${last7.map(d => `<span class="text-tertiary text-xs">${d.label}</span>`).join('')}
         </div>
-        <p class="disclaimer" style="margin-top:var(--space-2);">${targetNote(protTarget, 'g')}${protTarget ? ' Amber bars are days below 90% of it.' : ''}</p>
+        <p class="disclaimer mt-2">${targetNote(protTarget, 'g')}${protTarget ? ' Amber bars are days below 90% of it.' : ''}</p>
       </div>` : pageErrorState('your protein trend', null, 'analytics-retry-protein')}
 
       <!-- Wellness Check-in Summary -->
@@ -232,10 +233,10 @@ export async function renderAnalytics() {
           const deltaStr = s.delta !== null && Number.isFinite(s.delta) ? (s.delta > 0 ? `+${s.delta}` : `${s.delta}`) : null;
           const deltaColor = s.delta > 0 ? 'var(--viz-green)' : s.delta < 0 ? 'var(--error)' : 'var(--text-tertiary)';
           return `
-          <div class="card card-sm" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+          <div class="card card-sm flex-between gap-3">
             <div>
               <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);text-transform:capitalize;">${esc(s.type)} check-in</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.date ? esc(new Date(s.date).toLocaleDateString()) : ''}</div>
+              <div class="text-tertiary text-xs">${s.date ? esc(new Date(s.date).toLocaleDateString()) : ''}</div>
             </div>
             <div style="display:flex;align-items:center;gap:var(--space-3);">
               ${deltaStr ? `<span style="font-size:var(--text-xs);color:${deltaColor};font-weight:600;">${deltaStr} vs previous</span>` : ''}
@@ -255,7 +256,7 @@ export async function renderAnalytics() {
           ${supplements.map(s => `
           <div style="padding:var(--space-2) var(--space-3);background:var(--surface-2);border-radius:var(--radius-md);border:1px solid var(--border);">
             <div style="font-size:var(--text-xs);font-weight:600;">${esc(s.name)}</div>
-            ${s.dose ? `<div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(s.dose)}${s.frequency ? ` · ${esc(String(s.frequency).replace(/_/g, ' '))}` : ''}</div>` : ''}
+            ${s.dose ? `<div class="text-tertiary text-xs">${esc(s.dose)}${s.frequency ? ` · ${esc(String(s.frequency).replace(/_/g, ' '))}` : ''}</div>` : ''}
           </div>`).join('')}
         </div>
       </div>` : ''}
@@ -266,35 +267,35 @@ export async function renderAnalytics() {
       ${pageErrorState('your environment data', null, 'analytics-retry-environment')}` : environment ? `
       <div class="section-heading"><h3>Environment</h3></div>
       <div class="card" style="margin-bottom:var(--space-5);">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+        <div class="flex-between gap-3">
           <div>
             <div style="font-size:var(--text-sm);font-weight:600;">${esc(environment.location ? String(environment.location).split(',').slice(0, 2).join(',') : 'Location not recorded')}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${(environment.fetched_at || environment.logged_at) ? `Last checked ${esc(new Date(environment.fetched_at || environment.logged_at).toLocaleDateString())}` : ''}</div>
+            <div class="text-tertiary text-xs">${(environment.fetched_at || environment.logged_at) ? `Last checked ${esc(new Date(environment.fetched_at || environment.logged_at).toLocaleDateString())}` : ''}</div>
           </div>
           <div style="text-align:right;">
             <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:${environment.aqi == null ? 'var(--text-tertiary)' : environment.aqi <= 50 ? 'var(--viz-green)' : environment.aqi <= 100 ? 'var(--viz-amber)' : 'var(--error)'};">${environment.aqi != null ? esc(environment.aqi) : '—'}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">AQI${environment.aqi_category ? ` · ${esc(environment.aqi_category)}` : ''}</div>
+            <div class="text-tertiary text-xs">AQI${environment.aqi_category ? ` · ${esc(environment.aqi_category)}` : ''}</div>
           </div>
         </div>
       </div>` : ''}
 
       <!-- Trend Patterns -->
-      <div class="section-heading" style="margin-top:var(--space-4);"><h3>Where your logs may be heading</h3></div>
-      <p class="disclaimer" style="margin-bottom:var(--space-3);">Written by an AI model from your own entries. Observations to consider, not medical advice.</p>
+      <div class="section-heading mt-4"><h3>Where your logs may be heading</h3></div>
+      <p class="disclaimer mb-3">Written by an AI model from your own entries. Observations to consider, not medical advice.</p>
       <div id="predictions-section">
         ${await renderPredictionsSection(userId)}
       </div>
 
       <!-- Wellness Patterns -->
       <div class="section-heading"><h3>Possible patterns in your logs</h3></div>
-      <p class="disclaimer" style="margin-bottom:var(--space-3);">Connections an AI model noticed across your entries. They may be coincidence — treat them as questions, not answers.</p>
+      <p class="disclaimer mb-3">Connections an AI model noticed across your entries. They may be coincidence — treat them as questions, not answers.</p>
       <div id="correlation-section">
         ${await renderCorrelationSection(userId)}
       </div>
 
       <!-- Weekly Summary -->
-      <div class="section-heading" style="margin-top:var(--space-4);"><h3>Your week, summarized</h3></div>
-      <p class="disclaimer" style="margin-bottom:var(--space-3);">An AI-written recap of what you logged this week.</p>
+      <div class="section-heading mt-4"><h3>Your week, summarized</h3></div>
+      <p class="disclaimer mb-3">An AI-written recap of what you logged this week.</p>
       <div id="weekly-score-react"></div>
       <div id="weekly-report-section">${loadingBlock('Loading your weekly summary…')}</div>
 
@@ -330,7 +331,7 @@ const TRAJECTORY_STYLE = {
 };
 
 async function renderPredictionsSection(userId) {
-  let prediction = null;
+  let prediction;
   try {
     const res = await apiFetch(`/api/predictions/latest?userId=${encodeURIComponent(userId)}`);
     if (res.status === 404) return renderPredictionsEmpty();
@@ -353,16 +354,16 @@ async function renderPredictionsSection(userId) {
   return `
       <div class="card" style="border-left:3px solid ${traj.color};margin-bottom:var(--space-3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:var(--space-2);">
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">Recent direction, from your logs</div>
+          <div class="text-tertiary text-xs">Recent direction, from your logs</div>
           <span style="font-size:var(--text-xs);padding:1px 8px;border-radius:20px;background:${traj.bg};color:${traj.color};font-weight:600;text-transform:capitalize;">${esc(prediction.overall_trajectory || 'unclear')}</span>
         </div>
-        <div style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(prediction.trajectory_summary || '')}</div>
+        <div class="text-secondary text-xs">${esc(prediction.trajectory_summary || '')}</div>
         ${prediction.data_sufficiency === 'sparse' ? `<div style="font-size:var(--text-xs);color:var(--viz-amber);margin-top:var(--space-2);">Still early — more logging will make this more reliable. ${esc(prediction.minimum_data_needed || '')}</div>` : ''}
       </div>
 
       ${trends.length > 0 ? `
       <div style="font-size:var(--text-xs);font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">If recent trends continue (next 7 days)</div>
-      <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3);">
+      <div class="flex-col gap-2 mb-3">
         ${trends.slice(0, 5).map(t => `
         <div class="card card-sm">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;gap:var(--space-2);">
@@ -370,8 +371,8 @@ async function renderPredictionsSection(userId) {
             <span style="font-size:var(--text-xs);color:${confColor(t.confidence)};">${esc(t.confidence || 'limited')} data support</span>
           </div>
           <div style="display:flex;gap:var(--space-3);align-items:center;margin-bottom:4px;flex-wrap:wrap;">
-            <span style="font-size:var(--text-xs);color:var(--text-tertiary);">Now: ${esc(t.current_value)}</span>
-            <span style="color:var(--text-tertiary);" aria-hidden="true">→</span>
+            <span class="text-tertiary text-xs">Now: ${esc(t.current_value)}</span>
+            <span class="text-tertiary" aria-hidden="true">→</span>
             <span style="font-size:var(--text-xs);font-weight:600;color:${directionColor(t.direction)};">${t.direction ? `${esc(t.direction)} — ` : ''}if this continues: ${esc(t.projected_7d)}</span>
           </div>
           ${t.worth_watching ? `<div style="font-size:var(--text-xs);color:var(--viz-amber);">${esc(t.worth_watching)}</div>` : ''}
@@ -382,18 +383,18 @@ async function renderPredictionsSection(userId) {
 
       ${interventions.length > 0 ? `
       <div style="font-size:var(--text-xs);font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Suggestions based on your logs</div>
-      <p class="disclaimer" style="margin-bottom:var(--space-2);">Observations from your own entries — not medical advice.</p>
-      <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3);">
+      <p class="disclaimer mb-2">Observations from your own entries — not medical advice.</p>
+      <div class="flex-col gap-2 mb-3">
         ${interventions.slice(0, 5).map(iv => `
         <div class="card card-sm">
           <div style="display:flex;gap:var(--space-2);align-items:flex-start;">
             <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--text-inverse);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:700;flex-shrink:0;" aria-label="Rank ${esc(iv.rank)}">${esc(iv.rank)}</div>
-            <div style="flex:1;">
+            <div class="flex-1">
               <div style="font-size:var(--text-xs);font-weight:600;margin-bottom:2px;">${esc(iv.intervention)}</div>
               <div style="font-size:var(--text-xs);color:var(--viz-green);margin-bottom:2px;">${esc(iv.expected_impact)}</div>
               <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
                 <span style="font-size:var(--text-xs);color:${effortColor(iv.effort)};">Effort: ${esc(iv.effort)}</span>
-                <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(iv.timeframe)}</span>
+                <span class="text-tertiary text-xs">${esc(iv.timeframe)}</span>
               </div>
             </div>
           </div>
@@ -409,7 +410,7 @@ function renderPredictionsEmpty() {
   return `
     <div class="empty-state">
       <p>No trend analysis yet. Run one to see where your recent logs may be heading and which habits might matter most.</p>
-      <button type="button" id="run-predictions-btn" class="btn btn-primary" style="font-size:var(--text-xs);">Run trend analysis</button>
+      <button type="button" id="run-predictions-btn" class="btn btn-primary text-xs">Run trend analysis</button>
     </div>`;
 }
 
@@ -421,7 +422,7 @@ const DIRECTION_STYLE = {
 };
 
 async function renderCorrelationSection(userId) {
-  let correlations = [];
+  let correlations;
   try {
     const res = await apiFetch(`/api/correlate/latest?userId=${encodeURIComponent(userId)}&limit=8`);
     if (res.status === 404) return renderCorrelationEmpty();
@@ -444,21 +445,21 @@ async function renderCorrelationSection(userId) {
     const date = new Date(c.generated_at || 0);
     return date < oldest ? date : oldest;
   }, new Date());
-  const daysSinceFirst = Math.floor((Date.now() - oldestCorrelation) / 86400000);
+  const daysSinceFirst = daysSince(oldestCorrelation);
   const showEscalation = daysSinceFirst >= 14;
 
   return `
       ${summary ? `<div class="card" style="border-left:3px solid var(--viz-green);margin-bottom:var(--space-3);">
         <div style="font-size:var(--text-xs);color:var(--viz-green);font-weight:600;margin-bottom:4px;">The pattern that stood out most</div>
-        <div style="font-size:var(--text-sm);">${esc(summary.actionable || summary.description || '')}</div>
+        <div class="text-sm">${esc(summary.actionable || summary.description || '')}</div>
       </div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3);">
+      <div class="flex-col gap-2 mb-3">
         ${meaningful.slice(0, 6).map(c => {
           const dir = DIRECTION_STYLE[c.direction] || DIRECTION_STYLE.default;
           return `
         <div class="card card-sm" style="border-left:3px solid ${dir.color};">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;gap:var(--space-2);">
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(String(c.correlation_type || '').replace(/-/g, ' → '))}</div>
+            <div class="text-tertiary text-xs">${esc(String(c.correlation_type || '').replace(/-/g, ' → '))}</div>
             <span style="font-size:var(--text-xs);padding:1px 6px;border-radius:4px;background:${dir.bg};color:${dir.color};white-space:nowrap;">${confidenceLabel(c.confidence)} · ${dir.word}</span>
           </div>
           <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:${c.actionable ? 'var(--space-1)' : '0'};">${esc(c.description || '')}</div>
@@ -469,7 +470,7 @@ async function renderCorrelationSection(userId) {
       ${showEscalation ? `
       <div class="card" style="border-left:3px solid var(--viz-amber);margin-bottom:var(--space-3);background:var(--viz-amber-dim);">
         <div style="font-size:var(--text-xs);color:var(--viz-amber);font-weight:600;margin-bottom:4px;">Some patterns have been showing up for 14+ days</div>
-        <div style="font-size:var(--text-xs);color:var(--text-secondary);">If anything feels persistent or concerning, it may be worth mentioning to a healthcare provider.</div>
+        <div class="text-secondary text-xs">If anything feels persistent or concerning, it may be worth mentioning to a healthcare provider.</div>
       </div>` : ''}
       <p class="disclaimer" style="margin-bottom:var(--space-3);font-style:italic;">Pattern observations only — not medical advice.</p>
       <button type="button" id="run-correlation-btn" class="btn" style="width:100%;font-size:var(--text-xs);background:var(--surface-2);border:1px solid var(--border);">
@@ -481,7 +482,7 @@ function renderCorrelationEmpty() {
   return `
     <div class="empty-state">
       <p>No patterns yet. Log meals, sleep and check-ins for a few days, then run an analysis to look for connections across your entries.</p>
-      <button type="button" id="run-correlation-btn" class="btn btn-primary" style="font-size:var(--text-xs);">Run pattern analysis</button>
+      <button type="button" id="run-correlation-btn" class="btn btn-primary text-xs">Run pattern analysis</button>
     </div>`;
 }
 
@@ -489,7 +490,7 @@ function renderCorrelationEmpty() {
 async function renderWeeklyReportSection(userId) {
   const uid = encodeURIComponent(userId);
   let narrative = null;
-  let reports = null;
+  let reports;
   try {
     const [narrativeRes, reportRes] = await Promise.allSettled([
       apiFetch(`/api/weekly-report/narrative?userId=${uid}`),
@@ -523,52 +524,52 @@ async function renderWeeklyReportSection(userId) {
     <div class="card" style="margin-bottom:var(--space-3);background:var(--surface-2);border:1px solid var(--border);">
       <div style="font-size:var(--text-xs);font-weight:700;color:var(--viz-green);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:var(--space-2);">Looking back${narrative.weeks_analyzed ? ` · ${esc(narrative.weeks_analyzed)} weeks of logs` : ''}</div>
       <div style="font-size:var(--text-sm);color:var(--text-primary);line-height:1.6;margin-bottom:var(--space-3);">${esc(narrative.story || '')}</div>
-      <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+      <div class="flex-col gap-2">
         ${narrative.strongest_trend ? `
         <div style="padding:var(--space-2);background:var(--surface-1);border-radius:var(--radius-md);border-left:3px solid var(--viz-green);">
           <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:2px;">Seemed most consistent</div>
-          <div style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(narrative.strongest_trend)}</div>
+          <div class="text-secondary text-xs">${esc(narrative.strongest_trend)}</div>
         </div>` : ''}
         ${narrative.biggest_shift ? `
         <div style="padding:var(--space-2);background:var(--surface-1);border-radius:var(--radius-md);border-left:3px solid var(--viz-amber);">
           <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:2px;">Biggest change noticed</div>
-          <div style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(narrative.biggest_shift)}</div>
+          <div class="text-secondary text-xs">${esc(narrative.biggest_shift)}</div>
         </div>` : ''}
         ${narrative.next_chapter ? `
         <div style="padding:var(--space-2);background:var(--viz-green-dim);border-radius:var(--radius-md);">
           <div style="font-size:var(--text-xs);color:var(--viz-green);margin-bottom:2px;">Something to consider next</div>
-          <div style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(narrative.next_chapter)}</div>
+          <div class="text-secondary text-xs">${esc(narrative.next_chapter)}</div>
         </div>` : ''}
       </div>
       <p class="disclaimer" style="margin-top:var(--space-2);font-style:italic;">Pattern observations only — not medical advice.</p>
     </div>` : '';
 
   return `${narrativeCard}
-      <div class="card" style="margin-bottom:var(--space-3);">
+      <div class="card mb-3">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-3);gap:var(--space-3);">
-          <div style="flex:1;">
+          <div class="flex-1">
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:2px;">Week of ${esc(r.week_of || '')}</div>
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(r.headline || '')}</div>
+            <div class="font-semibold text-sm">${esc(r.headline || '')}</div>
           </div>
           <div style="text-align:center;margin-left:var(--space-3);">
             <div style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:800;color:${scoreColor};">${r.week_score != null ? esc(r.week_score) : '—'}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">week score</div>
+            <div class="text-tertiary text-xs">week score</div>
           </div>
         </div>
         ${wins.length > 0 ? `
-        <div style="margin-bottom:var(--space-3);">
+        <div class="mb-3">
           <div style="font-size:var(--text-xs);font-weight:600;color:var(--viz-green);margin-bottom:var(--space-1);">What seemed to go well</div>
           ${wins.map(w => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:2px 0;">+ ${esc(w)}</div>`).join('')}
         </div>` : ''}
         ${gaps.length > 0 ? `
-        <div style="margin-bottom:var(--space-3);">
+        <div class="mb-3">
           <div style="font-size:var(--text-xs);font-weight:600;color:var(--viz-amber);margin-bottom:var(--space-1);">Patterns you might explore</div>
           ${gaps.map(g => `<div style="font-size:var(--text-xs);color:var(--text-secondary);padding:2px 0;">${esc(g)}</div>`).join('')}
         </div>` : ''}
         ${connection ? `
         <div style="padding:var(--space-2);background:var(--viz-green-dim);border-radius:var(--radius-md);margin-bottom:var(--space-3);">
           <div style="font-size:var(--text-xs);font-weight:600;color:var(--viz-green);margin-bottom:2px;">A possible connection</div>
-          <div style="font-size:var(--text-xs);color:var(--text-secondary);">${esc(connection)}</div>
+          <div class="text-secondary text-xs">${esc(connection)}</div>
         </div>` : ''}
         ${r.focus ? `
         <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
@@ -586,7 +587,7 @@ function renderReportEmpty() {
   return `
     <div class="empty-state">
       <p>No weekly summary yet. Generate one to get a short recap of what you logged this week.</p>
-      <button type="button" id="generate-report-btn" class="btn btn-primary" style="font-size:var(--text-xs);">Generate weekly summary</button>
+      <button type="button" id="generate-report-btn" class="btn btn-primary text-xs">Generate weekly summary</button>
     </div>`;
 }
 
@@ -657,8 +658,8 @@ function setupAnalyticsHandlers(userId) {
 function renderStatBox(value, label, color) {
   const failed = value === null || value === undefined;
   return `
-  <div class="card card-sm" style="text-align:center;" ${failed ? 'role="alert"' : ''}>
+  <div class="card card-sm text-center" ${failed ? 'role="alert"' : ''}>
     <div style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-bold);color:${failed ? 'var(--text-tertiary)' : color};" ${failed ? 'aria-label="Not loaded"' : ''}>${failed ? '—' : esc(value)}</div>
-    <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label}${failed ? ' (couldn\'t load)' : ''}</div>
+    <div class="text-tertiary text-xs">${label}${failed ? ' (couldn\'t load)' : ''}</div>
   </div>`;
 }

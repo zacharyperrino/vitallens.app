@@ -7,6 +7,7 @@ import { profile, dailyNutrition, meals, bodyScans, sleepLog, exerciseLog, habit
 import { supabase } from '../lib/supabase.js';
 import { apiFetch } from '../utils/api.js';
 import { esc } from '../utils/esc.js';
+import { todayLocalISO } from '../utils/dates.js';
 
 function plainReason(err) {
   const msg = String(err?.message || '');
@@ -120,10 +121,10 @@ export async function renderDashboard() {
             </div>
             <div class="badge badge-purple"><span>Grade: ${health.grade}</span></div>
           </div>
-          <p class="disclaimer" style="margin-top:var(--space-3);">Based on ${health.domainsLogged.length} logged areas. A wellness reflection, not a medical measure.</p>
+          <p class="disclaimer mt-3">Based on ${health.domainsLogged.length} logged areas. A wellness reflection, not a medical measure.</p>
         </div>` : `
         <div class="card" style="text-align:center;padding:var(--space-6);">
-          <h3 style="margin-bottom:var(--space-2);">Your wellness score appears after a little logging</h3>
+          <h3 class="mb-2">Your wellness score appears after a little logging</h3>
           <p class="disclaimer">Log at least two areas — for example a meal and a night of sleep — and your score will be computed from your own data. Nothing here is estimated or made up.</p>
           <button type="button" class="btn btn-glass" style="margin-top:var(--space-4);" data-route="/food-scanner">Log your first meal</button>
         </div>`}
@@ -189,13 +190,13 @@ export async function renderDashboard() {
           <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${calorieGoal}" aria-valuenow="${Math.round(nutrition.calories || 0)}" aria-label="Calories today">
             <div class="progress-fill" style="width:${Math.min(100, Math.round(((nutrition.calories || 0) / calorieGoal) * 100))}%"></div>
           </div>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+          <p class="mt-2 text-center text-secondary text-sm">
             ${Math.max(0, Math.round(calorieGoal - (nutrition.calories || 0)))} kcal remaining of your ${calorieGoal} target
           </p>` : targetsResult.error ? `
-          <p role="alert" style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+          <p role="alert" class="mt-2 text-center text-secondary text-sm">
             Couldn't load your targets. <button type="button" class="btn btn-sm" id="dashboard-retry-targets">Try again</button>
           </p>` : `
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+          <p class="mt-2 text-center text-secondary text-sm">
             <a href="#/profile" style="color:var(--accent);">Set your targets in Profile</a> to see progress toward them.
           </p>`}
         </div>
@@ -206,8 +207,8 @@ export async function renderDashboard() {
           <button type="button" class="see-all" data-route="/analytics">Details</button>
         </div>
         <div class="card" style="margin-bottom:var(--space-6);">
-          <div style="margin-bottom:var(--space-2);display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:var(--text-sm);color:var(--text-secondary);">Wellness score</span>
+          <div class="flex-between mb-2">
+            <span class="text-secondary text-sm">Wellness score</span>
             ${health.state === 'ok' ? `
             <span class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}" style="font-size:var(--text-xs);">
               ${health.trend >= 0 ? icons.trending : icons.trendingDown} ${health.trend >= 0 ? 'up' : 'down'} ${Math.abs(health.trend)} pts
@@ -220,7 +221,7 @@ export async function renderDashboard() {
             </div>` : weeklyScores.length >= 2 ? `
             ${createLineChart(weeklyScores, 340, 80)}
             <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);" aria-hidden="true">
-              ${weeklyLabels.map((d) => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(d)}</span>`).join('')}
+              ${weeklyLabels.map((d) => `<span class="text-tertiary text-xs">${esc(d)}</span>`).join('')}
             </div>` : `
             <div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);color:var(--text-secondary);">Your trend appears after a few days of logging.</div>`}
         </div>
@@ -337,7 +338,7 @@ function calculateStreak(dateValues) {
   const days = Array.from(new Set((dateValues || []).map(normalizeDateString).filter(Boolean)));
   if (!days.length) return 0;
   let streak = 0;
-  let current = getTodayString();
+  let current = todayLocalISO();
 
   while (days.includes(current)) {
     streak += 1;
@@ -358,10 +359,6 @@ function addDays(dateString, days) {
   const date = new Date(dateString + 'T00:00:00Z');
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().split('T')[0];
-}
-
-function getTodayString() {
-  return new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
 }
 
 // Unknown values render as a dash — never as a made-up zero.
@@ -429,7 +426,7 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
         <div class="title">${esc(a.title)}</div>
         <div class="time">${esc(a.detail)}</div>
       </div>
-      <div class="activity-value" style="color:var(--text-secondary);">${esc(a.value)}</div>
+      <div class="activity-value text-secondary">${esc(a.value)}</div>
     </div>
   `);
 }
@@ -453,19 +450,19 @@ function renderMacro(label, value, target, unit, color) {
   const rounded = Number.isFinite(value) ? Math.round(value * 10) / 10 : 0;
   const pct = target > 0 ? Math.min(100, Math.round((rounded / target) * 100)) : null;
   return `
-    <div style="text-align:center;flex:1;">
+    <div class="flex-1 text-center">
       <div style="font-family:var(--font-heading);font-size:var(--text-md);font-weight:var(--weight-bold);color:${color};">${rounded}${unit}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${pct !== null ? `${pct}% of target` : 'no target'}</div>
+      <div class="text-tertiary text-xs">${label}</div>
+      <div class="text-tertiary text-xs">${pct !== null ? `${pct}% of target` : 'no target'}</div>
     </div>`;
 }
 
 function renderStreak(icon, label, count, color) {
   return `
-    <div class="card card-sm" style="text-align:center;">
+    <div class="card card-sm text-center">
       <div style="margin-bottom:var(--space-1);color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icon}</div>
       <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:${color};">${count}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label} day${count === 1 ? '' : 's'}</div>
+      <div class="text-tertiary text-xs">${label} day${count === 1 ? '' : 's'}</div>
     </div>`;
 }
 

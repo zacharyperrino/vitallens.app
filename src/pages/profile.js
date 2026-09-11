@@ -3,6 +3,7 @@ import { apiFetch } from '../utils/api.js';
 import { showToast } from '../utils/toast.js';
 import { esc } from '../utils/esc.js';
 import { CONDITIONS, GOAL_OPTIONS, inchesToCm, lbsToKg, kgToLbs, cmToInches } from '../utils/profile-shared.js';
+import { todayLocalISO } from '../utils/dates.js';
 
 const ACTIVITY_FACTORS = {
   sedentary: 1.2,
@@ -108,32 +109,32 @@ function renderProfileForm(profile, user) {
       <div class="card" style="margin-bottom:var(--space-5);">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);align-items:center;">
           <div>
-            <div style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-1);">Signed in as ${esc(user.email || 'unknown')}</div>
+            <div class="mb-1 text-secondary text-sm">Signed in as ${esc(user.email || 'unknown')}</div>
             <h2 style="margin:0;">${esc(profile.name || 'Your health profile')}</h2>
           </div>
           <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;" aria-live="polite">
             <div style="text-align:right;min-width:140px;">
-              <div style="font-size:var(--text-xs);color:var(--text-secondary);">Estimated BMR</div>
+              <div class="text-secondary text-xs">Estimated BMR</div>
               <div id="profile-bmr-value" style="font-size:var(--text-xl);font-weight:700;">${bmr ? Math.round(bmr) : '—'}</div>
             </div>
             <div style="text-align:right;min-width:140px;">
-              <div style="font-size:var(--text-xs);color:var(--text-secondary);">Estimated daily burn (TDEE)</div>
+              <div class="text-secondary text-xs">Estimated daily burn (TDEE)</div>
               <div id="profile-tdee-value" style="font-size:var(--text-xl);font-weight:700;">${tdee ? Math.round(tdee) : '—'}</div>
             </div>
           </div>
         </div>
-        <p class="disclaimer" style="margin-top:var(--space-3);">Estimates from the Mifflin-St Jeor formula using the stats below. They update as you edit, and are only saved if you choose to use them as targets.</p>
+        <p class="disclaimer mt-3">Estimates from the Mifflin-St Jeor formula using the stats below. They update as you edit, and are only saved if you choose to use them as targets.</p>
       </div>
 
       <form id="profile-form" class="card" style="display:flex;flex-direction:column;gap:var(--space-5);">
         <div>
-          <h4 style="margin-bottom:var(--space-4);">Basic stats</h4>
-          <div class="grid-2" style="gap:var(--space-3);">
+          <h4 class="mb-4">Basic stats</h4>
+          <div class="grid-2 gap-3">
             <div class="input-group"><label for="p-name">Name</label><input class="input-field" type="text" id="p-name" value="${esc(profile.name)}" placeholder="Your name" autocomplete="name"></div>
             <div class="input-group"><label for="p-age">Age</label><input class="input-field" type="number" min="18" max="120" id="p-age" value="${profile.age || ''}" placeholder="Age"></div>
           </div>
 
-          <div class="grid-3" style="gap:var(--space-3);margin-top:var(--space-3);">
+          <div class="grid-3 gap-3 mt-3">
             <div class="input-group"><label for="p-sex">Sex</label>
               <select class="input-field" id="p-sex">
                 <option value="">Select…</option>
@@ -159,7 +160,7 @@ function renderProfileForm(profile, user) {
             </div>
           </div>
 
-          <div class="grid-3" style="gap:var(--space-3);margin-top:var(--space-3);">
+          <div class="grid-3 gap-3 mt-3">
             <div class="input-group">
               <label for="p-height">Height</label>
               <div style="display:flex;gap:var(--space-2);align-items:center;">
@@ -184,20 +185,20 @@ function renderProfileForm(profile, user) {
               <label for="p-goal-weight">Goal weight</label>
               <div style="display:flex;gap:var(--space-2);align-items:center;">
                 <input class="input-field" type="number" min="0" id="p-goal-weight" value="${profile.goalWeight || ''}" placeholder="Goal weight">
-                <span id="p-goal-weight-unit" style="font-size:var(--text-sm);color:var(--text-secondary);">${profile.weightUnit}</span>
+                <span id="p-goal-weight-unit" class="text-secondary text-sm">${profile.weightUnit}</span>
               </div>
             </div>
           </div>
 
-          <div style="margin-top:var(--space-4);">
+          <div class="mt-4">
             <label for="p-lifting-sessions" style="display:block;margin-bottom:var(--space-2);">Lifting sessions per week: <strong id="p-lifting-count">${profile.liftingSessions}</strong></label>
             <input type="range" id="p-lifting-sessions" min="0" max="7" value="${profile.liftingSessions}" style="width:100%;">
           </div>
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">Nutrition targets</h4>
-          <div class="grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
+          <h4 class="mb-4">Nutrition targets</h4>
+          <div class="grid-2 gap-3 mb-3">
             <div class="input-group"><label for="p-calorie-target">Calorie target (kcal/day)</label><input class="input-field" type="number" min="0" id="p-calorie-target" value="${profile.calorieTarget || ''}" placeholder="e.g. 2200"></div>
             <div class="input-group"><label for="p-fiber-target">Fiber target (g)</label><input class="input-field" type="number" min="0" id="p-fiber-target" value="${profile.fiberTarget || ''}" placeholder="e.g. 30"></div>
           </div>
@@ -210,18 +211,18 @@ function renderProfileForm(profile, user) {
             <div class="input-group"><label for="p-carbs-target">Carbs target (g)</label><input class="input-field" type="number" min="0" id="p-carbs-target" value="${profile.carbsTarget || ''}" placeholder="g"></div>
             <div class="input-group"><label for="p-fat-target">Fat target (g)</label><input class="input-field" type="number" min="0" id="p-fat-target" value="${profile.fatTarget || ''}" placeholder="g"></div>
           </div>
-          <p class="disclaimer" style="margin-top:var(--space-3);">Leave a target blank if you don't want to track it. Only what you enter here is saved.</p>
+          <p class="disclaimer mt-3">Leave a target blank if you don't want to track it. Only what you enter here is saved.</p>
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">Pre-existing conditions</h4>
+          <h4 class="mb-4">Pre-existing conditions</h4>
           <fieldset style="border:0;padding:0;margin:0;min-width:0;">
             <legend class="visually-hidden">Conditions you'd like noted</legend>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);">
               ${CONDITIONS.map((condition, i) => `
                 <label for="p-cond-${i}" class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
                   <input class="input-checkbox condition-checkbox" id="p-cond-${i}" type="checkbox" value="${condition}" ${profile.conditions.includes(condition) ? 'checked' : ''}>
-                  <span style="font-size:var(--text-sm);">${condition}</span>
+                  <span class="text-sm">${condition}</span>
                 </label>
               `).join('')}
             </div>
@@ -229,7 +230,7 @@ function renderProfileForm(profile, user) {
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">Allergies</h4>
+          <h4 class="mb-4">Allergies</h4>
           <div class="input-group"><label for="p-allergies">Allergies</label><textarea class="input-field" id="p-allergies" rows="4" placeholder="List any allergies…">${esc(profile.allergies)}</textarea></div>
         </div>
 
@@ -238,41 +239,41 @@ function renderProfileForm(profile, user) {
       </form>
 
       <div class="card" style="margin-top:var(--space-5);">
-        <h4 style="margin-bottom:var(--space-3);">Subscription</h4>
+        <h4 class="mb-3">Subscription</h4>
         <div id="billing-status" class="disclaimer" aria-live="polite">Checking your plan…</div>
         <div id="billing-actions" style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);"></div>
-        <p class="disclaimer" style="margin-top:var(--space-3);">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
+        <p class="disclaimer mt-3">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
-        <h4 style="margin-bottom:var(--space-3);">Wearables</h4>
+        <h4 class="mb-3">Wearables</h4>
         <div id="oura-status" class="disclaimer" aria-live="polite">Checking…</div>
-        <div style="margin-top:var(--space-3);"><button type="button" class="btn btn-sm" id="oura-connect-btn">Connect Oura Ring</button></div>
+        <div class="mt-3"><button type="button" class="btn btn-sm" id="oura-connect-btn">Connect Oura Ring</button></div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
-        <h4 style="margin-bottom:var(--space-3);">Notifications</h4>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+        <h4 class="mb-3">Notifications</h4>
+        <div class="flex-between gap-3">
           <span id="notif-state" class="disclaimer" aria-live="polite"></span>
           <button type="button" class="btn btn-sm" id="notif-toggle"></button>
         </div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
-        <h4 style="margin-bottom:var(--space-3);">Security</h4>
+        <h4 class="mb-3">Security</h4>
         <div id="mfa-section" aria-live="polite"><span class="disclaimer">Checking two-factor status…</span></div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
-        <h4 style="margin-bottom:var(--space-3);">Your data</h4>
+        <h4 class="mb-3">Your data</h4>
         <p class="disclaimer">Download everything VitalLens holds about you as JSON, or permanently delete your account and all of its data.</p>
         <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);">
           <button type="button" class="btn btn-sm" id="export-data-btn">Export my data</button>
           <button type="button" class="btn btn-sm" id="delete-account-btn" aria-expanded="false" aria-controls="delete-confirm" style="color:var(--error);border:1px solid var(--error);">Delete my account</button>
         </div>
-        <div id="delete-confirm" hidden style="margin-top:var(--space-3);">
+        <div id="delete-confirm" hidden class="mt-3">
           <label for="delete-email" class="disclaimer">Type your account email to confirm. This cannot be undone.</label>
-          <input class="input-field" id="delete-email" type="email" autocomplete="off" style="margin-top:var(--space-2);">
+          <input class="input-field mt-2" id="delete-email" type="email" autocomplete="off">
           <button type="button" class="btn btn-sm" id="delete-account-confirm" style="margin-top:var(--space-2);color:var(--error);border:1px solid var(--error);">Permanently delete</button>
         </div>
       </div>
@@ -566,7 +567,7 @@ async function attachAccountHandlers(userId) {
       if (error) throw error;
       const verified = (data?.totp || []).find(f => f.status === 'verified');
       if (verified) {
-        mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Two-factor authentication is on.</span><button type="button" class="btn btn-sm" id="mfa-off">Turn off</button></div>`;
+        mfaEl.innerHTML = `<div class="flex-between gap-3"><span class="disclaimer">Two-factor authentication is on.</span><button type="button" class="btn btn-sm" id="mfa-off">Turn off</button></div>`;
         document.getElementById('mfa-off')?.addEventListener('click', async () => {
           if (!confirm('Turn off two-factor authentication?')) return;
           const { error: offErr } = await supabase.auth.mfa.unenroll({ factorId: verified.id });
@@ -575,7 +576,7 @@ async function attachAccountHandlers(userId) {
         });
         return;
       }
-      mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Add an authenticator app for a second sign-in step.</span><button type="button" class="btn btn-sm" id="mfa-enroll">Set up</button></div>`;
+      mfaEl.innerHTML = `<div class="flex-between gap-3"><span class="disclaimer">Add an authenticator app for a second sign-in step.</span><button type="button" class="btn btn-sm" id="mfa-enroll">Set up</button></div>`;
       document.getElementById('mfa-enroll')?.addEventListener('click', async () => {
         const { data: enroll, error: enrollErr } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'VitalLens' });
         if (enrollErr || !enroll) return showToast("Couldn't start two-factor setup. Please try again.");
@@ -621,7 +622,7 @@ async function attachAccountHandlers(userId) {
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `vitallens-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `vitallens-export-${todayLocalISO()}.json`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(a.href);
       showToast('Your data export has downloaded');

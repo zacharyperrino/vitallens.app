@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js';
 import { migrateFromLocalStorage } from '../lib/db.js';
 import { trackEvent } from '../utils/analytics-events.js';
 import { esc } from '../utils/esc.js';
+import { todayLocalISO } from '../utils/dates.js';
 
 const FIELD_STYLE = 'width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;';
 const LABEL_STYLE = 'font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;';
@@ -23,7 +24,7 @@ export function renderAuth() {
       <div style="text-align:center;margin-bottom:var(--space-8);">
         <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.activity}</div>
         <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-1);">VitalLens</h1>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);">Your private wellness journal</p>
+        <p class="text-secondary text-sm">Your private wellness journal</p>
       </div>
 
       <!-- Card -->
@@ -37,7 +38,7 @@ export function renderAuth() {
 
         <!-- Form -->
         <form id="auth-form" novalidate>
-          <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+          <div class="flex-col gap-3">
 
             <div id="name-field" style="display:none;">
               <label for="auth-name" style="${LABEL_STYLE}">Full name</label>
@@ -46,7 +47,7 @@ export function renderAuth() {
 
             <div id="dob-field" style="display:none;">
               <label for="auth-dob" style="${LABEL_STYLE}">Date of birth</label>
-              <input type="date" id="auth-dob" max="${new Date().toISOString().split('T')[0]}" autocomplete="bday" aria-describedby="auth-dob-help" style="${FIELD_STYLE}">
+              <input type="date" id="auth-dob" max="${todayLocalISO()}" autocomplete="bday" aria-describedby="auth-dob-help" style="${FIELD_STYLE}">
               <div id="auth-dob-help" class="disclaimer" style="font-size:var(--text-xs);margin-top:4px;">You must be 18 or older to use VitalLens.</div>
             </div>
 
@@ -78,7 +79,7 @@ export function renderAuth() {
           </div>
         </form>
 
-        <p class="disclaimer" style="text-align:center;margin-top:var(--space-4);">
+        <p class="disclaimer mt-4 text-center">
           Your health data is encrypted and stored securely.<br>We never sell your data.
         </p>
       </div>
@@ -221,9 +222,9 @@ export function renderAuth() {
         const toggle = document.querySelector('.scan-mode-toggle');
         if (toggle) toggle.style.display = 'none';
         form.innerHTML = `
-            <div style="text-align:center;">
+            <div class="text-center">
                 <h2 style="font-size:var(--text-md);font-weight:600;margin-bottom:var(--space-3);" tabindex="-1" id="mfa-heading">Secure your account</h2>
-                <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-4);">Scan this QR code with an authenticator app like Google Authenticator or Authy, then enter the 6-digit code it shows.</p>
+                <p class="mb-4 text-secondary text-sm">Scan this QR code with an authenticator app like Google Authenticator or Authy, then enter the 6-digit code it shows.</p>
                 <img src="${esc(qrCode)}" alt="QR code to add VitalLens to your authenticator app" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
                 <label for="mfa-code" class="visually-hidden">6-digit code</label>
                 <input type="text" id="mfa-code" placeholder="Enter 6-digit code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"

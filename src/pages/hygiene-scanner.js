@@ -54,12 +54,12 @@ export async function renderHygieneScanner() {
       </div>
 
       <!-- Scanner card -->
-      <div class="card" style="margin-bottom:var(--space-4);">
+      <div class="card mb-4">
         <div id="camera-container" style="position:relative;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);">
           <video id="hygiene-video" autoplay playsinline muted aria-label="Live camera preview for barcode scanning" style="width:100%;height:100%;object-fit:cover;display:none;"></video>
-          <div id="camera-placeholder" style="text-align:center;color:var(--text-tertiary);">
+          <div id="camera-placeholder" class="text-center text-tertiary">
             <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
-            <div style="font-size:var(--text-sm);">Point camera at product barcode</div>
+            <div class="text-sm">Point camera at product barcode</div>
           </div>
           <div id="scan-overlay" aria-hidden="true" style="display:none;position:absolute;inset:0;border:2px solid var(--accent-teal);border-radius:var(--radius-md);pointer-events:none;">
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:60px;border:2px solid var(--accent-teal);border-radius:4px;"></div>
@@ -67,7 +67,7 @@ export async function renderHygieneScanner() {
         </div>
 
         <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
-          <button type="button" id="start-camera-btn" class="btn btn-primary" style="flex:1;">
+          <button type="button" id="start-camera-btn" class="btn btn-primary flex-1">
             ${icons.camera} Start Camera
           </button>
           <button type="button" id="stop-camera-btn" class="btn" style="flex:1;display:none;background:var(--surface-2);border:1px solid var(--border);">
@@ -87,7 +87,7 @@ export async function renderHygieneScanner() {
       </div>
 
       <!-- Results -->
-      <div id="hygiene-results" aria-live="polite" style="margin-bottom:var(--space-4);"></div>
+      <div id="hygiene-results" aria-live="polite" class="mb-4"></div>
 
       <!-- Recent scans -->
       ${historyError ? `
@@ -98,15 +98,15 @@ export async function renderHygieneScanner() {
         <button type="button" class="btn btn-sm" id="hygiene-history-retry">Try again</button>
       </div>` : recentScans.length > 0 ? `
       <div class="section-heading"><h3>Recent Scans</h3></div>
-      <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+      <div class="flex-col gap-2">
         ${recentScans.map(s => renderScanCard(s)).join('')}
       </div>` : `
       <div class="card" style="text-align:center;padding:var(--space-6);">
         <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
-        <div style="font-size:var(--text-sm);color:var(--text-secondary);">No hygiene scans yet — scan a product to start tracking ingredient patterns.</div>
+        <div class="text-secondary text-sm">No hygiene scans yet — scan a product to start tracking ingredient patterns.</div>
       </div>`}
 
-      <p class="disclaimer" style="text-align:center;margin-top:var(--space-4);">
+      <p class="disclaimer mt-4 text-center">
         Pattern observations only — not medical advice. Consult a dermatologist for any skin concerns.
       </p>
     </div>`;
@@ -127,9 +127,9 @@ function renderScanCard(scan) {
     return `
     <div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
-        <div style="flex:1;">
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(scan.product_name || 'Unknown Product')}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${[esc(scan.brand), scannedDate].filter(Boolean).join(' · ')}</div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm">${esc(scan.product_name || 'Unknown Product')}</div>
+          <div class="text-tertiary text-xs">${[esc(scan.brand), scannedDate].filter(Boolean).join(' · ')}</div>
         </div>
         <div style="text-align:center;margin-left:var(--space-3);">
           <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:${scoreColor};">${score}</div>
@@ -145,7 +145,7 @@ function renderScanCard(scan) {
           ${esc(c.ingredient)}<span class="visually-hidden"> (${high ? 'worth reviewing' : 'something to explore'})</span>
         </span>`;
         }).join('')}
-        ${concerns.length > 3 ? `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">+${concerns.length - 3} more</span>` : ''}
+        ${concerns.length > 3 ? `<span class="text-tertiary text-xs">+${concerns.length - 3} more</span>` : ''}
       </div>` : `<div style="font-size:var(--text-xs);color:var(--viz-green);">No major concerns noticed</div>`}
     </div>`;
 }
@@ -182,7 +182,7 @@ function setupHygieneHandlers(userId) {
     }
 
     async function scanBarcode(barcode) {
-        resultsEl.innerHTML = `<div class="card" style="text-align:center;padding:var(--space-4);"><div class="spinner" style="margin:0 auto;"></div><div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-2);">Looking up product...</div></div>`;
+        resultsEl.innerHTML = `<div class="card" style="text-align:center;padding:var(--space-4);"><div class="spinner" style="margin:0 auto;"></div><div class="mt-2 text-tertiary text-xs">Looking up product...</div></div>`;
 
         try {
             const res = await apiFetch(`/api/hygiene/scan`, {

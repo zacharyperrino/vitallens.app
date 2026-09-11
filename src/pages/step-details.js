@@ -6,13 +6,10 @@ import { supabase } from '../lib/supabase.js';
 import { getUserId } from '../lib/db.js';
 import { createInteractiveTrendChart } from '../utils/charts.js';
 import { esc } from '../utils/esc.js';
+import { todayLocalISO, daysAgoLocalISO, startOfDayISO } from '../utils/dates.js';
 
 const GOAL = 10000;
 let currentView = 'weekly';
-
-function localDateStr(d) {
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-}
 
 export async function renderStepDetails() {
     const content = document.getElementById('page-content');
@@ -22,7 +19,7 @@ export async function renderStepDetails() {
     let loadError = null;
     try {
         const userId = await getUserId();
-        const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+        const since = daysAgoLocalISO(30);
         const { data, error } = await supabase
             .from('habits')
             .select('date, steps')
@@ -37,7 +34,7 @@ export async function renderStepDetails() {
         loadError = err;
     }
 
-    const todayStr = localDateStr(new Date());
+    const todayStr = todayLocalISO();
     const today = history.find(h => h.date === todayStr);
     const todaySteps = today ? today.value : null;
     const progress = todaySteps == null ? 0 : Math.min((todaySteps / GOAL) * 100, 100);
@@ -102,13 +99,13 @@ export async function renderStepDetails() {
 
 // Entries within the last N calendar days, oldest first, labelled for the chart.
 function chartSeries(history, days) {
-    const cutoff = localDateStr(new Date(Date.now() - (days - 1) * 86400000));
+    const cutoff = daysAgoLocalISO(days - 1);
     return history
         .filter(h => h.date >= cutoff)
         .slice()
         .reverse()
         .map(h => ({
-            label: new Date(h.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            label: new Date(startOfDayISO(h.date)).toLocaleDateString([], { month: 'short', day: 'numeric' }),
             value: h.value,
         }));
 }
@@ -116,7 +113,7 @@ function chartSeries(history, days) {
 function renderHistoryList(history) {
     if (!history.length) return '';
     return history.map(item => {
-        const date = new Date(item.date + 'T00:00:00');
+        const date = new Date(startOfDayISO(item.date));
         const day = date.toLocaleDateString([], { weekday: 'short' });
         const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
         const pct = Math.min((item.value / GOAL) * 100, 100);

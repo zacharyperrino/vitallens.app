@@ -16,10 +16,3 @@ export function mountReact(Component, containerId, props = {}) {
     root.render(createElement(Component, props));
     roots.set(containerId, root);
 }
-
-export function unmountReact(containerId) {
-    if (roots.has(containerId)) {
-        roots.get(containerId).unmount();
-        roots.delete(containerId);
-    }
-}

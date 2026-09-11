@@ -4,6 +4,7 @@
 
 import { supabase } from './supabase.js';
 import { apiFetch } from '../utils/api.js';
+import { todayLocalISO, startOfDayISO } from '../utils/dates.js';
 
 // ── RAG ingestion helper ─────────────────────────────────────
 async function ingestEvent(eventType, data) {
@@ -19,7 +20,7 @@ async function ingestEvent(eventType, data) {
 
 // ── Auth helpers ─────────────────────────────────────────────
 
-export async function getCurrentUser() {
+async function getCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
 }
@@ -120,12 +121,12 @@ export const meals = {
 
     async getToday() {
         const userId = await getUserId();
-        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const today = todayLocalISO();
         const { data, error } = await supabase
             .from('meals')
             .select('*')
             .eq('user_id', userId)
-            .gte('logged_at', `${today}T00:00:00`)
+            .gte('logged_at', startOfDayISO(today))
             .order('logged_at', { ascending: false });
         if (error) throw error;
         return data;
@@ -137,7 +138,7 @@ export const meals = {
 export const dailyNutrition = {
     async get(date = null) {
         const userId = await getUserId();
-        const targetDate = date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const targetDate = date || todayLocalISO();
         const { data, error } = await supabase
             .from('daily_nutrition')
             .select('*')
@@ -150,7 +151,7 @@ export const dailyNutrition = {
 
     async add(nutrients) {
         const userId = await getUserId();
-        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const today = todayLocalISO();
         const { error } = await supabase.rpc('increment_daily_nutrition', {
             p_user_id: userId,
             p_date: today,
@@ -361,7 +362,7 @@ export const exerciseLog = {
                 total_volume_kg: entry.total_volume_kg || null,
                 source: entry.source || 'manual',
                 strava_id: entry.stravaId || null,
-                date: entry.date || new Date().toISOString().split('T')[0],
+                date: entry.date || todayLocalISO(),
             })
             .select()
             .single();
@@ -409,7 +410,7 @@ export const sleepLog = {
                 wake_time: entry.wakeTime || null,
                 source: entry.source || 'manual',
                 notes: entry.notes || null,
-                date: entry.date || new Date().toISOString().split('T')[0],
+                date: entry.date || todayLocalISO(),
             })
             .select()
             .single();
@@ -436,7 +437,7 @@ export const sleepLog = {
 export const habits = {
     async logToday(entry) {
         const userId = await getUserId();
-        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const today = todayLocalISO();
         const { data, error } = await supabase
             .from('habits')
             .upsert({
@@ -444,8 +445,8 @@ export const habits = {
                 date: today,
                 water_glasses: entry.waterGlasses ?? null,
                 smoking: entry.smoking || false,
-                alcohol: entry.alcohol || 'none',
-                caffeine: entry.caffeine || 'moderate',
+                alcohol: entry.alcohol ?? null,
+                caffeine: entry.caffeine ?? null,
                 stress_level: entry.stressLevel || null,
                 mood: entry.mood || null,
                 steps: entry.steps ?? null,
@@ -460,7 +461,7 @@ export const habits = {
 
     async getToday() {
         const userId = await getUserId();
-        const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const today = todayLocalISO();
         const { data, error } = await supabase
             .from('habits')
             .select('*')
@@ -469,98 +470,6 @@ export const habits = {
             .maybeSingle();
         if (error && error.code !== 'PGRST116') throw error;
         return data;
-    },
-};
-
-// ── Wearable connections ─────────────────────────────────────
-
-export const wearableConnections = {
-    async save(provider, config) {
-        const userId = await getUserId();
-        const { data, error } = await supabase
-            .from('wearable_connections')
-            .upsert({
-                user_id: userId,
-                provider,
-                access_token: config.accessToken || null,
-                refresh_token: config.refreshToken || null,
-                expires_at: config.expiresAt || null,
-                athlete_id: config.athleteId ? String(config.athleteId) : null,
-                athlete_name: config.athleteName || null,
-                athlete_avatar: config.athleteAvatar || null,
-                connected: true,
-                last_sync: config.lastSync ? new Date(config.lastSync).toISOString() : null,
-            }, { onConflict: 'user_id,provider' })
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
-    },
-
-    async get(provider) {
-        const userId = await getUserId();
-        const { data, error } = await supabase
-            .from('wearable_connections')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('provider', provider)
-            .single();
-        if (error && error.code !== 'PGRST116') throw error;
-        return data;
-    },
-
-    async disconnect(provider) {
-        const userId = await getUserId();
-        const { error } = await supabase
-            .from('wearable_connections')
-            .update({ connected: false, access_token: null, refresh_token: null })
-            .eq('user_id', userId)
-            .eq('provider', provider);
-        if (error) throw error;
-    },
-};
-
-// ── Health insights (AI generated) ──────────────────────────
-
-export const healthInsights = {
-    async save(insight) {
-        const userId = await getUserId();
-        const { data, error } = await supabase
-            .from('health_insights')
-            .insert({
-                user_id: userId,
-                insight_type: insight.type,
-                title: insight.title,
-                body: insight.body,
-                confidence: insight.confidence || null,
-                data_sources: insight.dataSources || [],
-                priority: insight.priority || 'medium',
-            })
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
-    },
-
-    async getUnread(limit = 10) {
-        const userId = await getUserId();
-        const { data, error } = await supabase
-            .from('health_insights')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('read', false)
-            .order('generated_at', { ascending: false })
-            .limit(limit);
-        if (error) throw error;
-        return data;
-    },
-
-    async markRead(id) {
-        const { error } = await supabase
-            .from('health_insights')
-            .update({ read: true })
-            .eq('id', id);
-        if (error) throw error;
     },
 };
 

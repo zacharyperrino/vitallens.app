@@ -97,54 +97,6 @@ export function createBarChart(data, width = 300, height = 100, opts = {}) {
     return `<svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" ${a11y(opts, `Bar chart: ${summary}`)}>${bars}</svg>`;
 }
 
-export function createRadarChart(data, size = 200, opts = {}) {
-    const center = size / 2;
-    const radius = size / 2 - 20;
-    const count = data.length;
-    const angleStep = (2 * Math.PI) / count;
-
-    // Grid
-    const gridLines = [0.25, 0.5, 0.75, 1].map(scale => {
-        const pts = Array.from({ length: count }, (_, i) => {
-            const angle = i * angleStep - Math.PI / 2;
-            return `${center + Math.cos(angle) * radius * scale},${center + Math.sin(angle) * radius * scale}`;
-        }).join(' ');
-        return `<polygon points="${pts}" fill="none" stroke="var(--border-subtle)" stroke-width="1"/>`;
-    }).join('');
-
-    // Data polygon
-    const dataPoints = data.map((d, i) => {
-        const angle = i * angleStep - Math.PI / 2;
-        const r = (d.value / 100) * radius;
-        return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
-    }).join(' ');
-
-    // Labels
-    const labels = data.map((d, i) => {
-        const angle = i * angleStep - Math.PI / 2;
-        const lx = center + Math.cos(angle) * (radius + 14);
-        const ly = center + Math.sin(angle) * (radius + 14);
-        return `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="var(--text-secondary)" font-size="11" font-family="var(--font-body)">${esc(d.label)}</text>`;
-    }).join('');
-
-    const summary = data.map(d => `${d.label ?? ''} ${fmt(d.value)}`.trim()).join(', ');
-    return `<svg width="100%" height="${size}" viewBox="0 0 ${size} ${size}" ${a11y(opts, `Radar chart: ${summary}`)}>
-    ${gridLines}
-    <polygon points="${dataPoints}" fill="var(--viz-green-dim)" stroke="var(--viz-green)" stroke-width="2"/>
-    ${labels}
-  </svg>`;
-}
-
-export function createSparkline(data, width = 80, height = 24, color = 'var(--viz-green)', opts = {}) {
-    if (!Array.isArray(data) || !data.length) return '';
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-    const step = data.length > 1 ? width / (data.length - 1) : 0;
-    const points = data.map((v, i) => `${data.length > 1 ? i * step : width / 2},${height - ((v - min) / range) * (height - 4) - 2}`).join(' ');
-    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" ${a11y(opts, `Sparkline of ${data.length} values, from ${fmt(min)} to ${fmt(max)}`)}><polyline points="${points}" fill="none" stroke="${esc(color)}" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-}
-
 // ── Shared tooltip (one element for every interactive chart on the page) ──
 let tooltipEl = null;
 function getTooltip() {

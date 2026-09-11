@@ -185,6 +185,11 @@ button {
     display: none !important;
 }
 
+/* The `hidden` attribute must beat component display rules (.btn is inline-flex). */
+[hidden] {
+    display: none !important;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;

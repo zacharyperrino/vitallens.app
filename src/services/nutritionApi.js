@@ -123,7 +123,7 @@ const LABEL_TO_QUERY = {
  * @param {string} yoloLabel — e.g. "grilled_chicken", "brown_rice"
  * @param {number} grams — portion size in grams
  */
-export async function getNutritionForFood(yoloLabel, grams = 150, cookingMethod = null) {
+async function getNutritionForFood(yoloLabel, grams = 150, cookingMethod = null) {
     const cacheKey = `${yoloLabel}_${grams}`;
     if (nutritionCache.has(cacheKey)) return nutritionCache.get(cacheKey);
 
@@ -172,7 +172,7 @@ export async function getNutritionForFood(yoloLabel, grams = 150, cookingMethod 
  * Search USDA FoodData Central.
  * Fixed URL encoding — Survey (FNDDS) was causing 400 errors.
  */
-export async function searchFood(query, grams = 100) {
+async function searchFood(query, grams = 100) {
     const encodedQuery = encodeURIComponent(query);
     const res = await apiFetch(
         `/api/nutrition/search?query=${encodedQuery}&grams=${grams}`,
@@ -183,132 +183,6 @@ export async function searchFood(query, grams = 100) {
         throw new Error(err.error || `Nutrition search failed: ${res.status}`);
     }
     return await res.json();
-}
-
-/**
- * Look up a specific food by USDA FDC ID.
- */
-export async function getFoodById(fdcId, grams = 100) {
-    const cacheKey = `fdc_${fdcId}_${grams}`;
-    if (nutritionCache.has(cacheKey)) return nutritionCache.get(cacheKey);
-    const res = await apiFetch(
-        `/api/nutrition/food/${fdcId}?grams=${grams}`,
-        { signal: AbortSignal.timeout(10000) }
-    );
-    if (!res.ok) throw new Error(`Nutrition lookup failed: ${res.status}`);
-    const result = await res.json();
-    nutritionCache.set(cacheKey, result);
-    return result;
-}
-
-// ── Normalization ─────────────────────────────────────────────
-
-function normalizeNutrition(food, queryName, grams) {
-    const nutrients = food.foodNutrients || [];
-    const scale = grams / 100;
-
-    const get = (ids) => {
-        const ids_arr = Array.isArray(ids) ? ids : [ids];
-        for (const id of ids_arr) {
-            const n = nutrients.find(n =>
-                n.nutrientId === id ||
-                n.nutrient?.id === id ||
-                n.number === String(id)
-            );
-            if (n) {
-                const val = n.value ?? n.amount ?? 0;
-                return Number((val * scale).toFixed(2));
-            }
-        }
-        return 0;
-    };
-
-    const calories = get([1008, 2047, 2048]);
-    const protein = get([1003]);
-    const fat = get([1004]);
-    const carbs = get([1005]);
-    const fiber = get([1079]);
-    const sugar = get([1063, 2000]);
-    const sodium = get([1093]);
-    const satFat = get([1258]);
-    const cholesterol = get([1253]);
-    const potassium = get([1092]);
-    const calcium = get([1087]);
-    const iron = get([1089]);
-    const vitaminC = get([1162]);
-    const vitaminD = get([1114, 1110]);
-    const vitaminB12 = get([1178]);
-    const magnesium = get([1090]);
-    const zinc = get([1095]);
-
-    const micronutrients = buildMicronutrients({
-        calcium, iron, vitaminC, vitaminD, vitaminB12,
-        potassium, magnesium, zinc, sodium, cholesterol,
-    });
-
-    return {
-        name: food.description || queryName,
-        fdcId: food.fdcId,
-        dataType: food.dataType,
-        grams,
-        calories,
-        protein: Number(protein.toFixed(1)),
-        fat: Number(fat.toFixed(1)),
-        carbs: Number(carbs.toFixed(1)),
-        fiber: Number(fiber.toFixed(1)),
-        sugar: Number(sugar.toFixed(1)),
-        sodium: Math.round(sodium),
-        saturated_fat: Number(satFat.toFixed(1)),
-        cholesterol: Math.round(cholesterol),
-        potassium: Math.round(potassium),
-        micronutrients,
-        digestibility: estimateDigestibility({ fiber, fat, protein, carbs }),
-        healthRating: estimateHealthRating({ fiber, sugar, satFat, sodium, protein, vitaminC }),
-        source: 'USDA FoodData Central',
-    };
-}
-
-function buildMicronutrients({ calcium, iron, vitaminC, vitaminD, vitaminB12, potassium, magnesium, zinc, sodium, cholesterol }) {
-    const rdas = {
-        'Calcium': { value: calcium, unit: 'mg', rda: 1000 },
-        'Iron': { value: iron, unit: 'mg', rda: 18 },
-        'Vitamin C': { value: vitaminC, unit: 'mg', rda: 90 },
-        'Vitamin D': { value: vitaminD, unit: 'mcg', rda: 20 },
-        'Vitamin B12': { value: vitaminB12, unit: 'mcg', rda: 2.4 },
-        'Potassium': { value: potassium, unit: 'mg', rda: 3500 },
-        'Magnesium': { value: magnesium, unit: 'mg', rda: 400 },
-        'Zinc': { value: zinc, unit: 'mg', rda: 11 },
-        'Sodium': { value: sodium, unit: 'mg', rda: 2300 },
-        'Cholesterol': { value: cholesterol, unit: 'mg', rda: 300 },
-    };
-
-    return Object.entries(rdas)
-        .filter(([_, d]) => d.value > 0)
-        .map(([name, d]) => ({
-            name,
-            amount: `${d.value}${d.unit}`,
-            rda: Math.min(999, Math.round((d.value / d.rda) * 100)),
-        }));
-}
-
-function estimateDigestibility({ fiber, fat, protein, carbs }) {
-    let score = 85;
-    if (fat > 20) score -= 10;
-    if (fiber > 8) score -= 5;
-    if (protein > 30) score += 5;
-    if (carbs > 50) score -= 5;
-    return Math.max(50, Math.min(100, Math.round(score)));
-}
-
-function estimateHealthRating({ fiber, sugar, satFat, sodium, protein, vitaminC }) {
-    let score = 65;
-    score += Math.min(15, fiber * 2);
-    score += Math.min(10, protein * 0.5);
-    score += Math.min(5, vitaminC * 0.1);
-    score -= Math.min(20, sugar * 1.5);
-    score -= Math.min(15, satFat * 2);
-    score -= Math.min(10, (sodium / 2300) * 10);
-    return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 // ── Batch operations ──────────────────────────────────────────

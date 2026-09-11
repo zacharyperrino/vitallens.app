@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../utils/api.js';
+import { todayLocalISO } from '../utils/dates.js';
 
 export default function NutritionTracker({ userId }) {
     const [nutrition, setNutrition] = useState(null);
@@ -11,7 +12,7 @@ export default function NutritionTracker({ userId }) {
         setLoading(true);
         setError(false);
         try {
-            const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            const today = todayLocalISO();
             const [nutritionRes, profileRes] = await Promise.all([
                 apiFetch(`/api/daily-nutrition?userId=${userId}&date=${today}`),
                 apiFetch(`/api/health-profile?userId=${userId}`),

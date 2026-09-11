@@ -88,7 +88,7 @@ export async function renderOnboarding() {
         <button type="button" class="btn" id="ob-skip" data-skip="${skipStep}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Skip for now</button>
         <button type="button" class="btn btn-glass" id="${saveId}" style="flex:2;">Save &amp; continue</button>
       </div>
-      <p class="disclaimer" style="text-align:center;margin-top:var(--space-2);">You can add this later on your Profile.</p>`;
+      <p class="disclaimer mt-2 text-center">You can add this later on your Profile.</p>`;
   }
 
   // ── Persistence helpers ──────────────────────────────────
@@ -130,7 +130,7 @@ export async function renderOnboarding() {
   // ── Steps ────────────────────────────────────────────────
   function renderWelcome() {
     shell(`
-      <div class="card" style="text-align:center;">
+      <div class="card text-center">
         <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.activity}</div>
         <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-2);">Welcome to VitalLens</h1>
         <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-5);">
@@ -148,10 +148,10 @@ export async function renderOnboarding() {
         <div style="text-align:center;margin-bottom:var(--space-5);">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.clipboard}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Your baseline</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">We use these to estimate your calorie and macro targets.</p>
+          <p class="text-secondary text-sm">We use these to estimate your calorie and macro targets.</p>
         </div>
-        <div style="display:flex;flex-direction:column;gap:var(--space-3);">
-          <div class="grid-2" style="gap:var(--space-3);">
+        <div class="flex-col gap-3">
+          <div class="grid-2 gap-3">
             <div class="input-group"><label for="ob-age">Age</label><input class="input-field" type="number" min="18" max="120" id="ob-age" value="${b.age || ''}" placeholder="Age" inputmode="numeric"></div>
             <div class="input-group"><label for="ob-sex">Biological sex</label>
               <select class="input-field" id="ob-sex">
@@ -162,7 +162,7 @@ export async function renderOnboarding() {
               </select>
             </div>
           </div>
-          <div class="grid-2" style="gap:var(--space-3);">
+          <div class="grid-2 gap-3">
             <div class="input-group"><label for="ob-height">Height</label>
               <div style="display:flex;gap:var(--space-2);">
                 <input class="input-field" type="number" min="0" id="ob-height" value="${b.height || ''}" placeholder="Height" inputmode="decimal">
@@ -256,26 +256,26 @@ export async function renderOnboarding() {
     const t = state.targets || {};
     const num = (v) => (v == null || v === '') ? '—' : v;
     shell(`
-      <div class="card" style="text-align:center;">
+      <div class="card text-center">
         <div style="margin-bottom:var(--space-2);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.chart}</div>
-        <h2 style="margin-bottom:var(--space-1);">Your starting targets</h2>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-4);">Estimated from your baseline using the Mifflin-St Jeor formula.</p>
+        <h2 class="mb-1">Your starting targets</h2>
+        <p class="mb-4 text-secondary text-sm">Estimated from your baseline using the Mifflin-St Jeor formula.</p>
         <div style="display:flex;justify-content:center;gap:var(--space-5);margin-bottom:var(--space-4);">
-          <div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">Estimated BMR</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.bmr)}</div></div>
-          <div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">Estimated daily burn (TDEE)</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.tdee)}</div></div>
+          <div><div class="text-tertiary text-xs">Estimated BMR</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.bmr)}</div></div>
+          <div><div class="text-tertiary text-xs">Estimated daily burn (TDEE)</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.tdee)}</div></div>
         </div>
         <div style="background:var(--surface-2);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-5);">
           <div style="font-size:var(--text-3xl);font-weight:var(--weight-extrabold);color:var(--text-primary);">${num(t.calories)}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-3);">calories / day</div>
+          <div class="mb-3 text-tertiary text-xs">calories / day</div>
           <div style="display:flex;justify-content:space-between;text-align:center;">
-            <div style="flex:1;"><div style="font-weight:700;color:var(--accent);">${num(t.protein_g)}g</div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">protein</div></div>
-            <div style="flex:1;"><div style="font-weight:700;color:var(--viz-amber);">${num(t.carbs_g)}g</div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">carbs</div></div>
-            <div style="flex:1;"><div style="font-weight:700;color:var(--viz-neutral);">${num(t.fat_g)}g</div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">fat</div></div>
-            <div style="flex:1;"><div style="font-weight:700;color:var(--viz-green);">${num(t.fiber_g)}g</div><div style="font-size:var(--text-xs);color:var(--text-tertiary);">fiber</div></div>
+            <div class="flex-1"><div style="font-weight:700;color:var(--accent);">${num(t.protein_g)}g</div><div class="text-tertiary text-xs">protein</div></div>
+            <div class="flex-1"><div style="font-weight:700;color:var(--viz-amber);">${num(t.carbs_g)}g</div><div class="text-tertiary text-xs">carbs</div></div>
+            <div class="flex-1"><div style="font-weight:700;color:var(--viz-neutral);">${num(t.fat_g)}g</div><div class="text-tertiary text-xs">fat</div></div>
+            <div class="flex-1"><div style="font-weight:700;color:var(--viz-green);">${num(t.fiber_g)}g</div><div class="text-tertiary text-xs">fiber</div></div>
           </div>
         </div>
         <button type="button" class="btn btn-glass btn-block" id="ob-payoff-next">Continue</button>
-        <p class="disclaimer" style="margin-top:var(--space-3);">These are estimates, not prescriptions. You can change them any time on your Profile.</p>
+        <p class="disclaimer mt-3">These are estimates, not prescriptions. You can change them any time on your Profile.</p>
       </div>`, 40, 1);
     document.getElementById('ob-payoff-next').addEventListener('click', () => go(3));
   }
@@ -283,10 +283,10 @@ export async function renderOnboarding() {
   function renderAllergies() {
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-4);">
+        <div class="mb-4 text-center">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.alert}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Any allergies?</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">Optional — helps us avoid suggesting foods that don't work for you.</p>
+          <p class="text-secondary text-sm">Optional — helps us avoid suggesting foods that don't work for you.</p>
         </div>
         <div class="input-group"><label for="ob-allergies">Allergies</label><textarea class="input-field" id="ob-allergies" rows="4" placeholder="e.g. peanuts, shellfish, dairy…"></textarea></div>
         ${skippableFooter('ob-allergies-save', 4)}
@@ -302,10 +302,10 @@ export async function renderOnboarding() {
     const selected = state.conditions || [];
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-4);">
+        <div class="mb-4 text-center">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.heart}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Any conditions to note?</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">Optional — tap any that apply. This adds context to your wellness observations.</p>
+          <p class="text-secondary text-sm">Optional — tap any that apply. This adds context to your wellness observations.</p>
         </div>
         <fieldset style="border:0;padding:0;margin:0;min-width:0;">
           <legend class="visually-hidden">Conditions</legend>
@@ -313,7 +313,7 @@ export async function renderOnboarding() {
             ${CONDITIONS.map((c, i) => `
               <label for="ob-cond-${i}" class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
                 <input class="input-checkbox ob-condition" id="ob-cond-${i}" type="checkbox" value="${c}" ${selected.includes(c) ? 'checked' : ''}>
-                <span style="font-size:var(--text-sm);">${c}</span>
+                <span class="text-sm">${c}</span>
               </label>`).join('')}
           </div>
         </fieldset>
@@ -330,10 +330,10 @@ export async function renderOnboarding() {
   function renderDietary() {
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-4);">
+        <div class="mb-4 text-center">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.leaf}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Dietary restrictions?</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">Optional — e.g. vegetarian, halal, gluten-free, low-FODMAP.</p>
+          <p class="text-secondary text-sm">Optional — e.g. vegetarian, halal, gluten-free, low-FODMAP.</p>
         </div>
         <div class="input-group"><label for="ob-dietary">Dietary restrictions</label><textarea class="input-field" id="ob-dietary" rows="3" placeholder="List anything you avoid or follow…"></textarea></div>
         ${skippableFooter('ob-dietary-save', 6)}
@@ -348,10 +348,10 @@ export async function renderOnboarding() {
   function renderGoals() {
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-4);">
+        <div class="mb-4 text-center">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.star}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">What are you working toward?</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">Optional — pick a focus and add any detail.</p>
+          <p class="text-secondary text-sm">Optional — pick a focus and add any detail.</p>
         </div>
         <div class="input-group"><label for="ob-goal">Primary goal</label>
           <select class="input-field" id="ob-goal">
@@ -359,7 +359,7 @@ export async function renderOnboarding() {
             ${GOAL_OPTIONS.map(g => `<option value="${g}">${g}</option>`).join('')}
           </select>
         </div>
-        <div class="input-group" style="margin-top:var(--space-3);"><label for="ob-goals-text">Anything specific? (optional)</label><textarea class="input-field" id="ob-goals-text" rows="3" placeholder="e.g. more energy in the afternoons, better sleep…"></textarea></div>
+        <div class="input-group mt-3"><label for="ob-goals-text">Anything specific? (optional)</label><textarea class="input-field" id="ob-goals-text" rows="3" placeholder="e.g. more energy in the afternoons, better sleep…"></textarea></div>
         ${skippableFooter('ob-goals-save', 7)}
       </div>`, 90, 5);
     wireSkip();
@@ -376,10 +376,10 @@ export async function renderOnboarding() {
   function renderMedications() {
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-4);">
+        <div class="mb-4 text-center">
           <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.plus}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Medications (optional)</h2>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">A free-text note only, for your own reference. VitalLens never interprets medications or checks interactions.</p>
+          <p class="text-secondary text-sm">A free-text note only, for your own reference. VitalLens never interprets medications or checks interactions.</p>
         </div>
         <div class="input-group"><label for="ob-meds">Notes</label><textarea class="input-field" id="ob-meds" rows="3" placeholder="e.g. vitamin D in the mornings…"></textarea></div>
         ${skippableFooter('ob-meds-save', 8)}
@@ -393,14 +393,14 @@ export async function renderOnboarding() {
 
   function renderFinish() {
     shell(`
-      <div class="card" style="text-align:center;">
+      <div class="card text-center">
         <div style="margin-bottom:var(--space-2);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.check}</div>
-        <h2 style="margin-bottom:var(--space-2);">You're all set!</h2>
+        <h2 class="mb-2">You're all set!</h2>
         <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-4);">
           Your baseline and starting targets are saved. Log your first meal to start building your history — your first pattern observation appears after about <strong>3 days</strong> of logging.
         </p>
         <div id="ob-finish-error" role="alert" style="display:none;font-size:var(--text-sm);color:var(--error);margin-bottom:var(--space-3);"></div>
-        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+        <div class="flex-col gap-2">
           <button type="button" class="btn btn-glass btn-block" id="ob-finish-meal">Log my first meal</button>
           <button type="button" class="btn" id="ob-finish-dash" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Go to dashboard</button>
         </div>

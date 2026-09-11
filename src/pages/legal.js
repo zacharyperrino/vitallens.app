@@ -15,10 +15,10 @@ function mdToHtml(md) {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:var(--accent);">$1</a>');
     for (const line of lines) {
-        if (/^### /.test(line)) { if (inList) { html += '</ul>'; inList = false; } html += `<h3 style="margin-top:var(--space-4);">${inline(line.slice(4))}</h3>`; }
+        if (/^### /.test(line)) { if (inList) { html += '</ul>'; inList = false; } html += `<h3 class="mt-4">${inline(line.slice(4))}</h3>`; }
         else if (/^## /.test(line)) { if (inList) { html += '</ul>'; inList = false; } html += `<h2 style="margin-top:var(--space-5);">${inline(line.slice(3))}</h2>`; }
         else if (/^# /.test(line)) { html += `<h1>${inline(line.slice(2))}</h1>`; }
-        else if (/^- /.test(line)) { if (!inList) { html += '<ul style="padding-left:1.2em;">'; inList = true; } html += `<li style="margin-bottom:var(--space-1);">${inline(line.slice(2))}</li>`; }
+        else if (/^- /.test(line)) { if (!inList) { html += '<ul style="padding-left:1.2em;">'; inList = true; } html += `<li class="mb-1">${inline(line.slice(2))}</li>`; }
         else if (line.trim() === '') { if (inList) { html += '</ul>'; inList = false; } }
         else { if (inList) { html += '</ul>'; inList = false; } html += `<p style="margin-bottom:var(--space-2);line-height:1.6;">${inline(line)}</p>`; }
     }

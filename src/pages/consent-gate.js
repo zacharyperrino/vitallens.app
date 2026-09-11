@@ -15,7 +15,7 @@ export function renderConsentGate() {
     content.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--space-6);">
       <div class="card" style="width:100%;max-width:440px;">
-        <h2 style="margin-bottom:var(--space-3);" tabindex="-1" id="consent-heading">Before you continue</h2>
+        <h2 class="mb-3" tabindex="-1" id="consent-heading">Before you continue</h2>
         <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-4);">
           VitalLens is a <strong>general-wellness journal</strong> — it is not a medical
           device and does not diagnose or assess any condition. To use it, please review and

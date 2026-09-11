@@ -81,7 +81,7 @@ export async function exchangeCodeForToken(code) {
     return data;
 }
 
-export async function refreshAccessToken() {
+async function refreshAccessToken() {
     const cfg = getStravaConfig();
     if (!cfg.refreshToken) throw new Error('No refresh token available');
 
@@ -121,7 +121,7 @@ async function getValidToken() {
 
 // ── Activity Fetching ───────────────────────────────────
 
-export async function fetchActivities(page = 1, perPage = 30) {
+async function fetchActivities(page = 1, perPage = 30) {
     const token = await getValidToken();
 
     const params = new URLSearchParams({
@@ -315,7 +315,6 @@ export function disconnectStrava() {
 export function checkOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const scope = params.get('scope');
 
     if (code) {
         // Clean the URL (remove query params, keep hash)

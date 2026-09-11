@@ -1,0 +1,22 @@
+/* ── Utility classes ─────────────────────────────────────────────
+   Single-purpose helpers for the inline-style patterns that repeat most
+   across the page templates; every value is a token from variables.css.
+   Loaded last so a utility beats any single-class component rule, exactly
+   as the inline style it replaced did. (.flex-between, .flex-center and
+   .gap-* already live in base.css.) */
+
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.font-semibold { font-weight: var(--weight-semibold); }
+.mb-1 { margin-bottom: var(--space-1); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.text-center { text-align: center; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-1 { flex: 1; }

@@ -106,7 +106,7 @@ function renderMessages() {
   }
 
   const notice = historyLoadFailed
-    ? `<div class="chat-empty" role="status" style="font-size:var(--text-xs);">Showing messages saved on this device — the server couldn't be reached. <button type="button" class="btn btn-sm" id="chat-history-retry" style="margin-left:var(--space-2);">Try again</button></div>`
+    ? `<div class="chat-empty text-xs" role="status">Showing messages saved on this device — the server couldn't be reached. <button type="button" class="btn btn-sm" id="chat-history-retry" style="margin-left:var(--space-2);">Try again</button></div>`
     : '';
   container.innerHTML = notice + messages.map(renderMessage).join('');
   document.getElementById('chat-history-retry')?.addEventListener('click', () => renderHealthChat());
@@ -200,7 +200,7 @@ function renderSendError(originalText, reason) {
       <div class="chat-bubble-body">
         <div class="chat-bubble-content empty-state" style="padding:var(--space-3);align-items:flex-start;text-align:left;">
           <h3 style="font-size:var(--text-sm);">Couldn't send that message</h3>
-          <p style="font-size:var(--text-xs);">${esc(reason)}</p>
+          <p class="text-xs">${esc(reason)}</p>
           <button type="button" class="btn btn-sm" id="chat-retry">Try again</button>
         </div>
       </div>

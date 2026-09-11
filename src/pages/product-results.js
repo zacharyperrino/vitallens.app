@@ -7,6 +7,7 @@ import { esc } from '../utils/esc.js';
 import { getScoreColor, getScoreLabel } from '../utils/product-scanner.js';
 import { createDonutChart } from '../utils/charts.js';
 import { apiFetch } from '../utils/api.js';
+import { todayLocalISO } from '../utils/dates.js';
 
 const RISK_LEVELS = new Set(['high', 'moderate', 'low']);
 // Additive risk levels come from a third-party service; only known values
@@ -81,7 +82,7 @@ export function renderProductResults() {
     <div class="food-scanner stagger-children">
       <button type="button" id="product-results-back" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4);cursor:pointer;padding:0;">
         <span aria-hidden="true" style="color:var(--text-tertiary);transform:rotate(180deg);display:inline-block;">${icons.chevronRight}</span>
-        <span style="font-size:var(--text-sm);color:var(--text-tertiary);">Back to Scanner</span>
+        <span class="text-sm text-tertiary">Back to Scanner</span>
       </button>
 
       <!-- Product Header + Score Badge -->
@@ -91,9 +92,9 @@ export function renderProductResults() {
             <div class="product-score-value">${score}</div>
             <div class="product-score-label">${esc(scoreLabel)}</div>
           </div>
-          <div style="flex:1;">
+          <div class="flex-1">
             <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${esc(product.name || 'Unnamed product')}</h2>
-            ${product.brand ? `<p style="font-size:var(--text-sm);color:var(--text-secondary);">${esc(product.brand)}</p>` : ''}
+            ${product.brand ? `<p class="text-secondary text-sm">${esc(product.brand)}</p>` : ''}
             <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
               ${nutriBadge}
               ${novaBadge}
@@ -107,17 +108,17 @@ export function renderProductResults() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
         <div class="card" style="border-left:3px solid var(--viz-green);">
           <h4 style="font-size:var(--text-xs);color:var(--viz-green);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Positives</h4>
-          ${(healthScore.positives || []).map(p => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${esc(p)}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">None noted</p>'}
+          ${(healthScore.positives || []).map(p => `<p class="mb-1 text-secondary text-xs">• ${esc(p)}</p>`).join('') || '<p class="text-tertiary text-xs">None noted</p>'}
         </div>
         <div class="card" style="border-left:3px solid var(--error);">
           <h4 style="font-size:var(--text-xs);color:var(--error);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Negatives</h4>
-          ${(healthScore.negatives || []).map(m => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${esc(m)}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">None noted</p>'}
+          ${(healthScore.negatives || []).map(m => `<p class="mb-1 text-secondary text-xs">• ${esc(m)}</p>`).join('') || '<p class="text-tertiary text-xs">None noted</p>'}
         </div>
       </div>
 
       <!-- Nutrition per 100g -->
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+        <div class="flex-between mb-4">
           <h4>Nutrition per 100g</h4>
           <span style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-extrabold);color:var(--accent-teal);">${n.calories != null ? Math.round(Number(n.calories) || 0) : '—'} <span style="font-size:var(--text-xs);font-weight:var(--weight-normal);color:var(--text-tertiary);">kcal</span></span>
         </div>
@@ -130,7 +131,7 @@ export function renderProductResults() {
   ], 100, 10) : '<div style="width:100px;height:100px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--text-tertiary);">No data</div>'}
             ${totalMacro > 0 ? `<div class="chart-center-label"><div class="value" style="font-size:var(--text-md);">${totalMacro}g</div><div class="label">total</div></div>` : ''}
           </div>
-          <div style="flex:1;">
+          <div class="flex-1">
             ${renderNutrientRow('Protein', n.protein, 'g', pPct, 'var(--accent-blue)')}
             ${renderNutrientRow('Carbs', n.carbs, 'g', cPct, 'var(--accent-amber)')}
             ${renderNutrientRow('  Sugar', n.sugar, 'g', null, 'var(--accent-coral)')}
@@ -156,7 +157,7 @@ export function renderProductResults() {
       <!-- Additive Analysis -->
       ${analyzedAdditives.length > 0 ? `
       <div class="card">
-        <h4 style="margin-bottom:var(--space-3);">Additives (${additiveCount})</h4>
+        <h4 class="mb-3">Additives (${additiveCount})</h4>
         <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;">
           ${Number(summary.high) > 0 ? `<span class="badge badge-coral">${Number(summary.high)} high risk</span>` : ''}
           ${Number(summary.moderate) > 0 ? `<span class="badge badge-amber">${Number(summary.moderate)} moderate</span>` : ''}
@@ -168,20 +169,20 @@ export function renderProductResults() {
           <div class="additive-row ${level ? `additive-${level}` : ''}">
             <div style="display:flex;align-items:center;gap:var(--space-2);">
               <span class="additive-risk-dot ${level ? `additive-dot-${level}` : ''}" aria-hidden="true"></span>
-              <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">${esc(a.code)}</span>
-              <span style="font-size:var(--text-sm);color:var(--text-secondary);">${esc(a.name)}</span>
+              <span class="font-semibold text-sm">${esc(a.code)}</span>
+              <span class="text-secondary text-sm">${esc(a.name)}</span>
             </div>
-            <span class="badge badge-${level === 'high' ? 'coral' : level === 'moderate' ? 'amber' : 'green'}" style="font-size:var(--text-xs);">${level ? `${level} risk` : 'unrated'}</span>
+            <span class="badge badge-${level === 'high' ? 'coral' : level === 'moderate' ? 'amber' : 'green'} text-xs">${level ? `${level} risk` : 'unrated'}</span>
           </div>`;
         }).join('')}
       </div>
       ` : ''}
 
       <!-- Log to Food Diary -->
-      <div class="card" style="text-align:center;">
-        <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Add this product to today's food log and daily nutrition totals.</p>
-        <div style="display:flex;gap:var(--space-2);align-items:center;justify-content:center;margin-bottom:var(--space-3);">
-          <label for="product-serving-size" style="font-size:var(--text-xs);color:var(--text-secondary);">Serving size (g)</label>
+      <div class="card text-center">
+        <p class="mb-3 text-secondary text-xs">Add this product to today's food log and daily nutrition totals.</p>
+        <div class="flex-center gap-2 mb-3">
+          <label for="product-serving-size" class="text-secondary text-xs">Serving size (g)</label>
           <input type="number" id="product-serving-size" value="${servingSize}" min="1" max="2000" step="1" inputmode="numeric"
             style="width:80px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);font-size:var(--text-sm);text-align:center;">
         </div>
@@ -268,7 +269,7 @@ async function logProductToFoodLog(product, n) {
       });
       if (!memRes.ok) console.warn('[ProductLog] Meal memory not saved:', memRes.status);
 
-      const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const today = todayLocalISO();
       const { error: rpcError } = await supabase.rpc('increment_daily_nutrition', {
         p_user_id: user.id,
         p_date: today,
@@ -396,7 +397,7 @@ const INGREDIENT_STATUS = {
 };
 
 function renderScoredIngredients(ingredientsText, analyzedAdditives, analysis) {
-  const notListed = '<em style="color:var(--text-tertiary);">Not listed by manufacturer</em>';
+  const notListed = '<em class="text-tertiary">Not listed by manufacturer</em>';
   if (!ingredientsText || typeof ingredientsText !== 'string') return notListed;
 
   const ingredients = ingredientsText.split(/,(?![^(]*\))/).filter(i => i.trim());
