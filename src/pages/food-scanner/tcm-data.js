@@ -128,7 +128,7 @@ export function renderTCMAnalysis(foods) {
   }).filter(Boolean);
 
   if (analyzed.length === 0) {
-    return `<div class="card" style="text-align:center;padding:var(--space-4);">
+    return `<div class="card text-center p-4">
       <p class="text-tertiary text-xs">No TCM data available for these foods</p>
     </div>`;
   }
@@ -145,10 +145,10 @@ export function renderTCMAnalysis(foods) {
 
   return `
     <div class="card mb-3">
-      <button type="button" id="tcm-toggle" aria-expanded="false" aria-controls="tcm-body" style="display:flex;justify-content:space-between;align-items:center;width:100%;cursor:pointer;text-align:left;padding:0;">
-        <div style="display:flex;gap:var(--space-2);">
+      <button type="button" id="tcm-toggle" aria-expanded="false" aria-controls="tcm-body" class="flex-between w-full cursor-pointer text-left p-0">
+        <div class="flex gap-2">
           <span style="padding:1px 8px;border-radius:20px;font-size:var(--text-xs);font-weight:600;background:${tc.bg};border:1px solid ${tc.border};color:${tc.text};">${tc.label}</span>
-          <span style="padding:1px 8px;border-radius:20px;font-size:var(--text-xs);font-weight:600;background:var(--surface-2);color:var(--text-secondary);border:1px solid var(--border);">${overallMoisture}</span>
+          <span class="text-xs font-semibold bg-surface-2 text-secondary border" style="padding:1px 8px;border-radius:20px;">${overallMoisture}</span>
         </div>
         <span id="tcm-chevron" aria-hidden="true" style="color:var(--text-tertiary);font-size:12px;transition:transform 0.2s;">▼</span>
         <span class="visually-hidden">Show details for each food</span>
@@ -160,15 +160,15 @@ export function renderTCMAnalysis(foods) {
             const mc = MOISTURE_COLORS[f.moisture] || MOISTURE_COLORS.neutral;
             return `
             <div style="border-left:2px solid ${tc.border};padding-left:var(--space-3);">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+              <div class="flex justify-between items-start" style="margin-bottom:4px;">
                 <span class="font-semibold text-sm">${esc(f.name)}</span>
-                <div style="display:flex;gap:4px;flex-shrink:0;margin-left:var(--space-2);">
+                <div class="flex shrink-0" style="gap:4px;margin-left:var(--space-2);">
                   <span title="Thermal nature" style="padding:1px 7px;border-radius:20px;font-size:var(--text-xs);background:${tc.bg};border:1px solid ${tc.border};color:${tc.text};">${tc.label}</span>
                   <span title="Moisture quality" style="padding:1px 7px;border-radius:20px;font-size:var(--text-xs);background:${mc.bg};border:1px solid ${mc.border};color:${mc.text};">${mc.label}</span>
                 </div>
               </div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:2px;">${f.flavor} · ${f.organ} system</div>
-              <div style="font-size:var(--text-xs);color:var(--text-secondary);font-style:italic;">${f.action}</div>
+              <div class="text-xs text-tertiary" style="margin-bottom:2px;">${f.flavor} · ${f.organ} system</div>
+              <div class="text-xs text-secondary" style="font-style:italic;">${f.action}</div>
             </div>`;
           }).join('')}
         </div>
@@ -198,7 +198,7 @@ export async function loadTCMConstitution() {
 
     card.innerHTML = `
       <div class="card card-sm" style="border-left:3px solid ${thermalColor};">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
+        <div class="flex justify-between items-start mb-2">
           <div class="font-semibold text-secondary text-xs">Your TCM Constitution</div>
           <span class="text-tertiary text-xs">${Number(profile.total_foods_analyzed) || 0} foods analyzed</span>
         </div>

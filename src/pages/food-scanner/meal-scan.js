@@ -131,11 +131,11 @@ async function processFood(filesOrFile) {
 
   card.innerHTML = `
         <div class="scanner-preview">
-            <img id="food-preview-img" alt="Food preview" style="width:100%;height:100%;object-fit:cover;">
+            <img id="food-preview-img" alt="Food preview" class="w-full" style="height:100%;object-fit:cover;">
             <div class="scanner-line"></div>
-            <div style="position:absolute;bottom:var(--space-3);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--space-2);background:rgba(0,0,0,0.6);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);">
+            <div class="flex items-center gap-2 rounded-full" style="position:absolute;bottom:var(--space-3);left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:var(--space-2) var(--space-4);">
                 <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
-                <span style="font-size:var(--text-sm);color:white;">Analyzing meal...</span>
+                <span class="text-sm" style="color:white;">Analyzing meal...</span>
             </div>
         </div>
     `;
@@ -159,11 +159,11 @@ async function processFood(filesOrFile) {
           console.log(`[BarcodeAuto] Detected barcode in photo: ${barcode}`);
           showToast(`Barcode detected — looking up product...`);
           // Switch to product scan mode and handle
-          card.innerHTML = `<div style="padding:var(--space-6);text-align:center;"><div class="spinner" style="margin:0 auto var(--space-3);"></div><p>Looking up barcode: ${esc(barcode)}...</p></div>`;
+          card.innerHTML = `<div class="p-6 text-center"><div class="spinner" style="margin:0 auto var(--space-3);"></div><p>Looking up barcode: ${esc(barcode)}...</p></div>`;
           await handleBarcodeDetected(barcode);
           return;
         }
-      } catch (e) {
+      } catch {
         console.log('[BarcodeAuto] No barcode found, proceeding with meal analysis');
       }
     }
@@ -188,7 +188,7 @@ async function processFood(filesOrFile) {
     if (memory && memory.scan_count >= 2) {
       // Show memory prompt instead of full results
       card.innerHTML = `
-                <div style="padding:var(--space-5);">
+                <div class="p-5">
                     <div class="mb-3 text-tertiary">${icons.sparkle}</div>
                     <h4 class="mb-1">Looks familiar!</h4>
                     <p class="mb-1 text-secondary text-sm">
@@ -197,7 +197,7 @@ async function processFood(filesOrFile) {
                     <p class="mb-4 text-tertiary text-xs">
                         You've had this ${Number(memory.scan_count) || 0} times · Avg ${Math.round(Number(memory.avg_calories) || 0)} cal
                     </p>
-                    <div style="display:flex;gap:var(--space-2);">
+                    <div class="flex gap-2">
                         <button type="button" id="memory-confirm-btn" class="btn btn-primary flex-1">Log as usual</button>
                         <button type="button" id="memory-edit-btn" class="btn btn-outline flex-1">Edit</button>
                     </div>
@@ -218,8 +218,8 @@ async function processFood(filesOrFile) {
           await saveMealMemory(hash, memory.meal_name, result.foods, memory.avg_calories);
           showToast(`${memory.meal_name} logged — ${memory.avg_calories} cal`);
           card.innerHTML = `
-                        <div style="padding:var(--space-4);text-align:center;">
-                            <div style="margin-bottom:var(--space-2);color:var(--viz-green);display:flex;justify-content:center;">${icons.check}</div>
+                        <div class="p-4 text-center">
+                            <div class="mb-2 text-green flex justify-center">${icons.check}</div>
                             <p class="text-secondary text-sm">Logged successfully</p>
                         </div>
                     `;
@@ -242,8 +242,8 @@ async function processFood(filesOrFile) {
   } catch (err) {
     console.error('[MealScan] Processing error:', err);
     card.innerHTML = `
-            <div class="empty-state" role="alert" style="border:2px dashed var(--error);border-radius:var(--radius-xl);">
-                <div style="color:var(--viz-amber);display:flex;justify-content:center;">${icons.alert}</div>
+            <div class="empty-state rounded-xl" role="alert" style="border:2px dashed var(--error);">
+                <div class="text-amber flex justify-center">${icons.alert}</div>
                 <h3>Couldn't analyze this meal</h3>
                 <p>${esc(friendlyScanMessage(err))}</p>
                 <button type="button" class="btn btn-sm" id="meal-scan-retry">Try again</button>
@@ -264,9 +264,9 @@ function friendlyScanMessage(err) {
 
 async function showNormalResults(result, hash, reader, resultsDiv, card) {
   card.innerHTML = `
-        <div class="scanner-preview" style="aspect-ratio:auto;padding:0;position:relative;">
-            <img id="food-preview-img-done" alt="Scanned food" style="width:100%;height:200px;object-fit:cover;display:block;">
-            <canvas id="food-box-overlay" style="position:absolute;top:0;left:0;width:100%;height:200px;pointer-events:none;"></canvas>
+        <div class="scanner-preview p-0 relative" style="aspect-ratio:auto;">
+            <img id="food-preview-img-done" alt="Scanned food" class="w-full block" style="height:200px;object-fit:cover;">
+            <canvas id="food-box-overlay" class="w-full" style="position:absolute;top:0;left:0;height:200px;pointer-events:none;"></canvas>
             <div style="position:absolute;top:var(--space-3);right:var(--space-3);">
                 <div class="badge badge-green">${icons.check} Analyzed</div>
             </div>

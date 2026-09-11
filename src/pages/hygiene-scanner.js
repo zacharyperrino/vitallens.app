@@ -55,10 +55,10 @@ export async function renderHygieneScanner() {
 
       <!-- Scanner card -->
       <div class="card mb-4">
-        <div id="camera-container" style="position:relative;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);">
+        <div id="camera-container" class="relative bg-surface-2 rounded-md overflow-hidden flex items-center justify-center mb-3" style="aspect-ratio:4/3;">
           <video id="hygiene-video" autoplay playsinline muted aria-label="Live camera preview for barcode scanning" style="width:100%;height:100%;object-fit:cover;display:none;"></video>
           <div id="camera-placeholder" class="text-center text-tertiary">
-            <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
+            <div class="mb-2 text-tertiary flex justify-center">${icons.droplet}</div>
             <div class="text-sm">Point camera at product barcode</div>
           </div>
           <div id="scan-overlay" aria-hidden="true" style="display:none;position:absolute;inset:0;border:2px solid var(--accent-teal);border-radius:var(--radius-md);pointer-events:none;">
@@ -66,7 +66,7 @@ export async function renderHygieneScanner() {
           </div>
         </div>
 
-        <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
+        <div class="flex gap-2 mb-3">
           <button type="button" id="start-camera-btn" class="btn btn-primary flex-1">
             ${icons.camera} Start Camera
           </button>
@@ -76,11 +76,11 @@ export async function renderHygieneScanner() {
         </div>
 
         <!-- Manual barcode entry -->
-        <div style="display:flex;gap:var(--space-2);">
+        <div class="flex gap-2">
           <label for="manual-barcode" class="visually-hidden">Barcode number</label>
           <input type="text" id="manual-barcode" inputmode="numeric" placeholder="Or enter barcode manually..."
-            style="flex:1;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);">
-          <button type="button" id="manual-scan-btn" class="btn" aria-label="Look up barcode" style="background:var(--surface-2);border:1px solid var(--border);">
+            class="flex-1 p-3 bg-surface-2 border rounded-md text-primary text-sm">
+          <button type="button" id="manual-scan-btn" class="btn bg-surface-2 border" aria-label="Look up barcode">
             ${icons.scan}
           </button>
         </div>
@@ -91,18 +91,18 @@ export async function renderHygieneScanner() {
 
       <!-- Recent scans -->
       ${historyError ? `
-      <div class="section-heading"><h3>Recent Scans</h3></div>
+      <div class="section-heading"><h2 class="h3">Recent Scans</h2></div>
       <div class="empty-state" role="alert">
-        <h3>Couldn't load your recent scans</h3>
+        <h2 class="h3">Couldn't load your recent scans</h2>
         <p>Check your connection and try again. Nothing you've scanned has been lost.</p>
         <button type="button" class="btn btn-sm" id="hygiene-history-retry">Try again</button>
       </div>` : recentScans.length > 0 ? `
-      <div class="section-heading"><h3>Recent Scans</h3></div>
+      <div class="section-heading"><h2 class="h3">Recent Scans</h2></div>
       <div class="flex-col gap-2">
         ${recentScans.map(s => renderScanCard(s)).join('')}
       </div>` : `
-      <div class="card" style="text-align:center;padding:var(--space-6);">
-        <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
+      <div class="card text-center p-6">
+        <div class="mb-2 text-tertiary flex justify-center">${icons.droplet}</div>
         <div class="text-secondary text-sm">No hygiene scans yet — scan a product to start tracking ingredient patterns.</div>
       </div>`}
 
@@ -126,18 +126,18 @@ function renderScanCard(scan) {
 
     return `
     <div class="card card-sm">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
+      <div class="flex justify-between items-start mb-2">
         <div class="flex-1">
           <div class="font-semibold text-sm">${esc(scan.product_name || 'Unknown Product')}</div>
           <div class="text-tertiary text-xs">${[esc(scan.brand), scannedDate].filter(Boolean).join(' · ')}</div>
         </div>
-        <div style="text-align:center;margin-left:var(--space-3);">
+        <div class="text-center" style="margin-left:var(--space-3);">
           <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:${scoreColor};">${score}</div>
           <div style="font-size:var(--text-xs);color:${scoreColor};">${scoreLabel}</div>
         </div>
       </div>
       ${concerns.length > 0 ? `
-      <div style="display:flex;flex-wrap:wrap;gap:var(--space-1);">
+      <div class="flex flex-wrap gap-1">
         ${concerns.slice(0, 3).map(c => {
             const high = c.risk === 'high';
             return `
@@ -146,7 +146,7 @@ function renderScanCard(scan) {
         </span>`;
         }).join('')}
         ${concerns.length > 3 ? `<span class="text-tertiary text-xs">+${concerns.length - 3} more</span>` : ''}
-      </div>` : `<div style="font-size:var(--text-xs);color:var(--viz-green);">No major concerns noticed</div>`}
+      </div>` : `<div class="text-xs text-green">No major concerns noticed</div>`}
     </div>`;
 }
 
@@ -174,7 +174,7 @@ function setupHygieneHandlers(userId) {
     function renderScanError(barcode) {
         resultsEl.innerHTML = `
           <div class="empty-state" role="alert">
-            <h3>Couldn't look up this product</h3>
+            <h2 class="h3">Couldn't look up this product</h2>
             <p>Check your connection and try again.</p>
             <button type="button" class="btn btn-sm" id="hygiene-scan-retry">Try again</button>
           </div>`;
@@ -182,7 +182,7 @@ function setupHygieneHandlers(userId) {
     }
 
     async function scanBarcode(barcode) {
-        resultsEl.innerHTML = `<div class="card" style="text-align:center;padding:var(--space-4);"><div class="spinner" style="margin:0 auto;"></div><div class="mt-2 text-tertiary text-xs">Looking up product...</div></div>`;
+        resultsEl.innerHTML = `<div class="card text-center p-4"><div class="spinner" style="margin:0 auto;"></div><div class="mt-2 text-tertiary text-xs">Looking up product...</div></div>`;
 
         try {
             const res = await apiFetch(`/api/hygiene/scan`, {
@@ -198,7 +198,7 @@ function setupHygieneHandlers(userId) {
                     // A miss in the product database is a result, not a failure.
                     resultsEl.innerHTML = `
                       <div class="empty-state">
-                        <h3>Product not found</h3>
+                        <h2 class="h3">Product not found</h2>
                         <p>Barcode ${esc(barcode)} isn't in the product database yet. Check the number and try again.</p>
                       </div>`;
                     return;
@@ -241,7 +241,7 @@ function setupHygieneHandlers(userId) {
             stopCameraUI();
             resultsEl.innerHTML = `
               <div class="empty-state" role="alert">
-                <h3>Couldn't access the camera</h3>
+                <h2 class="h3">Couldn't access the camera</h2>
                 <p>Allow camera access in your browser settings, or type the barcode in the box above.</p>
               </div>`;
         }

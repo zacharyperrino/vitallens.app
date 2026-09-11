@@ -29,8 +29,8 @@ export function renderProductResults() {
     content.innerHTML = `
       <div class="food-scanner stagger-children">
         <div class="empty-state">
-          <div style="color:var(--text-tertiary);display:flex;justify-content:center;">${icons.scan}</div>
-          <h3>No product to show</h3>
+          <div class="text-tertiary flex justify-center">${icons.scan}</div>
+          <h2 class="h3">No product to show</h2>
           <p>Scan a product barcode or nutrition label and its results will appear here.</p>
           <button type="button" class="btn btn-primary" id="product-results-go-scanner">Go to Scanner</button>
         </div>
@@ -83,22 +83,22 @@ export function renderProductResults() {
 
   content.innerHTML = `
     <div class="food-scanner stagger-children">
-      <button type="button" id="product-results-back" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4);cursor:pointer;padding:0;">
-        <span aria-hidden="true" style="color:var(--text-tertiary);transform:rotate(180deg);display:inline-block;">${icons.chevronRight}</span>
+      <button type="button" id="product-results-back" class="flex items-center gap-2 mb-4 cursor-pointer p-0">
+        <span aria-hidden="true" class="text-tertiary" style="transform:rotate(180deg);display:inline-block;">${icons.chevronRight}</span>
         <span class="text-sm text-tertiary">Back to Scanner</span>
       </button>
 
       <!-- Product Header + Score Badge -->
       <div class="card product-header-card">
-        <div style="display:flex;gap:var(--space-4);align-items:center;">
+        <div class="flex gap-4 items-center">
           <div class="product-score-badge" style="--score-color:${scoreColor};" role="img" aria-label="${hasScore ? `Wellness score ${score} out of 100, ` : ''}${esc(scoreLabel)}">
             <div class="product-score-value">${hasScore ? score : '—'}</div>
             <div class="product-score-label">${esc(scoreLabel)}</div>
           </div>
           <div class="flex-1">
-            <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${esc(product.name || 'Unnamed product')}</h2>
+            <h2 class="text-lg mb-1">${esc(product.name || 'Unnamed product')}</h2>
             ${product.brand ? `<p class="text-secondary text-sm">${esc(product.brand)}</p>` : ''}
-            <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
+            <div class="flex gap-2 mt-2 flex-wrap">
               ${nutriBadge}
               ${novaBadge}
               ${analysisBadges}
@@ -108,13 +108,13 @@ export function renderProductResults() {
       </div>
 
       <!-- Positives & Negatives -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+      <div class="grid gap-3" style="grid-template-columns:1fr 1fr;">
         <div class="card" style="border-left:3px solid var(--viz-green);">
-          <h4 style="font-size:var(--text-xs);color:var(--viz-green);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Positives</h4>
+          <h3 class="text-xs text-green mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Positives</h3>
           ${(healthScore.positives || []).map(p => `<p class="mb-1 text-secondary text-xs">• ${esc(p)}</p>`).join('') || '<p class="text-tertiary text-xs">None noted</p>'}
         </div>
         <div class="card" style="border-left:3px solid var(--error);">
-          <h4 style="font-size:var(--text-xs);color:var(--error);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Negatives</h4>
+          <h3 class="text-xs text-error mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Negatives</h3>
           ${(healthScore.negatives || []).map(m => `<p class="mb-1 text-secondary text-xs">• ${esc(m)}</p>`).join('') || '<p class="text-tertiary text-xs">None noted</p>'}
         </div>
       </div>
@@ -122,17 +122,17 @@ export function renderProductResults() {
       <!-- Nutrition per 100g -->
       <div class="card">
         <div class="flex-between mb-4">
-          <h4>Nutrition per 100g</h4>
-          <span style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-extrabold);color:var(--accent-teal);">${n.calories != null ? Math.round(Number(n.calories) || 0) : '—'} <span style="font-size:var(--text-xs);font-weight:var(--weight-normal);color:var(--text-tertiary);">kcal</span></span>
+          <h3 class="h4">Nutrition per 100g</h3>
+          <span class="font-heading text-2xl" style="font-weight:var(--weight-extrabold);color:var(--accent-teal);">${n.calories != null ? Math.round(Number(n.calories) || 0) : '—'} <span class="text-xs text-tertiary" style="font-weight:var(--weight-normal);">kcal</span></span>
         </div>
-        <div style="display:flex;align-items:center;gap:var(--space-5);">
-          <div class="chart-container" style="flex-shrink:0;">
+        <div class="flex items-center gap-5">
+          <div class="chart-container shrink-0">
             ${totalMacro > 0 ? createDonutChart([
     { percent: pPct, color: 'var(--accent-blue)' },
     { percent: cPct, color: 'var(--accent-amber)' },
     { percent: fPct, color: 'var(--accent-coral)' },
-  ], 100, 10) : '<div style="width:100px;height:100px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--text-tertiary);">No data</div>'}
-            ${totalMacro > 0 ? `<div class="chart-center-label"><div class="value" style="font-size:var(--text-md);">${totalMacro}g</div><div class="label">total</div></div>` : ''}
+  ], 100, 10) : '<div class="bg-surface-2 flex-center text-xs text-tertiary" style="width:100px;height:100px;border-radius:50%;">No data</div>'}
+            ${totalMacro > 0 ? `<div class="chart-center-label"><div class="value text-md">${totalMacro}g</div><div class="label">total</div></div>` : ''}
           </div>
           <div class="flex-1">
             ${renderNutrientRow('Protein', n.protein, 'g', pPct, 'var(--accent-blue)')}
@@ -148,20 +148,20 @@ export function renderProductResults() {
 
       <!-- Ingredients & Additives -->
       <div class="card">
-        <button type="button" id="ingredients-toggle" aria-expanded="true" aria-controls="ingredients-body" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:var(--space-3);cursor:pointer;padding:0;text-align:left;">
-          <h4>Ingredients</h4>
+        <button type="button" id="ingredients-toggle" aria-expanded="true" aria-controls="ingredients-body" class="flex-between w-full mb-3 cursor-pointer p-0 text-left">
+          <h3 class="h4">Ingredients</h3>
           <span id="ingredients-chevron" aria-hidden="true" style="color:var(--text-tertiary);font-size:var(--text-xs);display:inline-block;transform:rotate(90deg);transition:transform 0.2s;">${icons.chevronRight}</span>
         </button>
         <div id="ingredients-body" class="expandable-section">
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;">${scoredIngredients}</p>
+          <p class="text-sm text-secondary" style="line-height:1.6;">${scoredIngredients}</p>
         </div>
       </div>
 
       <!-- Additive Analysis -->
       ${analyzedAdditives.length > 0 ? `
       <div class="card">
-        <h4 class="mb-3">Additives (${additiveCount})</h4>
-        <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;">
+        <h3 class="h4 mb-3">Additives (${additiveCount})</h3>
+        <div class="flex gap-2 mb-3 flex-wrap">
           ${Number(summary.high) > 0 ? `<span class="badge badge-coral">${Number(summary.high)} high risk</span>` : ''}
           ${Number(summary.moderate) > 0 ? `<span class="badge badge-amber">${Number(summary.moderate)} moderate</span>` : ''}
           ${Number(summary.low) > 0 ? `<span class="badge badge-green">${Number(summary.low)} low risk</span>` : ''}
@@ -170,7 +170,7 @@ export function renderProductResults() {
           const level = riskLevel(a);
           return `
           <div class="additive-row ${level ? `additive-${level}` : ''}">
-            <div style="display:flex;align-items:center;gap:var(--space-2);">
+            <div class="flex items-center gap-2">
               <span class="additive-risk-dot ${level ? `additive-dot-${level}` : ''}" aria-hidden="true"></span>
               <span class="font-semibold text-sm">${esc(a.code)}</span>
               <span class="text-secondary text-sm">${esc(a.name)}</span>
@@ -187,13 +187,13 @@ export function renderProductResults() {
         <div class="flex-center gap-2 mb-3">
           <label for="product-serving-size" class="text-secondary text-xs">Serving size (g)</label>
           <input type="number" id="product-serving-size" value="${servingSize}" min="1" max="2000" step="1" inputmode="numeric"
-            style="width:80px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);font-size:var(--text-sm);text-align:center;">
+            class="rounded-md border bg-surface-2 text-primary text-sm text-center" style="width:80px;padding:4px 8px;">
         </div>
         <button type="button" id="log-product-btn" class="btn btn-primary btn-block">Log to Food Diary</button>
         <div id="log-product-status" role="status" aria-live="polite" style="display:none;margin-top:var(--space-2);font-size:var(--text-xs);color:var(--viz-green);"></div>
       </div>
 
-      <p class="disclaimer" style="text-align:center;padding:var(--space-3) var(--space-4);">
+      <p class="disclaimer text-center" style="padding:var(--space-3) var(--space-4);">
         This score is for informational purposes and does not constitute medical or dietary advice.
         Data sourced from Open Food Facts. Always consult a healthcare professional.
       </p>
@@ -393,10 +393,10 @@ function renderScoredIngredients(ingredientsText, analyzedAdditives, analysis) {
 
   const legendDot = (color) => `<span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>`;
   const legend = `
-    <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-3);font-size:var(--text-xs);color:var(--text-tertiary);">
-      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--viz-green)')}${greenCount} no flags</span>
-      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--viz-amber)')}${scored.length - redCount - greenCount} neutral</span>
-      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--error)')}${redCount} flagged</span>
+    <div class="flex gap-3 mb-3 text-xs text-tertiary">
+      <span class="flex items-center" style="gap:4px;">${legendDot('var(--viz-green)')}${greenCount} no flags</span>
+      <span class="flex items-center" style="gap:4px;">${legendDot('var(--viz-amber)')}${scored.length - redCount - greenCount} neutral</span>
+      <span class="flex items-center" style="gap:4px;">${legendDot('var(--error)')}${redCount} flagged</span>
     </div>`;
 
   const pills = scored.map(s => {

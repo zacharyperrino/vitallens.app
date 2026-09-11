@@ -24,23 +24,25 @@
   --border-subtle: #F0EBE2;
   --border-light: #EDE7DC;
   --border-medium: #DFD7C8;
-  --border-accent: rgba(46, 111, 242, 0.35);
+  --border-accent: rgba(26, 85, 204, 0.35);
 
   /* === Text — charcoal, never pure black === */
   --text-primary: #2A2A2A;
-  --text-secondary: #6B6B6B;
-  --text-tertiary: #767676;   /* 4.5:1+ on every app surface */
+  --text-secondary: #5E5E5E;
+  --text-tertiary: #666666;   /* 4.5:1+ on every app surface */
   --text-inverse: #FFFFFF;
 
   /* === Accent — ONE. Blue, reserved for primary CTAs === */
-  --accent: #2E6FF2;
-  --accent-hover: #1F5CD9;
-  --accent-dim: rgba(46, 111, 242, 0.10);
+  --accent: #1A55CC;          /* 6.5:1 on white, 5.8:1 on the canvas — was #2E6FF2 (4.2:1) */
+  --accent-hover: #1449B8;
+  --accent-dim: rgba(26, 85, 204, 0.10);
 
   /* Data-viz states only — muted, desaturated, calm. Not for chrome. */
   --viz-green: #6F8F6A;
   --viz-green-dim: rgba(111, 143, 106, 0.14);
-  --viz-amber: #C09A55;
+  --viz-amber: #C09A55
+  --viz-green-text: #4A6646;  /* text-safe variants (≥4.5:1 on any surface); the base viz colours are for fills/charts */
+  --viz-amber-text: #7F612A;;
   --viz-amber-dim: rgba(192, 154, 85, 0.16);
   --viz-neutral: #8C877C;
   --viz-neutral-dim: rgba(140, 135, 124, 0.14);

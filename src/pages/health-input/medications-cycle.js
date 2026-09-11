@@ -17,7 +17,7 @@ export async function renderMedications() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-2">Log a medication</h4>
+      <h2 class="h4 mb-2">Log a medication</h2>
       <p class="disclaimer mb-3">A private record for your own reference. VitalLens does not check interactions or suggest doses — follow your prescriber's instructions.</p>
       <form id="medication-form" class="flex-col gap-3">
         <div class="input-group"><label for="med-name">Name</label><input class="input-field" id="med-name" type="text" required placeholder="e.g. Levothyroxine"></div>
@@ -31,10 +31,10 @@ export async function renderMedications() {
         <button type="submit" class="btn btn-primary btn-block">Add to log</button>
       </form>
     </div>
-    <div class="section-heading"><h3>Current medications</h3>${loadError ? '' : `<span class="badge badge-teal">${meds.filter(m => m.active !== false).length}</span>`}</div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Current medications</h2>${loadError ? '' : `<span class="badge badge-teal">${meds.filter(m => m.active !== false).length}</span>`}</div>
     ${loadError ? loadErrorState('your medication log', loadError, 'medications-retry')
       : meds.length ? meds.map(m => `<div class="card card-sm">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
+        <div class="flex justify-between items-start gap-3">
           <div class="flex-1">
             <div class="font-semibold text-sm">${esc(m.name)}${m.active === false ? ' <span class="badge">stopped</span>' : ''}</div>
             <div class="text-tertiary text-xs">${esc(m.dose || '')}${m.dose && m.frequency ? ' • ' : ''}${esc(m.frequency || '')}${m.notes ? '<br>' + esc(m.notes) : ''}</div>
@@ -67,7 +67,7 @@ export async function renderCycle() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-2">Log a cycle event</h4>
+      <h2 class="h4 mb-2">Log a cycle event</h2>
       <p class="disclaimer mb-3">Kept private and used only to look for patterns across your own logs.</p>
       <form id="cycle-form" class="flex-col gap-3">
         <div class="grid-2">
@@ -86,10 +86,10 @@ export async function renderCycle() {
         <button type="submit" class="btn btn-primary btn-block">Log entry</button>
       </form>
     </div>
-    <div class="section-heading"><h3>Recent entries</h3></div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Recent entries</h2></div>
     ${loadError ? '' : `<p class="text-secondary text-xs mb-2">${cycleSummary}</p>`}
     ${loadError ? loadErrorState('your cycle history', loadError, 'cycle-retry')
-      : history.length ? history.slice(0, 30).map(h => `<div class="card card-sm" style="display:flex;justify-content:space-between;gap:var(--space-3);">
+      : history.length ? history.slice(0, 30).map(h => `<div class="card card-sm flex justify-between gap-3">
           <span class="text-sm">${esc((h.event_type || '').replace(/_/g, ' '))}${h.symptom ? ' — ' + esc(h.symptom) : ''}${h.flow ? ' (' + esc(h.flow) + ')' : ''}</span>
           <span class="text-tertiary text-xs">${esc(h.date || '')}</span>
         </div>`).join('')

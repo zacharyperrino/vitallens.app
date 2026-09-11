@@ -104,7 +104,7 @@ async function handleOfflineWrite(request) {
     try {
       await queueOfflineRequest({ url: request.url, method: request.method, headers, body, timestamp: Date.now(), attempts: 0 });
       return json({ error: 'Saved offline — this will sync when your connection returns.', queued: true }, 503);
-    } catch (err) {
+    } catch {
       return json({ error: 'You are offline and this could not be saved. Please try again when reconnected.', queued: false }, 503);
     }
   }

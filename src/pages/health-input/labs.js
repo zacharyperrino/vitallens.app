@@ -36,22 +36,22 @@ export async function renderLabs() {
   return `<div class="stagger-children flex-col gap-4">
 
     <div class="card">
-      <h4 class="mb-2">Upload a lab report</h4>
+      <h2 class="h4 mb-2">Upload a lab report</h2>
       <p class="disclaimer mb-3">
         Upload a PDF or photo of a blood panel, hormone panel, or other lab report. We'll read the markers from it for you to review before anything is saved.
       </p>
       <input type="file" accept=".pdf,image/*" id="lab-pdf-input" class="visually-hidden" tabindex="-1" aria-hidden="true">
-      <button type="button" class="upload-zone" id="lab-pdf-zone" style="width:100%;padding:var(--space-4);min-height:0;" aria-describedby="lab-pdf-help">
-        <span style="color:var(--text-tertiary);display:flex;justify-content:center;" aria-hidden="true">${icons.droplet}</span>
-        <span style="display:block;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);">Drop a PDF or photo here, or tap to choose a file</span>
-        <span id="lab-pdf-help" style="display:block;font-size:var(--text-xs);color:var(--text-tertiary);">PDF, JPG or PNG up to 20MB</span>
+      <button type="button" class="upload-zone w-full p-4" id="lab-pdf-zone" style="min-height:0;" aria-describedby="lab-pdf-help">
+        <span class="text-tertiary flex justify-center" aria-hidden="true">${icons.droplet}</span>
+        <span class="block text-sm font-semibold text-primary">Drop a PDF or photo here, or tap to choose a file</span>
+        <span id="lab-pdf-help" class="block text-xs text-tertiary">PDF, JPG or PNG up to 20MB</span>
       </button>
       <div id="lab-parse-status" aria-live="polite" style="display:none;margin-top:var(--space-3);"></div>
       <div id="lab-parse-results" aria-live="polite" style="display:none;margin-top:var(--space-3);"></div>
     </div>
 
     <div class="card">
-      <h4 class="mb-4">Add a single result</h4>
+      <h2 class="h4 mb-4">Add a single result</h2>
       <form id="lab-form" class="flex-col gap-3">
         <div class="input-group"><label for="lab-name">Test name</label>
           <select class="input-field" id="lab-name">
@@ -76,7 +76,7 @@ export async function renderLabs() {
       </form>
     </div>
 
-    <div class="section-heading"><h3>Saved results</h3>${loadError ? '' : `<span class="badge badge-teal">${labs.length}</span>`}</div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Saved results</h2>${loadError ? '' : `<span class="badge badge-teal">${labs.length}</span>`}</div>
     ${savedList}
   </div>`;
 }
@@ -100,10 +100,10 @@ function renderLabCard(l) {
         <div class="font-semibold text-sm">${esc(l.panel_type || displayName)}</div>
         <div class="text-tertiary text-xs">
           ${esc(date)}${markerCount > 1 ? ` • ${markerCount} markers` : ''}
-          ${hasAbnormal ? ' • <span style="color:var(--viz-amber);">Outside the report\'s reference range</span>' : ''}
+          ${hasAbnormal ? ' • <span class="text-amber">Outside the report\'s reference range</span>' : ''}
         </div>
       </div>
-      <div style="text-align:right;">
+      <div class="text-right">
         ${markerCount === 1 ? `
           <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${labStatusColor(firstMarker.status)};">${esc(displayValue)}</div>
           <div class="text-tertiary text-xs">${esc(displayUnit)}${singleStatus ? ` · ${singleStatus}` : ''}</div>
@@ -113,13 +113,13 @@ function renderLabCard(l) {
       </div>
     </div>
     ${markerCount > 1 ? `
-    <div style="margin-top:var(--space-2);display:flex;flex-wrap:wrap;gap:var(--space-1);">
+    <div class="mt-2 flex flex-wrap gap-1">
       ${markerKeys.slice(0, 6).map(k => {
         const m = markers[k] || {};
         const status = labStatusText(m.status);
         return `<span style="font-size:var(--text-xs);padding:2px 6px;border-radius:4px;background:var(--surface-2);color:${labStatusColor(m.status)};">${esc(k)}: ${esc(m.value)}${esc(m.unit || '')}${status ? ` ${status.charAt(0)}` : ''}</span>`;
       }).join('')}
-      ${markerKeys.length > 6 ? `<span style="font-size:var(--text-xs);padding:2px 6px;color:var(--text-tertiary);">+${markerKeys.length - 6} more</span>` : ''}
+      ${markerKeys.length > 6 ? `<span class="text-xs text-tertiary" style="padding:2px 6px;">+${markerKeys.length - 6} more</span>` : ''}
     </div>` : ''}
   </div>`;
 }

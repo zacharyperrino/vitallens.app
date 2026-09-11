@@ -68,3 +68,5 @@ signatures (see `08-operations.md`).
 2. Supabase dashboard: fix the "Confirm signup" email template; enable
    leaked-password protection.
 3. Legal drafts (`legal/*.md`) remain drafts until reviewed by counsel.
+
+**Accessibility (2026-09-11):** axe-core (WCAG 2.0/2.1 A+AA + best practice) reports 0 violations on all 11 authenticated routes; contrast tokens: `--accent #1A55CC`, `--text-secondary #5E5E5E`, `--text-tertiary #666666`, `--viz-green-text`, `--viz-amber-text`; links in running text are underlined; heading levels are sequential everywhere.

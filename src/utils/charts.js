@@ -112,7 +112,7 @@ function getTooltip() {
 
 function showTooltipFor(dot, label, value) {
     const tip = getTooltip();
-    tip.innerHTML = `<div style="font-weight:600;">${esc(label)}</div><div style="color:var(--viz-green);">${esc(value)}</div>`;
+    tip.innerHTML = `<div class="font-semibold">${esc(label)}</div><div class="text-green">${esc(value)}</div>`;
     const rect = dot.getBoundingClientRect();
     tip.style.opacity = '1';
     // Position next to the point (works for mouse, keyboard focus and touch alike),
@@ -155,9 +155,9 @@ export function createInteractiveTrendChart(data, width = 340, height = 120, col
     const dots = points.map((p, i) => `
         <circle cx="${p.x}" cy="${p.y}" r="3" fill="${esc(color)}" opacity="0"
             stroke="transparent" stroke-width="16"
-            class="chart-dot" data-index="${i}" tabindex="0" role="img"
+            class="chart-dot cursor-pointer" data-index="${i}" tabindex="0" role="img"
             aria-label="${esc(p.label || `Point ${i + 1}`)}: ${esc(fmt(p.value))}${esc(unit)}"
-            style="cursor:pointer;transition:opacity 0.2s;outline-offset:2px;"/>
+            style="transition:opacity 0.2s;outline-offset:2px;"/>
     `).join('');
 
     setTimeout(() => {

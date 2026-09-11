@@ -47,7 +47,7 @@ in `AUDIT-2026-09.md`.
 
 ## Later (nice-to-have for the portfolio)
 
-- Migrate the remaining inline styles (795 at last count) to utility classes.
+- Migrate the remaining inline styles (455 at last count) to utility classes.
 - Screenshots / short demo video in the README.
 
 Related: [[_home]] · [[features]] · [[decision-log]]

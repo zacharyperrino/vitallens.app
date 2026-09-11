@@ -22,42 +22,42 @@ export default function HygieneScanResult({ product, onLog }) {
         return (
             <div style={{ padding: 'var(--space-2)', background: bg, borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-1)' }}>
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color, marginBottom: '2px' }}>{concern.ingredient}</div>
-                {concern.note && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{concern.note}</div>}
+                {concern.note && <div className="text-xs text-secondary">{concern.note}</div>}
             </div>
         );
     }
 
     return (
-        <div className="card" style={{ marginBottom: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--weight-bold)' }}>{product.name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{product.brand}</div>
-                    {product.category && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: '2px' }}>{product.category}</div>}
+        <div className="card mb-3">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                    <div className="text-base font-bold">{product.name}</div>
+                    <div className="text-xs text-tertiary">{product.brand}</div>
+                    {product.category && <div className="text-xs text-tertiary" style={{ marginTop: '2px' }}>{product.category}</div>}
                 </div>
-                <div style={{ textAlign: 'center', marginLeft: 'var(--space-4)' }} role="img" aria-label={`Wellness score ${score} out of 100, ${scoreLabel}`}>
+                <div className="text-center" style={{ marginLeft: 'var(--space-4)' }} role="img" aria-label={`Wellness score ${score} out of 100, ${scoreLabel}`}>
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-3xl)', fontWeight: 800, color: scoreColor }}>{score}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: scoreColor, fontWeight: 600 }}>{scoreLabel}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>wellness score</div>
+                    <div className="text-xs text-tertiary">wellness score</div>
                 </div>
             </div>
 
             {concerns.length === 0 && (
-                <div style={{ padding: 'var(--space-3)', background: 'var(--viz-green-dim)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--viz-green)' }}>No commonly flagged ingredients noticed.</div>
+                <div className="p-3 rounded-md mb-3" style={{ background: 'var(--viz-green-dim)' }}>
+                    <div className="text-xs text-green">No commonly flagged ingredients noticed.</div>
                 </div>
             )}
 
             {highConcerns.length > 0 && (
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--error)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-2)' }}>Worth Reviewing</div>
+                <div className="mb-3">
+                    <div className="text-xs text-error mb-2" style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Worth Reviewing</div>
                     {highConcerns.map((c, i) => <ConcernBadge key={i} concern={c} />)}
                 </div>
             )}
 
             {modConcerns.length > 0 && (
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--viz-amber)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-2)' }}>Something to Explore</div>
+                <div className="mb-3">
+                    <div className="text-xs text-amber mb-2" style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Something to Explore</div>
                     {modConcerns.map((c, i) => <ConcernBadge key={i} concern={c} />)}
                 </div>
             )}
@@ -69,7 +69,7 @@ export default function HygieneScanResult({ product, onLog }) {
                         onClick={() => setExpanded(!expanded)}
                         aria-expanded={expanded}
                         aria-controls="hygiene-low-concerns"
-                        style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 var(--space-2) 0' }}
+                        className="text-xs text-tertiary cursor-pointer" style={{ background: 'none', border: 'none', padding: '0 0 var(--space-2) 0' }}
                     >
                         <span aria-hidden="true">{expanded ? '▲' : '▼'} </span>
                         {expanded ? 'Hide' : 'Show'} {lowConcerns.length} low-concern ingredient{lowConcerns.length > 1 ? 's' : ''}
@@ -82,7 +82,7 @@ export default function HygieneScanResult({ product, onLog }) {
                 </>
             )}
 
-            <p className="disclaimer" style={{ marginBottom: 'var(--space-3)' }}>
+            <p className="disclaimer mb-3">
                 Pattern observations only — not medical advice.
             </p>
 

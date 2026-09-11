@@ -105,3 +105,7 @@ status: living
 ### Two write paths for water — RESOLVED 2026-09-10
 - **Cause:** `routes/water.js` + `water_log` (0 rows) existed beside `habits.water_glasses`, which the form actually wrote; custom correlation read the empty one.
 - **Fix:** route and table removed; `habits.water_glasses` is the single source.
+
+## Green/amber viz colours are fills, not text (2026-09-11)
+
+`--viz-green` (#6F8F6A) and `--viz-amber` (#C09A55) are 3.6:1 and 2.6:1 on white — fine for chart fills and badges, not for text. Use `.text-green` / `.text-amber` (or `--viz-green-text` / `--viz-amber-text`) for any text; a CSS `color:` rule pointing at the base viz colours will fail axe. **Status:** RESOLVED in the polish pass; keep it that way. [[architecture]]

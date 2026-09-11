@@ -25,7 +25,7 @@ export async function renderExercise() {
   return `<div class="stagger-children flex-col gap-4">
     ${stravaSection}
     <div class="card">
-      <h4 class="mb-4">Log resistance training</h4>
+      <h2 class="h4 mb-4">Log resistance training</h2>
       <form id="resistance-form" class="flex-col gap-3">
         <div class="input-group"><label for="res-ex-name">Exercise name</label>
           <input class="input-field" type="text" id="res-ex-name" placeholder="e.g. Bench press, deadlift, pull-up">
@@ -37,14 +37,14 @@ export async function renderExercise() {
         </div>
         <div class="input-group">
           <label for="res-rpe">Effort (rate of perceived exertion, 1–10)</label>
-          <div style="display:flex;align-items:center;gap:var(--space-3);">
+          <div class="flex items-center gap-3">
             <input class="input-field flex-1" type="range" min="1" max="10" id="res-rpe" value="5" data-touched="0">
-            <output for="res-rpe" id="res-rpe-display" style="min-width:64px;text-align:center;">Not rated</output>
+            <output for="res-rpe" id="res-rpe-display" class="text-center" style="min-width:64px;">Not rated</output>
           </div>
         </div>
-        <fieldset class="input-group" style="border:0;padding:0;margin:0;min-width:0;">
-          <legend style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);padding:0;margin-bottom:var(--space-2);">Muscle groups</legend>
-          <div id="res-muscle-groups" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+        <fieldset class="input-group p-0 m-0" style="border:0;min-width:0;">
+          <legend class="text-sm font-medium text-secondary p-0 mb-2">Muscle groups</legend>
+          <div id="res-muscle-groups" class="grid-4" style="gap:8px;">
             ${['Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Legs', 'Glutes', 'Full Body'].map(g => `<button type="button" class="btn btn-sm" data-group="${g}" aria-pressed="false">${g}</button>`).join('')}
           </div>
         </fieldset>
@@ -56,7 +56,7 @@ export async function renderExercise() {
     </div>
 
     <div class="card">
-      <h4 class="mb-4">Log cardio</h4>
+      <h2 class="h4 mb-4">Log cardio</h2>
       <form id="cardio-form" class="flex-col gap-3">
         <div class="input-group"><label for="cardio-type">Activity type</label>
           <select class="input-field" id="cardio-type">
@@ -81,7 +81,7 @@ export async function renderExercise() {
       </form>
     </div>
 
-    <div class="section-heading"><h3>Exercise log</h3>${loadError ? '' : `<span class="badge badge-teal">${log.length}</span>`}</div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Exercise log</h2>${loadError ? '' : `<span class="badge badge-teal">${log.length}</span>`}</div>
     ${logList}
   </div>`;
 }
@@ -96,7 +96,7 @@ function renderExerciseCard(e) {
   ].filter(Boolean).join(' • ');
   return `<div class="card card-sm">
     <div class="flex-between gap-3">
-      <div style="display:flex;align-items:center;gap:var(--space-3);">
+      <div class="flex items-center gap-3">
         <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isStrava ? 'var(--viz-amber-dim)' : 'var(--accent-dim)'};display:flex;align-items:center;justify-content:center;" aria-hidden="true">
           <span style="color:${isStrava ? 'var(--viz-amber)' : 'var(--text-secondary)'};width:20px;height:20px;">${isStrava ? icons.strava : icons.activity}</span>
         </div>
@@ -105,7 +105,7 @@ function renderExerciseCard(e) {
           <div class="text-tertiary text-xs">${details || 'No details logged'}</div>
         </div>
       </div>
-      <span style="font-weight:var(--weight-semibold);color:var(--text-secondary);white-space:nowrap;">${e.calories != null ? `${esc(e.calories)} kcal` : '—'}</span>
+      <span class="font-semibold text-secondary" style="white-space:nowrap;">${e.calories != null ? `${esc(e.calories)} kcal` : '—'}</span>
     </div>
   </div>`;
 }
@@ -131,13 +131,13 @@ async function renderStravaSection() {
 function renderStravaSetup() {
   return `
     <div class="card" style="border:1px solid var(--viz-amber);">
-      <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);">
-        <div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;" aria-hidden="true">
-          <span style="color:var(--viz-amber);width:24px;height:24px;">${icons.strava}</span>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="rounded-md flex items-center justify-center" style="width:44px;height:44px;background:var(--viz-amber-dim);" aria-hidden="true">
+          <span class="text-amber" style="width:24px;height:24px;">${icons.strava}</span>
         </div>
         <div>
-          <h4 style="margin-bottom:2px;">Connect Strava</h4>
-          <p class="disclaimer" style="margin:0;">Import workouts automatically</p>
+          <h2 class="h4" style="margin-bottom:2px;">Connect Strava</h2>
+          <p class="disclaimer m-0">Import workouts automatically</p>
         </div>
       </div>
       <div class="flex-col gap-3">
@@ -158,11 +158,11 @@ function renderStravaSetup() {
 function renderStravaReady() {
   return `
     <div class="card" style="border:1px solid var(--viz-amber);">
-      <h4 class="mb-3">Strava is ready to authorize</h4>
-      <button type="button" class="btn btn-block" id="strava-authorize" style="background:var(--viz-amber);color:var(--text-inverse);margin-bottom:var(--space-2);">
+      <h2 class="h4 mb-3">Strava is ready to authorize</h2>
+      <button type="button" class="btn btn-block mb-2" id="strava-authorize" style="background:var(--viz-amber);color:var(--text-inverse);">
         Authorize with Strava
       </button>
-      <button type="button" class="btn btn-ghost btn-block" id="strava-reset" style="font-size:var(--text-xs);">Reset credentials</button>
+      <button type="button" class="btn btn-ghost btn-block text-xs" id="strava-reset">Reset credentials</button>
     </div>`;
 }
 
@@ -174,18 +174,18 @@ function renderStravaConnected(cfg) {
   return `
     <div class="card" style="border:1px solid var(--viz-amber);">
       <div class="flex-between gap-3 mb-4">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:44px;height:44px;border-radius:var(--radius-full);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;" aria-hidden="true">
-            <span style="color:var(--viz-amber);width:24px;height:24px;">${icons.strava}</span>
+        <div class="flex items-center gap-3">
+          <div class="rounded-full flex items-center justify-center" style="width:44px;height:44px;background:var(--viz-amber-dim);" aria-hidden="true">
+            <span class="text-amber" style="width:24px;height:24px;">${icons.strava}</span>
           </div>
           <div>
-            <h4 style="margin-bottom:2px;">Strava connected</h4>
-            <p class="disclaimer" style="margin:0;">${esc(cfg.athleteName || 'Athlete')} • Synced ${esc(lastSync)}</p>
+            <h2 class="h4" style="margin-bottom:2px;">Strava connected</h2>
+            <p class="disclaimer m-0">${esc(cfg.athleteName || 'Athlete')} • Synced ${esc(lastSync)}</p>
           </div>
         </div>
-        <span class="badge" style="background:var(--viz-green-dim);color:var(--viz-green);">Connected</span>
+        <span class="badge text-green" style="background:var(--viz-green-dim);">Connected</span>
       </div>
-      <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
+      <div class="flex gap-2 mb-3">
         <button type="button" class="btn btn-block" id="strava-sync" style="background:var(--viz-amber);color:var(--text-inverse);flex:2;">
           ${icons.refresh} Sync now
         </button>
@@ -194,7 +194,7 @@ function renderStravaConnected(cfg) {
       ${unimported.length > 0 ? `
         <div class="flex-between">
           <span class="text-tertiary text-xs">${unimported.length} ready to import</span>
-          <button type="button" class="btn btn-sm" id="strava-import-all" style="background:var(--viz-amber-dim);color:var(--viz-amber);font-size:var(--text-xs);">Import all</button>
+          <button type="button" class="btn btn-sm text-amber text-xs" id="strava-import-all" style="background:var(--viz-amber-dim);">Import all</button>
         </div>` : ''}
     </div>
     ${activities.length > 0 ? renderStravaActivities(activities) : ''}`;
@@ -202,27 +202,27 @@ function renderStravaConnected(cfg) {
 
 function renderStravaActivities(activities) {
   return `
-    <div class="section-heading"><h3>Strava activities</h3><span class="badge" style="background:var(--viz-amber-dim);color:var(--viz-amber);">${activities.length}</span></div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Strava activities</h2><span class="badge text-amber" style="background:var(--viz-amber-dim);">${activities.length}</span></div>
     ${activities.slice(0, 10).map(a => {
       const dateStr = new Date(a.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
       return `<div class="card card-sm mb-2">
         <div class="flex-between gap-2">
-          <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0;">
-            <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">
+          <div class="flex items-center gap-3 flex-1" style="min-width:0;">
+            <div class="rounded-md flex items-center justify-center shrink-0" style="width:36px;height:36px;background:var(--viz-amber-dim);" aria-hidden="true">
               ${icons.activity}
             </div>
             <div style="min-width:0;">
-              <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
+              <div class="text-sm font-semibold overflow-hidden" style="white-space:nowrap;text-overflow:ellipsis;">${esc(a.name)}</div>
               <div class="text-tertiary text-xs">
                 ${esc(dateStr)} • ${esc(a.duration)} min${a.distanceKm ? ' • ' + esc(a.distanceKm) + ' km' : ''}
               </div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:var(--space-2);flex-shrink:0;">
+          <div class="flex items-center gap-2 shrink-0">
             <span class="font-semibold text-secondary text-sm">${a.calories != null ? esc(a.calories) + ' kcal' : '—'}</span>
             ${a.imported
           ? '<span class="badge badge-green text-xs">Imported</span>'
-          : `<button type="button" class="btn btn-sm strava-import-btn" data-strava-id="${esc(a.stravaId)}" aria-label="Import ${esc(a.name)}" style="background:var(--viz-amber-dim);color:var(--viz-amber);font-size:var(--text-xs);padding:4px 10px;">Import</button>`
+          : `<button type="button" class="btn btn-sm strava-import-btn text-amber text-xs" data-strava-id="${esc(a.stravaId)}" aria-label="Import ${esc(a.name)}" style="background:var(--viz-amber-dim);padding:4px 10px;">Import</button>`
         }
           </div>
         </div>

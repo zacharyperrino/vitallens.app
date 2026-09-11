@@ -8,6 +8,23 @@ Built as a full-stack portfolio project: a vanilla-JS PWA on a hardened Express 
 
 ---
 
+## Screenshots
+
+Captured from the running app as a fresh test user (nothing logged yet), so every
+"insufficient data" state is the real one.
+
+| Dashboard | Analytics | Health data |
+|---|---|---|
+| ![Dashboard](docs/screenshots/desktop-dashboard.png) | ![Analytics](docs/screenshots/desktop-analytics.png) | ![Health data](docs/screenshots/desktop-health-input.png) |
+
+| Food scanner | Body check-in | Profile |
+|---|---|---|
+| ![Food scanner](docs/screenshots/desktop-food-scanner.png) | ![Body check-in](docs/screenshots/desktop-body-scanner.png) | ![Profile](docs/screenshots/desktop-profile.png) |
+
+Phone layout (390 px): [dashboard](docs/screenshots/mobile-dashboard.png) ·
+[analytics](docs/screenshots/mobile-analytics.png) ·
+[health data](docs/screenshots/mobile-health-input.png).
+
 ## What it does
 
 | Area | Feature |

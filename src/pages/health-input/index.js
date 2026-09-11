@@ -30,7 +30,7 @@ const TABS = [
 ];
 
 // ── Shared UI helpers ───────────────────────────────────────────
-const spinner = () => '<div style="text-align:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner" style="margin:0 auto;"></div></div>';
+const spinner = () => '<div class="text-center" style="padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner" style="margin:0 auto;"></div></div>';
 
 // Turns a thrown error into something a person can act on. Never leaks server text.
 export function plainReason(err) {
@@ -41,8 +41,11 @@ export function plainReason(err) {
 }
 
 // ERROR state — distinct from an empty log. Always offers a working retry.
-export function loadErrorState(what, err, retryId) {
-  return `<div class="empty-state" role="alert"><h3>Couldn't load ${what}</h3><p>${plainReason(err)}</p><button type="button" class="btn btn-sm" id="${retryId}" data-retry>Try again</button></div>`;
+// `level` keeps the document outline honest: 2 when the block sits directly under the
+// page <h1>, 3 (default) when it sits inside a section. `.h3` keeps the size identical.
+export function loadErrorState(what, err, retryId, level = 3) {
+  const tag = level === 2 ? 'h2' : 'h3';
+  return `<div class="empty-state" role="alert"><${tag} class="h3">Couldn't load ${what}</${tag}><p>${plainReason(err)}</p><button type="button" class="btn btn-sm" id="${retryId}" data-retry>Try again</button></div>`;
 }
 
 export async function renderHealthInput() {
@@ -53,7 +56,7 @@ export async function renderHealthInput() {
     currentUserId = await getUserId();
   } catch (err) {
     console.error('[HealthInput] Could not resolve user:', err);
-    content.innerHTML = `<div class="health-input stagger-children"><div class="page-header"><h1>Health Data</h1></div>${loadErrorState('your health data', err, 'health-input-retry')}</div>`;
+    content.innerHTML = `<div class="health-input stagger-children"><div class="page-header"><h1>Health Data</h1></div>${loadErrorState('your health data', err, 'health-input-retry', 2)}</div>`;
     document.getElementById('health-input-retry')?.addEventListener('click', () => renderHealthInput());
     return;
   }
@@ -122,7 +125,7 @@ export async function renderTabContent() {
     container.innerHTML = await (renderers[activeTab] || renderLabs)();
   } catch (err) {
     console.error('[HealthInput] Tab render failed:', err);
-    container.innerHTML = loadErrorState('this section', err, 'health-tab-retry');
+    container.innerHTML = loadErrorState('this section', err, 'health-tab-retry', 2);
   }
   setupFormHandlers();
 }
@@ -467,7 +470,7 @@ function setupFormHandlers() {
     const showParseError = (message) => {
       statusEl.style.display = 'block';
       statusEl.innerHTML = `
-        <div role="alert" style="padding:var(--space-3);background:var(--error-dim);border-radius:var(--radius-md);color:var(--error);font-size:var(--text-sm);">
+        <div role="alert" class="p-3 rounded-md text-error text-sm" style="background:var(--error-dim);">
           ${esc(message)}
         </div>`;
       resultsEl.style.display = 'none';
@@ -480,7 +483,7 @@ function setupFormHandlers() {
 
     statusEl.style.display = 'block';
     statusEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-md);" role="status">
+      <div class="flex items-center gap-2 p-3 bg-surface-2 rounded-md" role="status">
         <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
         <span class="text-sm">Reading your lab report…</span>
       </div>`;
@@ -509,7 +512,7 @@ function setupFormHandlers() {
       }
 
       statusEl.innerHTML = `
-        <div style="padding:var(--space-3);background:var(--viz-green-dim);border-radius:var(--radius-md);color:var(--viz-green);font-size:var(--text-sm);">
+        <div class="p-3 rounded-md text-green text-sm" style="background:var(--viz-green-dim);">
           Found ${markerCount} markers from ${esc(parsed.panel_type || 'lab report')}${parsed.lab_name ? ` (${esc(parsed.lab_name)})` : ''}. Check them before saving.
         </div>`;
 
@@ -518,9 +521,9 @@ function setupFormHandlers() {
         const statusIcon = data.status === 'high' ? '↑' : data.status === 'low' ? '↓' : data.status === 'critical' ? '!' : '✓';
         const statusLabel = data.status === 'high' ? 'above range' : data.status === 'low' ? 'below range' : data.status === 'critical' ? 'well outside range' : 'in range';
         return `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);gap:var(--space-2);">
+          <div class="flex justify-between items-center gap-2" style="padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
             <span class="text-sm">${esc(name)}</span>
-            <div style="display:flex;align-items:center;gap:var(--space-2);">
+            <div class="flex items-center gap-2">
               ${data.reference_range ? `<span class="text-tertiary text-xs">ref: ${esc(data.reference_range)}</span>` : ''}
               <span style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${statusColor};">${esc(data.value)}</span>
               <span class="text-tertiary text-xs">${esc(data.unit || '')}</span>
@@ -531,11 +534,11 @@ function setupFormHandlers() {
 
       resultsEl.style.display = 'block';
       resultsEl.innerHTML = `
-        <div class="card" style="padding:var(--space-3);">
-          <h4 class="mb-1">Markers we found</h4>
+        <div class="card p-3">
+          <h2 class="h3 h4 mb-1">Markers we found</h2>
           <p class="disclaimer mb-2">Read automatically from your file — please check the values against the original before saving.</p>
           ${parsed.collected_at ? `<p class="mb-3 text-tertiary text-xs">Collected: ${esc(parsed.collected_at)}</p>` : ''}
-          <div style="max-height:300px;overflow-y:auto;margin-bottom:var(--space-3);">
+          <div class="mb-3" style="max-height:300px;overflow-y:auto;">
             ${markerRows}
           </div>
           ${parsed.notes ? `<p class="mb-3 text-secondary text-xs">Notes: ${esc(parsed.notes)}</p>` : ''}

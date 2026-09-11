@@ -22,7 +22,6 @@ import { esc } from './utils/esc.js';
 const NOTIFICATION_PERMISSION_KEY = 'vitallens_notifications_permission_requested';
 const NOTIFICATION_ENABLED_KEY = 'vitallens_notifications_enabled';
 const LAST_WEEKLY_REPORT_KEY = 'vitallens_last_weekly_report_week';
-const NOTIFICATION_WIDGET_ID = 'notification-settings-widget';
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
 // ── Web push (opt-in; only when VITE_VAPID_PUBLIC_KEY is configured) ───
@@ -332,7 +331,7 @@ async function setupNotificationTriggers(userId) {
     return;
   }
   scheduleSupplementReminders(userId);
-  scheduleMealNudge(userId);
+  scheduleMealNudge();
   setupWeeklyReportNotifier(userId);
 }
 
@@ -376,7 +375,7 @@ async function scheduleSupplementReminders(userId) {
   }
 }
 
-async function scheduleMealNudge(userId) {
+async function scheduleMealNudge() {
   const checkMealStatus = async () => {
     if (!getNotificationPreference()) return;
     try {

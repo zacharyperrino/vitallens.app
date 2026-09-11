@@ -49,16 +49,16 @@ export default function NutritionTracker({ userId }) {
     useEffect(() => { fetchData(); }, [fetchData]);
 
     if (loading) return (
-        <div role="status" aria-label="Loading today's nutrition" style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-4)' }}>
+        <div role="status" aria-label="Loading today's nutrition" className="flex justify-center p-4">
             <div className="spinner" />
         </div>
     );
 
     if (error) return (
-        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-            <div className="empty-state" role="alert" style={{ padding: 'var(--space-4)' }}>
-                <h3 style={{ fontSize: 'var(--text-base)' }}>Couldn't load today's nutrition</h3>
-                <p style={{ fontSize: 'var(--text-sm)' }}>Check your connection and try again. Your logged meals are safe.</p>
+        <div className="card mb-4">
+            <div className="empty-state p-4" role="alert">
+                <h2 className="text-base">Couldn't load today's nutrition</h2>
+                <p className="text-sm">Check your connection and try again. Your logged meals are safe.</p>
                 <button type="button" className="btn btn-sm" onClick={fetchData}>Try again</button>
             </div>
         </div>
@@ -86,11 +86,11 @@ export default function NutritionTracker({ userId }) {
 
     function MacroBar({ label, value, unit, pct, color }) {
         return (
-            <div style={{ marginBottom: 'var(--space-2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{label}</span>
+            <div className="mb-2">
+                <div className="flex justify-between" style={{ marginBottom: '4px' }}>
+                    <span className="text-xs text-secondary">{label}</span>
                     <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color }}>
-                        {value}{unit}{pct != null && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}> ({pct}%)</span>}
+                        {value}{unit}{pct != null && <span className="text-tertiary" style={{ fontWeight: 400 }}> ({pct}%)</span>}
                     </span>
                 </div>
                 {pct != null && (
@@ -100,7 +100,7 @@ export default function NutritionTracker({ userId }) {
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={pct}
-                        style={{ height: '4px', background: 'var(--surface-2)', borderRadius: '2px', overflow: 'hidden' }}
+                        className="bg-surface-2 overflow-hidden" style={{ height: '4px', borderRadius: '2px' }}
                     >
                         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '2px', transition: 'width 0.6s ease' }} />
                     </div>
@@ -110,17 +110,17 @@ export default function NutritionTracker({ userId }) {
     }
 
     return (
-        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+        <div className="card mb-4">
+            <div className="flex justify-between items-start mb-3">
                 <div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Today's Nutrition</div>
+                    <div className="text-xs text-tertiary" style={{ marginBottom: '2px' }}>Today's Nutrition</div>
                     <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-2xl)', fontWeight: 800, color: barColor(calPct) }}>
-                        {cal} <span style={{ fontSize: 'var(--text-sm)', fontWeight: 400, color: 'var(--text-tertiary)' }}>kcal</span>
+                        {cal} <span className="text-sm text-tertiary" style={{ fontWeight: 400 }}>kcal</span>
                     </div>
                 </div>
                 {hasTargets && (
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>of {calTarget} target</div>
+                    <div className="text-right">
+                        <div className="text-xs text-tertiary">of {calTarget} target</div>
                         <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: barColor(calPct) }}>{calPct}%</div>
                     </div>
                 )}
@@ -129,30 +129,30 @@ export default function NutritionTracker({ userId }) {
             <MacroBar label="Protein" value={protein} unit="g" pct={protPct} color={barColor(protPct)} />
             <MacroBar label="Fiber" value={fiber} unit="g" pct={fiberPct} color={barColor(fiberPct)} />
 
-            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-                <div style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2)', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{carbs}g</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Carbs</div>
+            <div className="flex gap-3 mt-2">
+                <div className="flex-1 text-center p-2 bg-surface-2 rounded-md">
+                    <div className="text-sm font-semibold">{carbs}g</div>
+                    <div className="text-xs text-tertiary">Carbs</div>
                 </div>
-                <div style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2)', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{fat}g</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Fat</div>
+                <div className="flex-1 text-center p-2 bg-surface-2 rounded-md">
+                    <div className="text-sm font-semibold">{fat}g</div>
+                    <div className="text-xs text-tertiary">Fat</div>
                 </div>
                 {hasTargets && (
-                    <div style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2)', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{calTarget - cal > 0 ? calTarget - cal : 0}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Remaining</div>
+                    <div className="flex-1 text-center p-2 bg-surface-2 rounded-md">
+                        <div className="text-sm font-semibold">{calTarget - cal > 0 ? calTarget - cal : 0}</div>
+                        <div className="text-xs text-tertiary">Remaining</div>
                     </div>
                 )}
             </div>
 
             {!hasTargets && (
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
+                <p className="text-xs text-secondary mt-2">
                     Set a daily calorie target in your profile to see progress toward it.
                 </p>
             )}
 
-            <p className="disclaimer" style={{ marginTop: 'var(--space-2)' }}>
+            <p className="disclaimer mt-2">
                 Pattern observations only — not medical advice.
             </p>
         </div>

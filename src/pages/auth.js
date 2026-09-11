@@ -18,20 +18,20 @@ export function renderAuth() {
     let mfaVerify = null; // set while the MFA enrolment screen is showing
 
     content.innerHTML = `
-    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6);">
+    <div class="flex-col items-center justify-center p-6" style="min-height:100vh;">
 
       <!-- Logo -->
-      <div style="text-align:center;margin-bottom:var(--space-8);">
-        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.activity}</div>
-        <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-1);">VitalLens</h1>
+      <div class="text-center" style="margin-bottom:var(--space-8);">
+        <div class="mb-3 text-accent flex justify-center" aria-hidden="true">${icons.activity}</div>
+        <h1 class="text-2xl mb-1" style="font-weight:var(--weight-extrabold);">VitalLens</h1>
         <p class="text-secondary text-sm">Your private wellness journal</p>
       </div>
 
       <!-- Card -->
-      <div class="card" style="width:100%;max-width:400px;">
+      <div class="card w-full" style="max-width:400px;">
 
         <!-- Mode toggle -->
-        <div class="scan-mode-toggle" style="margin-bottom:var(--space-5);" role="group" aria-label="Sign in or create an account">
+        <div class="scan-mode-toggle mb-5" role="group" aria-label="Sign in or create an account">
           <button type="button" class="mode-btn mode-btn-active" id="btn-signin-mode" aria-pressed="true">Sign in</button>
           <button type="button" class="mode-btn" id="btn-signup-mode" aria-pressed="false">Create account</button>
         </div>
@@ -64,7 +64,7 @@ export function renderAuth() {
             <!-- Consent (signup only) -->
             <label for="auth-consent" id="consent-field" style="display:none;gap:var(--space-2);align-items:flex-start;font-size:var(--text-xs);color:var(--text-secondary);cursor:pointer;line-height:1.5;">
               <input type="checkbox" id="auth-consent" style="margin-top:2px;">
-              <span>I am 18+ and agree to the <a href="#/legal/terms" target="_blank" rel="noopener" style="color:var(--accent);">Terms</a> and <a href="#/legal/privacy" target="_blank" rel="noopener" style="color:var(--accent);">Privacy Policy</a>, and consent to processing of the wellness data I provide.</span>
+              <span>I am 18+ and agree to the <a href="#/legal/terms" target="_blank" rel="noopener" class="text-accent">Terms</a> and <a href="#/legal/privacy" target="_blank" rel="noopener" class="text-accent">Privacy Policy</a>, and consent to processing of the wellness data I provide.</span>
             </label>
 
             <!-- Error / status message -->
@@ -72,7 +72,7 @@ export function renderAuth() {
             </div>
 
             <!-- Submit button -->
-            <button type="submit" id="auth-submit" class="btn btn-glass btn-block" style="margin-top:var(--space-2);">
+            <button type="submit" id="auth-submit" class="btn btn-glass btn-block mt-2">
               Sign in
             </button>
 
@@ -223,15 +223,15 @@ export function renderAuth() {
         if (toggle) toggle.style.display = 'none';
         form.innerHTML = `
             <div class="text-center">
-                <h2 style="font-size:var(--text-md);font-weight:600;margin-bottom:var(--space-3);" tabindex="-1" id="mfa-heading">Secure your account</h2>
+                <h2 class="text-md font-semibold mb-3" tabindex="-1" id="mfa-heading">Secure your account</h2>
                 <p class="mb-4 text-secondary text-sm">Scan this QR code with an authenticator app like Google Authenticator or Authy, then enter the 6-digit code it shows.</p>
-                <img src="${esc(qrCode)}" alt="QR code to add VitalLens to your authenticator app" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
+                <img src="${esc(qrCode)}" alt="QR code to add VitalLens to your authenticator app" class="block rounded-md" style="width:180px;height:180px;margin:0 auto var(--space-4);">
                 <label for="mfa-code" class="visually-hidden">6-digit code</label>
                 <input type="text" id="mfa-code" placeholder="Enter 6-digit code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
                     style="${FIELD_STYLE}text-align:center;letter-spacing:0.2em;margin-bottom:var(--space-3);">
                 <div id="auth-error" role="alert" style="display:none;padding:var(--space-3);background:var(--error-dim);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--error);margin-bottom:var(--space-3);"></div>
                 <button type="button" id="mfa-verify-btn" class="btn btn-primary btn-block">Verify &amp; continue</button>
-                <button type="button" id="mfa-skip-btn" class="btn btn-ghost btn-block" style="margin-top:var(--space-2);color:var(--text-tertiary);font-size:var(--text-sm);">Skip for now</button>
+                <button type="button" id="mfa-skip-btn" class="btn btn-ghost btn-block mt-2 text-tertiary text-sm">Skip for now</button>
             </div>
         `;
         document.getElementById('mfa-heading')?.focus();

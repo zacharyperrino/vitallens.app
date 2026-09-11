@@ -20,3 +20,83 @@
 .text-center { text-align: center; }
 .flex-col { display: flex; flex-direction: column; }
 .flex-1 { flex: 1; }
+
+/* ── Extended set (2026-09-11) — one class per inline declaration that
+   repeated across the page templates. Values are tokens only; anything
+   without a token (pixel one-offs, computed colours, widths) stays inline. */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+.block { display: block; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.flex-wrap { flex-wrap: wrap; }
+.shrink-0 { flex-shrink: 0; }
+.w-full { width: 100%; }
+.gap-5 { gap: var(--space-5); }
+.gap-6 { gap: var(--space-6); }
+.m-0 { margin: 0; }
+.p-0 { padding: 0; }
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.p-5 { padding: var(--space-5); }
+.p-6 { padding: var(--space-6); }
+.mb-0 { margin-bottom: 0; }
+.mb-5 { margin-bottom: var(--space-5); }
+.mb-6 { margin-bottom: var(--space-6); }
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--space-1); }
+.mt-5 { margin-top: var(--space-5); }
+.mt-6 { margin-top: var(--space-6); }
+.text-base { font-size: var(--text-base); }
+.text-md { font-size: var(--text-md); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+.text-3xl { font-size: var(--text-3xl); }
+.font-heading { font-family: var(--font-heading); }
+.font-medium { font-weight: var(--weight-medium); }
+.font-bold { font-weight: var(--weight-bold); }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.text-primary { color: var(--text-primary); }
+.text-accent { color: var(--accent); }
+.text-error { color: var(--error); }
+.text-green { color: var(--viz-green-text); }
+.text-amber { color: var(--viz-amber-text); }
+.text-neutral { color: var(--viz-neutral); }
+.bg-surface-1 { background: var(--surface-1); }
+.bg-surface-2 { background: var(--surface-2); }
+.bg-surface-3 { background: var(--surface-3); }
+.bg-accent-dim { background: var(--accent-dim); }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-full); }
+.border { border: 1px solid var(--border); }
+.cursor-pointer { cursor: pointer; }
+.overflow-hidden { overflow: hidden; }
+.relative { position: relative; }
+
+/* Heading-level helpers: use `<h2 class="h3">` when the document outline needs
+   an h2 but the design calls for the h3 size — never skip heading levels. */
+.h2 { font-size: var(--text-2xl); }
+.h3 { font-size: var(--text-xl); }
+.h4 { font-size: var(--text-lg); }
+
+/* Responsive grids: fixed columns that collapse on phones. */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-3-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 480px) {
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3-stats { grid-template-columns: 1fr; }
+}

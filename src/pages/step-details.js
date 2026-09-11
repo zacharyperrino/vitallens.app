@@ -13,7 +13,7 @@ let currentView = 'weekly';
 
 export async function renderStepDetails() {
     const content = document.getElementById('page-content');
-    content.innerHTML = `<div class="step-details"><div class="card" style="text-align:center;padding:var(--space-8);" role="status" aria-live="polite"><div class="spinner" style="margin:0 auto;"></div><p class="visually-hidden">Loading your step history</p></div></div>`;
+    content.innerHTML = `<div class="step-details"><div class="card text-center" style="padding:var(--space-8);" role="status" aria-live="polite"><div class="spinner" style="margin:0 auto;"></div><p class="visually-hidden">Loading your step history</p></div></div>`;
 
     let history = [];
     let loadError = null;
@@ -48,7 +48,7 @@ export async function renderStepDetails() {
     content.innerHTML = `
     <div class="step-details stagger-children">
       <div class="page-header">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
+        <div class="flex items-center gap-3">
           <button type="button" class="back-btn" id="steps-back" aria-label="Back to home">${icons.chevronRight}</button>
           <h1>Steps</h1>
         </div>
@@ -57,7 +57,7 @@ export async function renderStepDetails() {
 
       ${loadError ? `
       <div class="empty-state card" role="alert">
-        <h3>Couldn't load your step history</h3>
+        <h2 class="h3">Couldn't load your step history</h2>
         <p>Check your connection and try again. Your entries are safe.</p>
         <button type="button" class="btn btn-sm" id="steps-retry">Try again</button>
       </div>` : ''}
@@ -82,11 +82,11 @@ export async function renderStepDetails() {
       <div class="card chart-card" id="steps-chart-panel" role="tabpanel" aria-labelledby="steps-tab-${currentView}">
         ${chartData.length
             ? `<div id="steps-chart-wrap">${createInteractiveTrendChart(chartData, 340, 160, 'var(--viz-green)', 'steps-chart', { label: `Daily step counts, ${rangeLabel.toLowerCase()}`, unit: 'steps' })}</div>
-               <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin:var(--space-2) 0 0;">${chartData.length} ${chartData.length === 1 ? 'day' : 'days'} with entries in the ${rangeLabel.toLowerCase()}. Hover, tap, or tab through the points to see each day.</p>`
-            : `<div class="empty-state"><h3>No step entries yet</h3><p>${history.length ? `Nothing logged in the ${rangeLabel.toLowerCase()}.` : 'Log today\'s steps from the Habits tab and they will appear here.'}</p></div>`}
+               <p class="text-xs text-tertiary" style="margin:var(--space-2) 0 0;">${chartData.length} ${chartData.length === 1 ? 'day' : 'days'} with entries in the ${rangeLabel.toLowerCase()}. Hover, tap, or tab through the points to see each day.</p>`
+            : `<div class="empty-state"><h2 class="h3">No step entries yet</h2><p>${history.length ? `Nothing logged in the ${rangeLabel.toLowerCase()}.` : 'Log today\'s steps from the Habits tab and they will appear here.'}</p></div>`}
       </div>`}
 
-      <div class="section-heading"><h3>History</h3></div>
+      <div class="section-heading"><h2 class="text-md font-semibold">History</h2></div>
       <div class="step-history-list">${renderHistoryList(history)}</div>
     </div>`;
 

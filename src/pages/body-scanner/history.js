@@ -16,10 +16,10 @@ export function renderHRTrend(readings) {
   return `
     <div class="card mt-4">
       <div class="flex-between mb-3">
-        <h4>Recent Pulse Trend</h4>
-        <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--viz-green);">Avg: ${avg} BPM</span>
+        <h3 class="h4">Recent Pulse Trend</h3>
+        <span class="text-sm font-semibold text-green">Avg: ${avg} BPM</span>
       </div>
-      <div style="display:flex;align-items:flex-end;gap:var(--space-2);height:60px;" role="img" aria-label="Recent pulse estimates, oldest to newest: ${esc(summary)} BPM. Average ${avg} BPM.">
+      <div class="flex items-end gap-2" style="height:60px;" role="img" aria-label="Recent pulse estimates, oldest to newest: ${esc(summary)} BPM. Average ${avg} BPM.">
         ${ordered.map(r => {
     const hr = Number(r.hr);
     const h = Math.max(10, Math.min(100, (hr - 40) / 1.2));
@@ -34,7 +34,7 @@ export function renderHRTrend(readings) {
 export function renderScanHistory(history, loadFailed) {
   if (loadFailed) {
     return `<div class="empty-state card" role="alert">
-      <h3>Couldn't load your check-in history</h3>
+      <h2 class="h3">Couldn't load your check-in history</h2>
       <p>Check your connection and try again. Your past check-ins are safe.</p>
       <button type="button" class="btn btn-sm" id="history-retry">Try again</button>
     </div>`;
@@ -42,8 +42,8 @@ export function renderScanHistory(history, loadFailed) {
 
   if (!history.length) {
     return `<div class="empty-state card">
-      <div style="color:var(--text-tertiary);display:flex;justify-content:center;" aria-hidden="true">${icons.body}</div>
-      <h3>No check-ins yet</h3>
+      <div class="text-tertiary flex justify-center" aria-hidden="true">${icons.body}</div>
+      <h2 class="h3">No check-ins yet</h2>
       <p>Pick a type above and take your first one.</p>
     </div>`;
   }
@@ -60,8 +60,8 @@ export function renderScanHistory(history, loadFailed) {
 
     return `<div class="card card-sm">
       <div class="flex-between">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-purple-dim);display:flex;align-items:center;justify-content:center;font-size:18px;" aria-hidden="true">${m.icon}</div>
+        <div class="flex items-center gap-3">
+          <div class="rounded-md flex items-center justify-center" style="width:36px;height:36px;background:var(--accent-purple-dim);font-size:18px;" aria-hidden="true">${m.icon}</div>
           <div>
             <div class="font-semibold text-sm">${esc(m.label)}</div>
             <div class="text-tertiary text-xs">${esc(t)}${isPulse ? ` • ${num(s.hr)} BPM` : ''}</div>

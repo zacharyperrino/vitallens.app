@@ -61,4 +61,4 @@ Tokens in `src/styles/variables.css` (quiet-luxury light theme): warm off-whites
 `--accent: #2E6FF2`, muted data-viz colors (`--viz-green #6F8F6A`,
 `--viz-amber #C09A55`, `--viz-neutral #8C877C`), small radii (4–14 px), Lora
 serif for body and headings. Legacy color aliases keep the remaining inline
-styles (795 at last count, down from ~1.5k) rendering correctly. `DESIGN_BRIEF.md` in the repo root is the authority.
+styles (455 at last count, down from ~1.5k) rendering correctly. `DESIGN_BRIEF.md` in the repo root is the authority.

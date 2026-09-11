@@ -18,8 +18,8 @@ export async function renderSleep() {
     : log.length > 0
       ? log.map(s => `<div class="card card-sm">
       <div class="flex-between gap-3">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);" aria-hidden="true">${icons.moon}</div>
+        <div class="flex items-center gap-3">
+          <div class="rounded-md flex items-center justify-center text-secondary" style="width:36px;height:36px;background:var(--bg-chip);" aria-hidden="true">${icons.moon}</div>
           <div>
             <div class="font-semibold text-sm">${s.hours != null ? `${esc(s.hours)}h` : 'Sleep'}${s.quality ? ` — ${esc(s.quality)}` : ''}</div>
             <div class="text-tertiary text-xs">${esc(s.bedtime || '')} ${esc(s.wake_time || s.wake || '')}</div>
@@ -32,7 +32,7 @@ export async function renderSleep() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-4">Log sleep</h4>
+      <h2 class="h4 mb-4">Log sleep</h2>
       <form id="sleep-form" class="flex-col gap-3">
         <div class="grid-2">
           <div class="input-group"><label for="sleep-hours">Hours slept</label><input class="input-field" type="number" step="0.5" min="0" max="24" id="sleep-hours" placeholder="e.g. 7.5"></div>
@@ -50,7 +50,7 @@ export async function renderSleep() {
         <button type="submit" class="btn btn-primary btn-block">Log sleep</button>
       </form>
     </div>
-    <div class="section-heading"><h3>Sleep log</h3></div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Sleep log</h2></div>
     ${logList}
   </div>`;
 }
@@ -67,7 +67,7 @@ export async function renderHabits() {
   // A failed load must not render a blank form — saving it would overwrite today's real entry.
   if (loadError) {
     return `<div class="stagger-children flex-col gap-4">
-      <div class="card"><h4 class="mb-2">Lifestyle habits</h4>${loadErrorState("today's habits", loadError, 'habits-retry')}</div>
+      <div class="card"><h2 class="h4 mb-2">Lifestyle habits</h2>${loadErrorState("today's habits", loadError, 'habits-retry')}</div>
     </div>`;
   }
   h = h || {};
@@ -77,13 +77,13 @@ export async function renderHabits() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-4">Lifestyle habits</h4>
+      <h2 class="h4 mb-4">Lifestyle habits</h2>
       <div class="flex-col gap-4">
         <div class="flex-between">
-          <div style="display:flex;align-items:center;gap:var(--space-3);"><span style="color:var(--text-secondary);display:flex;" aria-hidden="true">${icons.wind}</span><span id="smoking-label" class="text-sm">Smoked today</span></div>
-          <button type="button" role="switch" aria-checked="${h.smoking ? 'true' : 'false'}" aria-labelledby="smoking-label" class="toggle ${h.smoking ? 'active' : ''}" id="toggle-smoking" style="padding:0;"></button>
+          <div class="flex items-center gap-3"><span class="text-secondary flex" aria-hidden="true">${icons.wind}</span><span id="smoking-label" class="text-sm">Smoked today</span></div>
+          <button type="button" role="switch" aria-checked="${h.smoking ? 'true' : 'false'}" aria-labelledby="smoking-label" class="toggle ${h.smoking ? 'active' : ''} p-0" id="toggle-smoking"></button>
         </div>
-        <div class="divider" style="margin:0;"></div>
+        <div class="divider m-0"></div>
         <div class="input-group"><label for="habit-alcohol">Alcohol today</label>
           <select class="input-field" id="habit-alcohol">
             <option value="" ${!h.alcohol ? 'selected' : ''}>Select…</option>

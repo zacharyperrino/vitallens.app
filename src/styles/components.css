@@ -224,12 +224,12 @@
 
 .badge-teal {
     background: var(--accent-teal-dim);
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
 }
 
 .badge-amber {
     background: var(--accent-amber-dim);
-    color: var(--accent-amber);
+    color: var(--viz-amber-text);
 }
 
 .badge-coral {
@@ -244,7 +244,7 @@
 
 .badge-green {
     background: var(--accent-green-dim);
-    color: var(--accent-green);
+    color: var(--viz-green-text);
 }
 
 .badge-red {
@@ -352,7 +352,7 @@ select.input-field {
 }
 
 .upload-zone .upload-btn-text {
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
     font-weight: var(--weight-semibold);
 }
 
@@ -610,14 +610,14 @@ select.input-field {
     margin-bottom: var(--space-4);
 }
 
-.section-heading h3 {
+.section-heading h3, .section-heading h2 {
     font-size: var(--text-md);
     font-weight: var(--weight-semibold);
 }
 
 .section-heading .see-all {
     font-size: var(--text-sm);
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
     cursor: pointer;
 }
 
@@ -729,7 +729,7 @@ select.input-field {
     font-size: 18px;
 }
 
-.insight-content h4 {
+.insight-content h4, .insight-content h3 {
     font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
     margin-bottom: var(--space-1);
@@ -839,7 +839,7 @@ select.input-field {
 .face-map-zone .zone-label {
     font-size: var(--text-xs);
     font-weight: var(--weight-bold);
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
     opacity: 0;
     transition: opacity var(--transition-fast);
 }
@@ -878,7 +878,7 @@ select.input-field {
     width: 32px;
     height: 32px;
     border: 3px solid var(--border-light);
-    border-top-color: var(--accent-teal);
+    border-top-color: var(--viz-green-text);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -897,7 +897,7 @@ select.input-field {
 
 .toggle.active {
     background: var(--accent-teal);
-    border-color: var(--accent-teal);
+    border-color: var(--viz-green-text);
 }
 
 .toggle::after {
@@ -1123,7 +1123,7 @@ select.input-field {
 }
 
 .mode-card.active .mode-label {
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
 }
 
 /* Heart rate pulse animation */
@@ -1201,7 +1201,7 @@ select.input-field {
     border: 1px solid rgba(255, 181, 71, 0.2);
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
-    color: var(--accent-amber);
+    color: var(--viz-amber-text);
     line-height: 1.5;
 }
 
@@ -1230,7 +1230,7 @@ select.input-field {
     flex: 1;
 }
 
-.step-card-info h4 {
+.step-card-info h4, .step-card-info h3 {
     font-size: var(--text-sm);
     color: var(--text-tertiary);
     text-transform: uppercase;
@@ -1242,7 +1242,7 @@ select.input-field {
     font-family: var(--font-heading);
     font-size: var(--text-xl);
     font-weight: var(--weight-extrabold);
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
 }
 
 .step-details {
@@ -1441,7 +1441,7 @@ select.input-field {
     position: absolute;
     width: 24px;
     height: 24px;
-    border-color: var(--accent-teal);
+    border-color: var(--viz-green-text);
     border-style: solid;
     border-width: 0;
 }
@@ -1657,12 +1657,12 @@ select.input-field {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--text-primary);
 }
 
 .oura-sync-status {
     font-size: var(--text-xs);
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1684,13 +1684,13 @@ select.input-field {
     font-family: var(--font-heading);
     font-size: var(--text-2xl);
     font-weight: var(--weight-bold);
-    color: #fff;
+    color: var(--text-primary);
     line-height: 1.2;
 }
 
 .oura-score-label {
     font-size: var(--text-xs);
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-secondary);
     text-transform: uppercase;
     margin-top: 2px;
 }
@@ -1764,7 +1764,7 @@ select.input-field {
     flex: 1;
 }
 
-.chat-header-info h2 {
+.chat-header-info h2, .chat-header-info h1 {
     font-size: var(--text-lg);
     font-weight: var(--weight-bold);
     margin: 0;
@@ -1989,7 +1989,7 @@ select.input-field {
 }
 
 .chat-stat-teal .chat-stat-value {
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
 }
 
 .chat-stat-blue {
@@ -2013,7 +2013,7 @@ select.input-field {
 }
 
 .chat-stat-green .chat-stat-value {
-    color: var(--accent-green);
+    color: var(--viz-green-text);
 }
 
 .chat-stat-amber {
@@ -2021,7 +2021,7 @@ select.input-field {
 }
 
 .chat-stat-amber .chat-stat-value {
-    color: var(--accent-amber);
+    color: var(--viz-amber-text);
 }
 
 .chat-stat-coral {
@@ -2033,7 +2033,7 @@ select.input-field {
 }
 
 /* Markdown formatting inside chat */
-.chat-bubble-content h3.chat-section-title {
+.chat-bubble-content h3.chat-section-title, .chat-bubble-content h2.chat-section-title {
     font-size: var(--text-base);
     font-weight: var(--weight-bold);
     margin: 0 0 var(--space-2);
@@ -2041,7 +2041,7 @@ select.input-field {
     border-bottom: 1px solid var(--border-subtle);
 }
 
-.chat-bubble-content h4 {
+.chat-bubble-content h4, .chat-bubble-content h3 {
     font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
     margin: var(--space-2) 0 var(--space-1);
@@ -2051,7 +2051,7 @@ select.input-field {
     font-family: var(--font-heading);
     font-size: var(--text-2xl);
     font-weight: var(--weight-extrabold);
-    color: var(--accent-teal);
+    color: var(--viz-green-text);
     margin-bottom: var(--space-2);
 }
 
@@ -2123,8 +2123,8 @@ select.input-field {
 
 .chat-chip:hover {
     background: var(--accent-teal-dim);
-    border-color: var(--accent-teal);
-    color: var(--accent-teal);
+    border-color: var(--viz-green-text);
+    color: var(--viz-green-text);
     transform: translateY(-1px);
 }
 

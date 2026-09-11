@@ -17,9 +17,9 @@ export async function renderHealthChat() {
   content.innerHTML = `
   <div class="chat-page">
     <div class="chat-header">
-      <div class="chat-header-avatar" aria-hidden="true"><span style="color:var(--accent);display:flex;">${icons.sparkle}</span></div>
+      <div class="chat-header-avatar" aria-hidden="true"><span class="text-accent flex">${icons.sparkle}</span></div>
       <div class="chat-header-info">
-        <h2>Health Copilot</h2>
+        <h1 class="h2">Health Copilot</h1>
         <span class="chat-status-dot" aria-hidden="true"></span>
         <span class="chat-status-text" id="chat-status-text" role="status" aria-live="polite">Uses your logged data</span>
       </div>
@@ -121,7 +121,7 @@ function renderMessage(m) {
   const content = formatResponse(m.text || '');
   const badgeText = plainBadge(m.toolBadge);
   const badge = badgeText ? `<div class="chat-tool-badge"><span>${esc(badgeText)}</span></div>` : '';
-  return `<div class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar" style="color:var(--accent);" aria-hidden="true">${icons.sparkle}</div><div class="chat-bubble-body">${badge}<div class="chat-bubble-content">${content}</div><div class="chat-bubble-time">${esc(time)}</div></div></div>`;
+  return `<div class="chat-bubble chat-bubble-assistant"><div class="chat-bubble-avatar text-accent" aria-hidden="true">${icons.sparkle}</div><div class="chat-bubble-body">${badge}<div class="chat-bubble-content">${content}</div><div class="chat-bubble-time">${esc(time)}</div></div></div>`;
 }
 
 // Escape first, then apply the tiny markdown subset on the escaped text so
@@ -177,7 +177,7 @@ function renderTyping() {
   if (!el) return;
   const existing = document.getElementById('typing-indicator');
   if (existing) return;
-  el.insertAdjacentHTML('beforeend', `<div id="typing-indicator" class="chat-bubble chat-bubble-assistant" role="status"><div class="chat-bubble-avatar" style="color:var(--accent);" aria-hidden="true">${icons.sparkle}</div><div class="chat-bubble-body"><div class="chat-typing-dots" aria-hidden="true"><span></span><span></span><span></span></div><span class="visually-hidden">Copilot is thinking</span></div></div>`);
+  el.insertAdjacentHTML('beforeend', `<div id="typing-indicator" class="chat-bubble chat-bubble-assistant" role="status"><div class="chat-bubble-avatar text-accent" aria-hidden="true">${icons.sparkle}</div><div class="chat-bubble-body"><div class="chat-typing-dots" aria-hidden="true"><span></span><span></span><span></span></div><span class="visually-hidden">Copilot is thinking</span></div></div>`);
   scrollToBottom();
 }
 
@@ -196,10 +196,10 @@ function renderSendError(originalText, reason) {
   if (!el) return;
   el.insertAdjacentHTML('beforeend', `
     <div id="chat-send-error" class="chat-bubble chat-bubble-assistant" role="alert">
-      <div class="chat-bubble-avatar" style="color:var(--error);" aria-hidden="true">${icons.alert}</div>
+      <div class="chat-bubble-avatar text-error" aria-hidden="true">${icons.alert}</div>
       <div class="chat-bubble-body">
-        <div class="chat-bubble-content empty-state" style="padding:var(--space-3);align-items:flex-start;text-align:left;">
-          <h3 style="font-size:var(--text-sm);">Couldn't send that message</h3>
+        <div class="chat-bubble-content empty-state items-start text-left p-3">
+          <h3 class="text-sm">Couldn't send that message</h3>
           <p class="text-xs">${esc(reason)}</p>
           <button type="button" class="btn btn-sm" id="chat-retry">Try again</button>
         </div>

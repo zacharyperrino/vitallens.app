@@ -25,7 +25,7 @@ export async function renderProfile() {
   content.innerHTML = `
     <div class="profile stagger-children">
       <div class="page-header"><h1>Profile</h1><p>Loading your profile…</p></div>
-      <div style="display:flex;justify-content:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
+      <div class="flex justify-center" style="padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
     </div>`;
 
   try {
@@ -51,7 +51,7 @@ export async function renderProfile() {
       <div class="profile stagger-children">
         <div class="page-header"><h1>Profile</h1></div>
         <div class="empty-state" role="alert">
-          <h3>Couldn't load your profile</h3>
+          <h2 class="h3">Couldn't load your profile</h2>
           <p>${plainReason(error)}</p>
           <button type="button" class="btn btn-sm" id="profile-retry">Try again</button>
         </div>
@@ -106,29 +106,29 @@ function renderProfileForm(profile, user) {
   content.innerHTML = `
     <div class="profile stagger-children">
       <div class="page-header"><h1>Profile</h1><p>Manage your body stats, health goals, and nutrition targets.</p></div>
-      <div class="card" style="margin-bottom:var(--space-5);">
-        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);align-items:center;">
+      <div class="card mb-5">
+        <div class="flex-between flex-wrap gap-3">
           <div>
             <div class="mb-1 text-secondary text-sm">Signed in as ${esc(user.email || 'unknown')}</div>
-            <h2 style="margin:0;">${esc(profile.name || 'Your health profile')}</h2>
+            <h2 class="m-0">${esc(profile.name || 'Your health profile')}</h2>
           </div>
-          <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;" aria-live="polite">
-            <div style="text-align:right;min-width:140px;">
+          <div class="flex gap-3 flex-wrap items-center" aria-live="polite">
+            <div class="text-right" style="min-width:140px;">
               <div class="text-secondary text-xs">Estimated BMR</div>
-              <div id="profile-bmr-value" style="font-size:var(--text-xl);font-weight:700;">${bmr ? Math.round(bmr) : '—'}</div>
+              <div id="profile-bmr-value" class="text-xl" style="font-weight:700;">${bmr ? Math.round(bmr) : '—'}</div>
             </div>
-            <div style="text-align:right;min-width:140px;">
+            <div class="text-right" style="min-width:140px;">
               <div class="text-secondary text-xs">Estimated daily burn (TDEE)</div>
-              <div id="profile-tdee-value" style="font-size:var(--text-xl);font-weight:700;">${tdee ? Math.round(tdee) : '—'}</div>
+              <div id="profile-tdee-value" class="text-xl" style="font-weight:700;">${tdee ? Math.round(tdee) : '—'}</div>
             </div>
           </div>
         </div>
         <p class="disclaimer mt-3">Estimates from the Mifflin-St Jeor formula using the stats below. They update as you edit, and are only saved if you choose to use them as targets.</p>
       </div>
 
-      <form id="profile-form" class="card" style="display:flex;flex-direction:column;gap:var(--space-5);">
+      <form id="profile-form" class="card flex-col gap-5">
         <div>
-          <h4 class="mb-4">Basic stats</h4>
+          <h2 class="h4 mb-4">Basic stats</h2>
           <div class="grid-2 gap-3">
             <div class="input-group"><label for="p-name">Name</label><input class="input-field" type="text" id="p-name" value="${esc(profile.name)}" placeholder="Your name" autocomplete="name"></div>
             <div class="input-group"><label for="p-age">Age</label><input class="input-field" type="number" min="18" max="120" id="p-age" value="${profile.age || ''}" placeholder="Age"></div>
@@ -161,10 +161,10 @@ function renderProfileForm(profile, user) {
             </div>
           </div>
 
-          <div class="grid-3 gap-3 mt-3">
+          <div class="grid-3-stats gap-3 mt-3">
             <div class="input-group">
               <label for="p-height">Height</label>
-              <div style="display:flex;gap:var(--space-2);align-items:center;">
+              <div class="flex gap-2 items-center">
                 <input class="input-field" type="number" min="0" id="p-height" value="${profile.height || ''}" placeholder="Height">
                 <select class="input-field" id="p-height-unit" style="width:100px;" aria-label="Height unit">
                   <option value="cm" ${profile.heightUnit === 'cm' ? 'selected' : ''}>cm</option>
@@ -174,7 +174,7 @@ function renderProfileForm(profile, user) {
             </div>
             <div class="input-group">
               <label for="p-weight">Current weight</label>
-              <div style="display:flex;gap:var(--space-2);align-items:center;">
+              <div class="flex gap-2 items-center">
                 <input class="input-field" type="number" min="0" id="p-weight" value="${profile.weight || ''}" placeholder="Weight">
                 <select class="input-field" id="p-weight-unit" style="width:100px;" aria-label="Weight unit">
                   <option value="kg" ${profile.weightUnit === 'kg' ? 'selected' : ''}>kg</option>
@@ -184,7 +184,7 @@ function renderProfileForm(profile, user) {
             </div>
             <div class="input-group">
               <label for="p-goal-weight">Goal weight</label>
-              <div style="display:flex;gap:var(--space-2);align-items:center;">
+              <div class="flex gap-2 items-center">
                 <input class="input-field" type="number" min="0" id="p-goal-weight" value="${profile.goalWeight || ''}" placeholder="Goal weight">
                 <span id="p-goal-weight-unit" class="text-secondary text-sm">${profile.weightUnit}</span>
               </div>
@@ -192,13 +192,13 @@ function renderProfileForm(profile, user) {
           </div>
 
           <div class="mt-4">
-            <label for="p-lifting-sessions" style="display:block;margin-bottom:var(--space-2);">Lifting sessions per week: <strong id="p-lifting-count">${profile.liftingSessions}</strong></label>
-            <input type="range" id="p-lifting-sessions" min="0" max="7" value="${profile.liftingSessions}" style="width:100%;">
+            <label for="p-lifting-sessions" class="block mb-2">Lifting sessions per week: <strong id="p-lifting-count">${profile.liftingSessions}</strong></label>
+            <input type="range" id="p-lifting-sessions" min="0" max="7" value="${profile.liftingSessions}" class="w-full">
           </div>
         </div>
 
         <div>
-          <h4 class="mb-4">Nutrition targets</h4>
+          <h2 class="h4 mb-4">Nutrition targets</h2>
           <div class="grid-2 gap-3 mb-3">
             <div class="input-group"><label for="p-calorie-target">Calorie target (kcal/day)</label><input class="input-field" type="number" min="0" id="p-calorie-target" value="${profile.calorieTarget || ''}" placeholder="e.g. 2200"></div>
             <div class="input-group"><label for="p-fiber-target">Fiber target (g)</label><input class="input-field" type="number" min="0" id="p-fiber-target" value="${profile.fiberTarget || ''}" placeholder="e.g. 30"></div>
@@ -208,7 +208,7 @@ function renderProfileForm(profile, user) {
             <button type="button" class="btn btn-sm" id="p-use-suggested-calories" style="margin-left:var(--space-2);">Use this</button>
           </div>
           <p id="p-activity-hint" class="disclaimer" style="margin-bottom:var(--space-3);${profile.activityLevel ? 'display:none;' : ''}">Set your activity level to get a target.</p>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);">
+          <div class="grid-3 gap-3">
             <div class="input-group"><label for="p-protein-target">Protein target (g)</label><input class="input-field" type="number" min="0" id="p-protein-target" value="${profile.proteinTarget || ''}" placeholder="g"></div>
             <div class="input-group"><label for="p-carbs-target">Carbs target (g)</label><input class="input-field" type="number" min="0" id="p-carbs-target" value="${profile.carbsTarget || ''}" placeholder="g"></div>
             <div class="input-group"><label for="p-fat-target">Fat target (g)</label><input class="input-field" type="number" min="0" id="p-fat-target" value="${profile.fatTarget || ''}" placeholder="g"></div>
@@ -217,12 +217,12 @@ function renderProfileForm(profile, user) {
         </div>
 
         <div>
-          <h4 class="mb-4">Pre-existing conditions</h4>
-          <fieldset style="border:0;padding:0;margin:0;min-width:0;">
+          <h2 class="h4 mb-4">Pre-existing conditions</h2>
+          <fieldset class="p-0 m-0" style="border:0;min-width:0;">
             <legend class="visually-hidden">Conditions you'd like noted</legend>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);">
+            <div class="grid-2 gap-2">
               ${CONDITIONS.map((condition, i) => `
-                <label for="p-cond-${i}" class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
+                <label for="p-cond-${i}" class="condition-toggle flex items-center gap-2 p-2 border rounded-md cursor-pointer">
                   <input class="input-checkbox condition-checkbox" id="p-cond-${i}" type="checkbox" value="${condition}" ${profile.conditions.includes(condition) ? 'checked' : ''}>
                   <span class="text-sm">${condition}</span>
                 </label>
@@ -232,56 +232,56 @@ function renderProfileForm(profile, user) {
         </div>
 
         <div>
-          <h4 class="mb-4">Allergies</h4>
+          <h2 class="h4 mb-4">Allergies</h2>
           <div class="input-group"><label for="p-allergies">Allergies</label><textarea class="input-field" id="p-allergies" rows="4" placeholder="List any allergies…">${esc(profile.allergies)}</textarea></div>
         </div>
 
         <button type="submit" id="save-profile-btn" class="btn btn-glass btn-block">Save profile</button>
-        <button type="button" id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign out</button>
+        <button type="button" id="sign-out-btn" class="btn w-full mt-3 bg-surface-2 border text-secondary">Sign out</button>
       </form>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">Subscription</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">Subscription</h2>
         <div id="billing-status" class="disclaimer" aria-live="polite">Checking your plan…</div>
-        <div id="billing-actions" style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);"></div>
+        <div id="billing-actions" class="flex gap-3 flex-wrap mt-3"></div>
         <p class="disclaimer mt-3">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
       </div>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">AI usage</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">AI usage</h2>
         <div id="usage-status" class="disclaimer" aria-live="polite">Checking your usage…</div>
       </div>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">Wearables</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">Wearables</h2>
         <div id="oura-status" class="disclaimer" aria-live="polite">Checking…</div>
         <div class="mt-3"><button type="button" class="btn btn-sm" id="oura-connect-btn">Connect Oura Ring</button></div>
       </div>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">Notifications</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">Notifications</h2>
         <div class="flex-between gap-3">
           <span id="notif-state" class="disclaimer" aria-live="polite"></span>
           <button type="button" class="btn btn-sm" id="notif-toggle"></button>
         </div>
       </div>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">Security</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">Security</h2>
         <div id="mfa-section" aria-live="polite"><span class="disclaimer">Checking two-factor status…</span></div>
       </div>
 
-      <div class="card" style="margin-top:var(--space-5);">
-        <h4 class="mb-3">Your data</h4>
+      <div class="card mt-5">
+        <h2 class="h4 mb-3">Your data</h2>
         <p class="disclaimer">Download everything VitalLens holds about you as JSON, or permanently delete your account and all of its data.</p>
-        <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);">
+        <div class="flex gap-3 flex-wrap mt-3">
           <button type="button" class="btn btn-sm" id="export-data-btn">Export my data</button>
-          <button type="button" class="btn btn-sm" id="delete-account-btn" aria-expanded="false" aria-controls="delete-confirm" style="color:var(--error);border:1px solid var(--error);">Delete my account</button>
+          <button type="button" class="btn btn-sm text-error" id="delete-account-btn" aria-expanded="false" aria-controls="delete-confirm" style="border:1px solid var(--error);">Delete my account</button>
         </div>
         <div id="delete-confirm" hidden class="mt-3">
           <label for="delete-email" class="disclaimer">Type your account email to confirm. This cannot be undone.</label>
           <input class="input-field mt-2" id="delete-email" type="email" autocomplete="off">
-          <button type="button" class="btn btn-sm" id="delete-account-confirm" style="margin-top:var(--space-2);color:var(--error);border:1px solid var(--error);">Permanently delete</button>
+          <button type="button" class="btn btn-sm mt-2 text-error" id="delete-account-confirm" style="border:1px solid var(--error);">Permanently delete</button>
         </div>
       </div>
     </div>`;
@@ -546,7 +546,7 @@ async function attachAccountHandlers(userId) {
       if (u?.premium) { usageEl.textContent = 'Premium — AI features are unlimited.'; return; }
       const entries = Object.entries(u?.limits || {});
       if (!entries.length) { usageEl.textContent = 'No usage to show yet.'; return; }
-      usageEl.innerHTML = `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">${entries.map(([feature, f]) => {
+      usageEl.innerHTML = `<ul class="p-0 m-0 flex-col gap-2" style="list-style:none;">${entries.map(([feature, f]) => {
         const count = f?.limit === 'unlimited'
           ? 'Unlimited'
           : `${esc(f?.used ?? 0)} of ${esc(f?.limit)} ${esc(USAGE_WINDOW[f?.window] || f?.window || '')}`.trim();
@@ -622,10 +622,10 @@ async function attachAccountHandlers(userId) {
         if (enrollErr || !enroll) return showToast("Couldn't start two-factor setup. Please try again.");
         mfaEl.innerHTML = `
           <p class="disclaimer">Scan this with Google Authenticator, Authy, or 1Password, then enter the 6-digit code.</p>
-          <img src="${esc(enroll.totp.qr_code)}" alt="QR code for your authenticator app" style="width:160px;height:160px;margin:var(--space-3) auto;display:block;">
+          <img src="${esc(enroll.totp.qr_code)}" alt="QR code for your authenticator app" class="block" style="width:160px;height:160px;margin:var(--space-3) auto;">
           <label for="mfa-code" class="visually-hidden">6-digit code</label>
           <input class="input-field" id="mfa-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6">
-          <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+          <div class="flex gap-2 mt-2">
             <button type="button" class="btn btn-sm btn-glass" id="mfa-verify">Verify</button>
             <button type="button" class="btn btn-sm" id="mfa-cancel">Cancel</button>
           </div>`;

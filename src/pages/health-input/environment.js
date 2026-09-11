@@ -30,26 +30,26 @@ export async function renderEnvironment() {
     readings = loadErrorState('your environment data', loadError, 'env-retry');
   } else if (env) {
     readings = `
-      ${locationValue ? `<div style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);">${esc(locationValue)}</div>` : ''}
+      ${locationValue ? `<div class="text-xl text-primary mb-3" style="font-weight:700;">${esc(locationValue)}</div>` : ''}
       <div class="card card-sm mb-4">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
-          <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
+        <div class="grid gap-3" style="grid-template-columns:1fr 1fr;">
+          <div class="p-3 rounded-sm bg-surface-2">
             <div class="mb-2 text-secondary text-xs">Air quality index (AQI)</div>
             <div style="font-size:var(--text-3xl);font-weight:var(--weight-bold);color:${aqiColor};">${show(aqi)}</div>
             <div class="text-secondary text-sm">${aqiCategory ? esc(aqiCategory) : 'No category reported'}</div>
           </div>
-          <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
+          <div class="p-3 rounded-sm bg-surface-2">
             <div class="mb-2 text-secondary text-xs">PM2.5</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${show(pm25)}</div>
+            <div class="text-2xl font-bold">${show(pm25)}</div>
             <div class="text-secondary text-sm">μg/m³</div>
           </div>
-          <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
+          <div class="p-3 rounded-sm bg-surface-2">
             <div class="mb-2 text-secondary text-xs">UV index</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${show(uvIndex)}</div>
+            <div class="text-2xl font-bold">${show(uvIndex)}</div>
           </div>
-          <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
+          <div class="p-3 rounded-sm bg-surface-2">
             <div class="mb-2 text-secondary text-xs">Water risk</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);text-transform:capitalize;">${show(waterRisk)}</div>
+            <div class="text-2xl font-bold" style="text-transform:capitalize;">${show(waterRisk)}</div>
           </div>
         </div>
         ${fetchedAt ? `<div class="mt-3 text-secondary text-xs">Last updated ${esc(fetchedAt)}</div>` : ''}
@@ -60,7 +60,7 @@ export async function renderEnvironment() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-4">Environmental factors</h4>
+      <h2 class="h4 mb-4">Environmental factors</h2>
       ${readings}
       <form id="env-form" class="flex-col gap-3">
         <div class="input-group"><label for="env-location">Location / city</label>

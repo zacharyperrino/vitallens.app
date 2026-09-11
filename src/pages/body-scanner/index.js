@@ -71,7 +71,7 @@ export async function renderBodyScanner() {
         <h1>Body Check-In</h1>
         <p>Observational wellness reflections from a photo</p>
       </div>
-      <div class="card" style="text-align:center;padding:var(--space-8);" role="status" aria-live="polite">
+      <div class="card text-center" style="padding:var(--space-8);" role="status" aria-live="polite">
         <div class="spinner" style="margin:0 auto;"></div>
         <p class="visually-hidden">Loading your check-in history</p>
       </div>
@@ -91,7 +91,7 @@ export async function renderBodyScanner() {
         <p>Observational wellness reflections from a photo</p>
       </div>
 
-      <div class="mode-selector" id="mode-selector" role="tablist" aria-label="Check-in type" style="display:flex;gap:var(--space-2);overflow-x:auto;padding-bottom:var(--space-2);">
+      <div class="mode-selector flex gap-2" id="mode-selector" role="tablist" aria-label="Check-in type" style="overflow-x:auto;padding-bottom:var(--space-2);">
         ${MODES.map(m => `
           <button type="button" role="tab" class="mode-card ${m.id === activeMode ? 'active' : ''}" data-mode="${m.id}" id="mode-tab-${m.id}" aria-selected="${m.id === activeMode}" aria-controls="scanner-area" style="flex-shrink:0;color:inherit;">
             <div class="mode-icon" aria-hidden="true">${m.icon}</div>
@@ -109,11 +109,11 @@ export async function renderBodyScanner() {
       <p class="disclaimer mt-4">Wellness observations only — <strong>not medical advice and not a diagnosis</strong>. VitalLens does not detect, screen for, or assess any disease or condition. Talk to a licensed healthcare provider about any health concern.</p>
 
       ${hrError
-        ? `<div class="empty-state card mt-4" role="alert"><h3>Couldn't load your pulse trend</h3><p>Check your connection and try again. Your readings are safe.</p><button type="button" class="btn btn-sm" id="history-retry-hr">Try again</button></div>`
+        ? `<div class="empty-state card mt-4" role="alert"><h2 class="h3">Couldn't load your pulse trend</h2><p>Check your connection and try again. Your readings are safe.</p><button type="button" class="btn btn-sm" id="history-retry-hr">Try again</button></div>`
         : (recentHR.length >= 2 ? renderHRTrend(recentHR) : '')}
 
-      <div class="section-heading" style="margin-top:var(--space-5);">
-        <h3>Check-In History</h3>
+      <div class="section-heading mt-5">
+        <h2 class="h3">Check-In History</h2>
         ${historyError ? '' : `<span class="badge badge-purple">${history.length}</span>`}
       </div>
       <div id="scan-history" class="flex-col gap-3">
@@ -136,7 +136,7 @@ export function renderScannerForMode(mode) {
 
   if (mode === 'heart') {
     return `
-      <div class="card" style="padding:0;overflow:hidden;">
+      <div class="card p-0 overflow-hidden">
         <div class="scanner-viewfinder" id="viewfinder">
           <div class="scanner-guide-overlay" aria-hidden="true"><div class="guide-face"></div></div>
           <div class="capture-progress" id="capture-progress" aria-hidden="true"></div>
@@ -148,13 +148,13 @@ export function renderScannerForMode(mode) {
         </div>
       </div>
       <div class="card mt-3">
-        <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);">
-          <span style="color:var(--accent);" aria-hidden="true">${icons.heart}</span>
-          <div><h4>Pulse estimate</h4><p class="text-tertiary text-xs">${esc(instructions)}</p></div>
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-accent" aria-hidden="true">${icons.heart}</span>
+          <div><h2 class="h4">Pulse estimate</h2><p class="text-tertiary text-xs">${esc(instructions)}</p></div>
         </div>
         <div id="hr-live-display" style="display:none;text-align:center;padding:var(--space-4) 0;">
-          <div class="hr-display" style="justify-content:center;">
-            <div class="hr-pulse" style="color:var(--accent);" aria-hidden="true">${icons.heart}</div>
+          <div class="hr-display justify-center">
+            <div class="hr-pulse text-accent" aria-hidden="true">${icons.heart}</div>
             <div><div class="hr-value" id="hr-value">--</div><div class="hr-label">BPM</div></div>
           </div>
           <div class="mt-3">
@@ -169,7 +169,7 @@ export function renderScannerForMode(mode) {
   }
 
   return `
-    <div class="card" style="padding:0;overflow:hidden;">
+    <div class="card p-0 overflow-hidden">
       <div class="scanner-viewfinder" id="viewfinder">
         <div class="scanner-guide-overlay" aria-hidden="true"><div class="guide-${m.guide}"></div></div>
         <div class="quality-bar" id="quality-bar" aria-hidden="true"></div>
@@ -180,11 +180,11 @@ export function renderScannerForMode(mode) {
       </div>
     </div>
     <div class="card mt-3">
-      <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div class="flex items-center gap-3 mb-3">
         <span style="font-size:24px;" aria-hidden="true">${m.icon}</span>
-        <div><h4>${esc(m.label)}</h4><p class="text-tertiary text-xs">${esc(instructions)}</p></div>
+        <div><h2 class="h4">${esc(m.label)}</h2><p class="text-tertiary text-xs">${esc(instructions)}</p></div>
       </div>
-      <div style="display:flex;gap:var(--space-3);">
+      <div class="flex gap-3">
         <button type="button" class="btn btn-primary flex-1" id="start-scan-btn">
           ${icons.camera} Start Camera
         </button>
@@ -430,7 +430,7 @@ function analyzeForMode(mode, imageData) {
 
 function analyzingMarkup(previewUrl, altText) {
   return `
-    <img src="${esc(previewUrl)}" alt="${esc(altText)}" style="width:100%;height:100%;object-fit:cover;">
+    <img src="${esc(previewUrl)}" alt="${esc(altText)}" class="w-full" style="height:100%;object-fit:cover;">
     <div class="scanner-line" aria-hidden="true"></div>
     <div class="scanner-status" role="status" aria-live="polite">
       <div class="spinner" style="width:14px;height:14px;border-width:2px;" aria-hidden="true"></div>
@@ -511,7 +511,7 @@ function showAnalysisError(err, previewUrl, altText) {
   const viewfinder = document.getElementById('viewfinder');
   if (viewfinder) {
     viewfinder.innerHTML = `
-      <img src="${esc(previewUrl)}" alt="${esc(altText)}" style="width:100%;height:100%;object-fit:cover;opacity:0.6;">
+      <img src="${esc(previewUrl)}" alt="${esc(altText)}" class="w-full" style="height:100%;object-fit:cover;opacity:0.6;">
       <div class="scanner-status" role="status"><div class="scanner-status-dot amber"></div><span>Not completed</span></div>`;
   }
   resetStartButton();
@@ -521,9 +521,9 @@ function showAnalysisError(err, previewUrl, altText) {
   resultsDiv.classList.remove('hidden');
   resultsDiv.innerHTML = `
     <div class="empty-state card mt-4" role="alert">
-      <h3>Couldn't finish this check-in</h3>
+      <h2 class="h3">Couldn't finish this check-in</h2>
       <p>${esc(reason)} Nothing was saved.</p>
-      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;justify-content:center;">
+      <div class="flex gap-2 flex-wrap justify-center">
         ${err?.upgradeRequired ? '' : '<button type="button" class="btn btn-sm btn-primary" id="scan-retry">Try again</button>'}
         <button type="button" class="btn btn-sm" id="scan-restart">Start over</button>
       </div>
@@ -542,7 +542,7 @@ function showAnalysisResults(result, previewUrl, altText) {
   const viewfinder = document.getElementById('viewfinder');
   if (viewfinder && previewUrl) {
     viewfinder.innerHTML = `
-      <img src="${esc(previewUrl)}" alt="${esc(altText || 'Your photo')}" style="width:100%;height:100%;object-fit:cover;">
+      <img src="${esc(previewUrl)}" alt="${esc(altText || 'Your photo')}" class="w-full" style="height:100%;object-fit:cover;">
       <div style="position:absolute;top:var(--space-3);right:var(--space-3);">
         <div class="badge badge-green">${icons.check} Complete</div>
       </div>`;

@@ -40,7 +40,7 @@ export async function renderBackground() {
   // Never show a blank form after a failed load — saving it would wipe the saved background.
   if (loadError) {
     return `<div class="stagger-children flex-col gap-4">
-      <div class="card"><h4 class="mb-2">Medical history</h4>${loadErrorState('your health background', loadError, 'background-retry')}</div>
+      <div class="card"><h2 class="h4 mb-2">Medical history</h2>${loadErrorState('your health background', loadError, 'background-retry')}</div>
     </div>`;
   }
 
@@ -48,15 +48,15 @@ export async function renderBackground() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-2">Medical history</h4>
+      <h2 class="h4 mb-2">Medical history</h2>
       <p class="disclaimer mb-3">Anything you note here is kept private and only used to add context to your own patterns.</p>
       <form id="background-form" class="flex-col gap-3">
-        <fieldset style="border:0;padding:0;margin:0;min-width:0;">
-          <legend style="display:block;margin-bottom:var(--space-2);font-weight:var(--weight-semibold);font-size:var(--text-sm);padding:0;">Health conditions</legend>
-          <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:var(--space-2);">
+        <fieldset class="p-0 m-0" style="border:0;min-width:0;">
+          <legend class="block mb-2 font-semibold text-sm p-0">Health conditions</legend>
+          <div class="grid-2 gap-2">
             ${BACKGROUND_CONDITIONS.map((condition, i) => `
-              <label for="bg-cond-${i}" style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);border:1px solid var(--border);transition:all 0.2s;">
-                <input type="checkbox" class="condition-check" id="bg-cond-${i}" value="${condition}" ${selectedConditions.includes(condition) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+              <label for="bg-cond-${i}" class="flex items-center gap-2 cursor-pointer p-2 rounded-md border" style="transition:all 0.2s;">
+                <input type="checkbox" class="condition-check cursor-pointer" id="bg-cond-${i}" value="${condition}" ${selectedConditions.includes(condition) ? 'checked' : ''} style="width:16px;height:16px;">
                 <span class="text-sm">${condition}</span>
               </label>
             `).join('')}
@@ -89,13 +89,13 @@ export async function renderGoals() {
 
   if (loadError) {
     return `<div class="stagger-children flex-col gap-4">
-      <div class="card"><h4 class="mb-2">Health goals &amp; preferences</h4>${loadErrorState('your goals', loadError, 'goals-retry')}</div>
+      <div class="card"><h2 class="h4 mb-2">Health goals &amp; preferences</h2>${loadErrorState('your goals', loadError, 'goals-retry')}</div>
     </div>`;
   }
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-4">Health goals &amp; preferences</h4>
+      <h2 class="h4 mb-4">Health goals &amp; preferences</h2>
       <form id="goals-form" class="flex-col gap-3">
         <div class="input-group"><label for="goals-text">Goals</label>
           <textarea class="input-field" id="goals-text" placeholder="What are you working toward? (e.g. more energy, better sleep, less stress)" style="min-height:120px;resize:vertical;">${esc(goals.goals_text || '')}</textarea>

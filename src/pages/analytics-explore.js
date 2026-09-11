@@ -38,16 +38,16 @@ const variableOptions = () => `<option value="" disabled selected>Select…</opt
 export function renderExploreCards(container, userId) {
   if (!container) return;
   container.innerHTML = `
-    <div class="section-heading mt-4"><h3>Early patterns</h3></div>
+    <div class="section-heading mt-4"><h2 class="text-md font-semibold">Early patterns</h2></div>
     <p class="disclaimer mb-3">Looks across your last 7 days of meals, sleep and exercise for a first pattern. Low confidence by design — it takes weeks of logging to say more.</p>
-    <div class="card" style="margin-bottom:var(--space-5);">
+    <div class="card mb-5">
       <button type="button" id="early-patterns-btn" class="btn btn-primary text-xs">Look for a pattern</button>
       <div id="early-patterns-result" class="mt-3" role="status" aria-live="polite"></div>
     </div>
 
-    <div class="section-heading"><h3>Explore a correlation</h3></div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Explore a correlation</h2></div>
     <p class="disclaimer mb-3">Pick two things you log and a window. An AI model describes how they moved together — or didn't — on the days you logged both.</p>
-    <div class="card" style="margin-bottom:var(--space-5);">
+    <div class="card mb-5">
       <div class="flex-col gap-3">
         <div class="grid-2 gap-3">
           <div class="input-group"><label for="explore-var-a">First variable</label>
@@ -62,7 +62,7 @@ export function renderExploreCards(container, userId) {
             ${DAY_OPTIONS.map(d => `<option value="${d}" ${d === 30 ? 'selected' : ''}>Last ${d} days</option>`).join('')}
           </select>
         </div>
-        <div id="explore-form-error" class="text-xs" style="color:var(--error);" role="alert" hidden></div>
+        <div id="explore-form-error" class="text-xs text-error" role="alert" hidden></div>
         <button type="button" id="explore-compare-btn" class="btn btn-primary text-xs">Compare</button>
       </div>
       <div id="explore-result" class="mt-3" role="status" aria-live="polite"></div>

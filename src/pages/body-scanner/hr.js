@@ -12,7 +12,7 @@ export function showHeartRateUnmeasured(result) {
   const reason = result?.reason || 'No steady pulse rhythm was found in the video';
   resultsDiv.innerHTML = `
     <div class="empty-state card mt-4" role="alert">
-      <h3>Couldn't measure a pulse</h3>
+      <h2 class="h3">Couldn't measure a pulse</h2>
       <p>${esc(reason)}. Nothing was saved. Try again in even lighting with your face steady inside the oval — camera-based readings are sensitive to movement and shadows.</p>
       <button type="button" class="btn btn-sm btn-primary" id="hr-retry">Try again</button>
     </div>`;
@@ -43,35 +43,35 @@ export function showHeartRateResults(result) {
   resultsDiv.innerHTML = `
     <div class="stagger-children flex-col gap-4 mt-4">
       <div class="card text-center">
-        <h3 class="mb-4">Pulse Estimate</h3>
-        <div class="hr-display" style="justify-content:center;margin-bottom:var(--space-4);">
-          <div class="hr-pulse" style="color:var(--accent);" aria-hidden="true">${icons.heart}</div>
+        <h2 class="h3 mb-4">Pulse Estimate</h2>
+        <div class="hr-display justify-center mb-4">
+          <div class="hr-pulse text-accent" aria-hidden="true">${icons.heart}</div>
           <div>
             <div class="hr-value" style="color:${zoneTone.color};">${num(hr)}</div>
             <div class="hr-label">BPM (estimated)</div>
           </div>
         </div>
-        <div style="display:flex;justify-content:center;gap:var(--space-4);flex-wrap:wrap;">
-          <div class="stat-card" style="align-items:center;">
-            <div class="stat-value" style="font-size:var(--text-xl);">${result.hrv == null ? '—' : num(result.hrv)}</div>
+        <div class="flex justify-center gap-4 flex-wrap">
+          <div class="stat-card items-center">
+            <div class="stat-value text-xl">${result.hrv == null ? '—' : num(result.hrv)}</div>
             <div class="stat-label">${result.hrv == null ? 'HRV not measurable' : 'HRV (ms, rough)'}</div>
           </div>
-          <div class="stat-card" style="align-items:center;">
+          <div class="stat-card items-center">
             <div class="stat-value" style="font-size:var(--text-md);color:${zoneTone.color};">${esc(hrZone)}</div>
             <div class="stat-label">Range</div>
           </div>
-          <div class="stat-card" style="align-items:center;">
-            <div class="stat-value" style="font-size:var(--text-xl);">${num(result.confidence)}%</div>
+          <div class="stat-card items-center">
+            <div class="stat-value text-xl">${num(result.confidence)}%</div>
             <div class="stat-label">Signal confidence</div>
           </div>
         </div>
       </div>
       <div class="card card-sm">
-        <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);flex-wrap:wrap;">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
           <span class="badge ${qualityClass}">${esc(result.quality)} signal</span>
           <span class="text-tertiary text-xs">${num(result.sampleRate)} fps over ${num(result.duration)}s</span>
         </div>
-        <p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${esc(getHRInterpretation(hr))}</p>
+        <p class="text-xs text-secondary" style="line-height:1.5;">${esc(getHRInterpretation(hr))}</p>
       </div>
       <p class="disclaimer">Camera-based pulse readings are rough estimates and can be thrown off by lighting or movement. A dedicated device is more reliable if you want an accurate number. Not medical advice.</p>
       <button type="button" class="btn btn-primary btn-block" id="new-scan-btn">New Check-In</button>

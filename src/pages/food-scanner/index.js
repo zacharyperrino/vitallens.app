@@ -52,22 +52,22 @@ export async function renderFoodScanner() {
 
       ${nutritionError ? renderLoadError('nutrition', "Couldn't load today's nutrition") : todayNutrition.calories > 0 ? `
       <div class="card mb-4">
-        <h4 class="mb-3">Today's Nutrition</h4>
-        <div style="display:flex;justify-content:space-between;text-align:center;">
+        <h3 class="h4 mb-3">Today's Nutrition</h3>
+        <div class="flex justify-between text-center">
           <div>
-            <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--accent-teal);">${Math.round(todayNutrition.calories)}</div>
+            <div class="font-heading text-xl font-bold" style="color:var(--accent-teal);">${Math.round(todayNutrition.calories)}</div>
             <div class="text-tertiary text-xs">calories</div>
           </div>
           <div>
-            <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--accent-blue);">${Math.round(todayNutrition.protein)}g</div>
+            <div class="font-heading text-xl font-bold" style="color:var(--accent-blue);">${Math.round(todayNutrition.protein)}g</div>
             <div class="text-tertiary text-xs">protein</div>
           </div>
           <div>
-            <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--accent-amber);">${Math.round(todayNutrition.carbs)}g</div>
+            <div class="font-heading text-xl font-bold text-amber">${Math.round(todayNutrition.carbs)}g</div>
             <div class="text-tertiary text-xs">carbs</div>
           </div>
           <div>
-            <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:var(--accent-coral);">${Math.round(todayNutrition.fat)}g</div>
+            <div class="font-heading text-xl font-bold" style="color:var(--accent-coral);">${Math.round(todayNutrition.fat)}g</div>
             <div class="text-tertiary text-xs">fat</div>
           </div>
         </div>
@@ -84,32 +84,32 @@ export async function renderFoodScanner() {
 
       <!-- Meal Scan View -->
       <div id="meal-scan-view" role="tabpanel" aria-labelledby="mode-meal" style="${currentMode !== 'meal' ? 'display:none;' : ''}">
-        <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--space-5);" id="food-upload-card" aria-live="polite">
+        <div class="card p-0 overflow-hidden mb-5" id="food-upload-card" aria-live="polite">
           <div class="upload-zone" id="food-upload-zone">
             <input type="file" accept="image/*" capture="environment" id="food-file-input" multiple aria-label="Take a photo of your meal, or choose up to 3 photos">
             <div class="text-tertiary">${icons.camera}</div>
             <p><span class="upload-btn-text">Take Photo</span> or drag &amp; drop</p>
-            <p style="font-size:var(--text-xs);">Add up to 3 photos for better accuracy</p>
+            <p class="text-xs">Add up to 3 photos for better accuracy</p>
           </div>
-          <div style="display:flex;gap:0;border-top:1px solid var(--border);">
-            <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.user}</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:1px;font-weight:600;">HAND</div>
-              <div style="font-size:var(--text-xs);color:var(--accent-teal);">= best accuracy</div>
+          <div class="flex" style="gap:0;border-top:1px solid var(--border);">
+            <div class="flex-1 text-center" style="padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
+              <div class="text-secondary flex justify-center">${icons.user}</div>
+              <div class="text-xs text-tertiary font-semibold" style="margin-top:1px;">HAND</div>
+              <div class="text-xs" style="color:var(--accent-teal);">= best accuracy</div>
             </div>
-            <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.sun}</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:1px;font-weight:600;">LIGHTING</div>
+            <div class="flex-1 text-center" style="padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
+              <div class="text-secondary flex justify-center">${icons.sun}</div>
+              <div class="text-xs text-tertiary font-semibold" style="margin-top:1px;">LIGHTING</div>
               <div class="text-tertiary text-xs">bright & even</div>
             </div>
-            <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
-              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.camera}</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:1px;font-weight:600;">FULL PLATE</div>
+            <div class="flex-1 text-center" style="padding:var(--space-2) var(--space-1);border-right:1px solid var(--border);">
+              <div class="text-secondary flex justify-center">${icons.camera}</div>
+              <div class="text-xs text-tertiary font-semibold" style="margin-top:1px;">FULL PLATE</div>
               <div class="text-tertiary text-xs">from above</div>
             </div>
-            <div style="flex:1;text-align:center;padding:var(--space-2) var(--space-1);">
-              <div style="color:var(--text-secondary);display:flex;justify-content:center;">${icons.coffee}</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:1px;font-weight:600;">UTENSIL</div>
+            <div class="flex-1 text-center" style="padding:var(--space-2) var(--space-1);">
+              <div class="text-secondary flex justify-center">${icons.coffee}</div>
+              <div class="text-xs text-tertiary font-semibold" style="margin-top:1px;">UTENSIL</div>
               <div class="text-tertiary text-xs">also works</div>
             </div>
           </div>
@@ -126,8 +126,8 @@ export async function renderFoodScanner() {
           </div>
         </div>
         ${memoriesError ? renderLoadError('memories', "Couldn't load your saved meals") : savedMemories.length > 0 ? `
-        <div class="section-heading" style="margin-top:var(--space-6);">
-          <h3>Saved Meals</h3>
+        <div class="section-heading mt-6">
+          <h2 class="h3">Saved Meals</h2>
           <span class="badge badge-teal">${savedMemories.length} saved</span>
         </div>
         <div id="meal-memory-list" class="flex-col gap-3">
@@ -135,8 +135,8 @@ export async function renderFoodScanner() {
         </div>
         ` : ''}
 
-        <div class="section-heading" style="margin-top:var(--space-6);">
-          <h3>Recent Meals</h3>
+        <div class="section-heading mt-6">
+          <h2 class="h3">Recent Meals</h2>
           ${mealsError ? '' : `<span class="badge badge-teal">${recentMeals.length} logged</span>`}
         </div>
         <div id="meal-history" class="flex-col gap-3">
@@ -169,11 +169,11 @@ export async function renderFoodScanner() {
           </div>
         </div>
         <div class="card mt-3">
-          <h4 class="mb-2 text-sm">Manual Barcode Entry</h4>
-          <div style="display:flex;gap:var(--space-2);">
+          <h3 class="mb-2 text-sm">Manual Barcode Entry</h3>
+          <div class="flex gap-2">
             <label for="manual-barcode" class="visually-hidden">Barcode number</label>
             <input type="text" id="manual-barcode" inputmode="numeric" placeholder="e.g. 3017620422003"
-              style="flex:1;font-size:var(--text-sm);padding:var(--space-2) var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);">
+              class="flex-1 text-sm bg-surface-2 border rounded-md text-primary" style="padding:var(--space-2) var(--space-3);">
             <button type="button" class="btn btn-primary btn-sm" id="btn-manual-lookup">
               ${icons.scan} Look Up
             </button>
@@ -181,20 +181,20 @@ export async function renderFoodScanner() {
         </div>
         <input type="file" accept="image/*" capture="environment" id="ocr-file-input" aria-label="Photo of a nutrition label" style="display:none;">
         <div id="product-scan-loading" class="hidden" aria-live="polite">
-          <div class="card" style="text-align:center;padding:var(--space-6);">
+          <div class="card text-center p-6">
             <div class="spinner" style="margin:0 auto var(--space-3);"></div>
             <p class="text-secondary text-sm" id="scan-status-text">Looking up product...</p>
           </div>
         </div>
         <div id="product-scan-error" class="hidden" role="alert">
-          <div class="card" style="text-align:center;padding:var(--space-6);border-left:3px solid var(--error);">
-            <div style="margin-bottom:var(--space-2);color:var(--viz-amber);display:flex;justify-content:center;">${icons.alert}</div>
+          <div class="card text-center p-6" style="border-left:3px solid var(--error);">
+            <div class="mb-2 text-amber flex justify-center">${icons.alert}</div>
             <p class="text-secondary text-sm" id="scan-error-text">Something went wrong</p>
             <button type="button" class="btn btn-sm btn-outline mt-3" id="btn-try-again">Try Again</button>
           </div>
         </div>
-        <div class="section-heading" style="margin-top:var(--space-5);">
-          <h3>Recent Scans</h3>
+        <div class="section-heading mt-5">
+          <h2 class="h3">Recent Scans</h2>
           ${scansError ? '' : `<span class="badge badge-teal">${recentScans.length} scanned</span>`}
         </div>
         <div id="product-scan-history" class="flex-col gap-3">
@@ -216,43 +216,43 @@ export async function renderFoodScanner() {
   modal.setAttribute('aria-labelledby', 'scan-guide-title');
   modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:flex-end;justify-content:center;';
   modal.innerHTML = `
-    <div style="background:var(--surface-1);border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:var(--space-6);width:100%;max-width:480px;padding-bottom:40px;">
-      <div style="text-align:center;margin-bottom:var(--space-5);">
-        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;">${icons.camera}</div>
-        <h3 id="scan-guide-title" class="mb-2">Get the most accurate scan</h3>
+    <div class="bg-surface-1 p-6 w-full" style="border-radius:var(--radius-xl) var(--radius-xl) 0 0;max-width:480px;padding-bottom:40px;">
+      <div class="text-center mb-5">
+        <div class="mb-3 text-accent flex justify-center">${icons.camera}</div>
+        <h2 id="scan-guide-title" class="h3 mb-2">Get the most accurate scan</h2>
         <p class="text-secondary text-sm">Follow these tips for calorie estimates close to the real amount</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-5);">
-        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.user}</div>
+      <div class="flex-col gap-3 mb-5">
+        <div class="flex items-center gap-3 p-3 bg-surface-2 rounded-lg">
+          <div class="shrink-0 text-secondary">${icons.user}</div>
           <div>
             <div class="font-semibold text-sm">Include your hand</div>
             <div class="text-secondary text-xs">Your hand gives the AI a size reference — this is the #1 accuracy factor</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.camera}</div>
+        <div class="flex items-center gap-3 p-3 bg-surface-2 rounded-lg">
+          <div class="shrink-0 text-secondary">${icons.camera}</div>
           <div>
             <div class="font-semibold text-sm">Show the full plate</div>
             <div class="text-secondary text-xs">Capture everything from above — don't crop any part of the meal</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.sun}</div>
+        <div class="flex items-center gap-3 p-3 bg-surface-2 rounded-lg">
+          <div class="shrink-0 text-secondary">${icons.sun}</div>
           <div>
             <div class="font-semibold text-sm">Good lighting</div>
             <div class="text-secondary text-xs">Natural light or bright room — avoid shadows across the food</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-lg);">
-          <div style="flex-shrink:0;color:var(--text-secondary);">${icons.coffee}</div>
+        <div class="flex items-center gap-3 p-3 bg-surface-2 rounded-lg">
+          <div class="shrink-0 text-secondary">${icons.coffee}</div>
           <div>
             <div class="font-semibold text-sm">Fork or spoon works too</div>
             <div class="text-secondary text-xs">Any reference object helps — utensils, plates, cups all work</div>
           </div>
         </div>
       </div>
-      <button type="button" class="btn btn-primary btn-block" id="guide-got-it-btn" style="font-size:var(--text-base);">Got it — let me scan</button>
+      <button type="button" class="btn btn-primary btn-block text-base" id="guide-got-it-btn">Got it — let me scan</button>
     </div>`;
   document.body.appendChild(modal);
 
@@ -266,7 +266,7 @@ export async function renderFoodScanner() {
 function renderLoadError(key, title) {
   return `
     <div class="empty-state" role="alert">
-      <h3>${title}</h3>
+      <h2 class="h3">${title}</h2>
       <p>Check your connection and try again. Nothing you've logged has been lost.</p>
       <button type="button" class="btn btn-sm" id="${key}-retry" data-retry-page="1">Try again</button>
     </div>`;

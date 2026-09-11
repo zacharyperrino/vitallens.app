@@ -31,14 +31,14 @@ export function renderMealCard(meal) {
   return `
     <div class="card card-sm">
       <div class="flex-between">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-teal-dim);display:flex;align-items:center;justify-content:center;font-size:18px;">${icons.leaf}</div>
+        <div class="flex items-center gap-3">
+          <div class="rounded-md flex-center" style="width:36px;height:36px;background:var(--accent-teal-dim);font-size:18px;">${icons.leaf}</div>
           <div>
             <div class="font-semibold text-sm">${esc(displayName)}</div>
             <div class="text-tertiary text-xs">${time} • P:${Math.round(meal.protein || 0)}g C:${Math.round(meal.carbs || 0)}g F:${Math.round(meal.fat || 0)}g</div>
           </div>
         </div>
-        <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:var(--accent-teal);">${Math.round(meal.calories || 0)}</div>
+        <div class="font-heading font-bold" style="color:var(--accent-teal);">${Math.round(meal.calories || 0)}</div>
       </div>
     </div>
   `;
@@ -46,9 +46,9 @@ export function renderMealCard(meal) {
 
 export function renderEmptyMeals() {
   return `
-    <div class="card" style="text-align:center;padding:var(--space-8);">
-      <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.leaf}</div>
-      <h4 class="mb-2">No meals logged yet</h4>
+    <div class="card text-center" style="padding:var(--space-8);">
+      <div class="mb-3 text-tertiary flex justify-center">${icons.leaf}</div>
+      <h3 class="h4 mb-2">No meals logged yet</h3>
       <p class="text-sm">Scan your first meal to start tracking nutrition</p>
     </div>
   `;
@@ -66,7 +66,7 @@ export function renderProductScanCard(scan) {
   return `
     <div class="card card-sm">
       <div class="flex-between">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
+        <div class="flex items-center gap-3">
           <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${getScoreDimColor(score)};display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icons.barcode}</div>
           <div>
             <div class="font-semibold text-sm">${esc(scan.name)}</div>
@@ -84,9 +84,9 @@ export function renderProductScanCard(scan) {
 
 export function renderEmptyScans() {
   return `
-    <div class="card" style="text-align:center;padding:var(--space-6);">
-      <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.barcode}</div>
-      <h4 class="mb-1">No products scanned</h4>
+    <div class="card text-center p-6">
+      <div class="mb-2 text-tertiary flex justify-center">${icons.barcode}</div>
+      <h3 class="h4 mb-1">No products scanned</h3>
       <p class="text-secondary text-sm">Scan a barcode or nutrition label to see results</p>
     </div>
   `;

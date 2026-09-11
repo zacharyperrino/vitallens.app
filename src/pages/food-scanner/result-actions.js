@@ -51,8 +51,8 @@ export function setupCorrectionHandlers(result) {
       const btnContainer = correctBtn?.parentElement;
       if (btnContainer) {
         btnContainer.innerHTML = `
-          <span style="font-size:var(--text-sm);color:var(--text-tertiary);text-decoration:line-through;">${esc(item.name)}</span>
-          <span style="font-size:var(--text-sm);color:var(--accent-green);font-weight:var(--weight-semibold);">${esc(correctedLabel)}</span>
+          <span class="text-sm text-tertiary" style="text-decoration:line-through;">${esc(item.name)}</span>
+          <span class="text-sm text-green font-semibold">${esc(correctedLabel)}</span>
         `;
       }
       showToast(`Correction saved — future scans will recognize "${correctedLabel}"`);
@@ -264,7 +264,7 @@ export function setupItemActions(result) {
       const i = btn.dataset.index;
       const actionDiv = btn.closest('.item-actions');
       if (actionDiv) {
-        actionDiv.innerHTML = `<p style="font-size:var(--text-xs);color:var(--viz-green);font-weight:600;">Confirmed</p>`;
+        actionDiv.innerHTML = `<p class="text-xs text-green font-semibold">Confirmed</p>`;
       }
       // Uncheck hidden checkbox so item stays included
       const cb = document.getElementById(`include-item-${i}`);
@@ -320,7 +320,7 @@ export function setupItemActions(result) {
 
           // Update action area
           const actionDiv = btn.closest('.item-actions');
-          if (actionDiv) actionDiv.innerHTML = `<p style="font-size:var(--text-xs);color:var(--viz-green);font-weight:600;">Replaced with ${esc(nutrition.name || query)}</p>`;
+          if (actionDiv) actionDiv.innerHTML = `<p class="text-xs text-green font-semibold">Replaced with ${esc(nutrition.name || query)}</p>`;
 
           // Save correction (best effort — the replacement itself already succeeded)
           const origFood = result.foods?.[parseInt(i)];
@@ -357,7 +357,7 @@ export function setupItemActions(result) {
         portionItem.style.pointerEvents = 'none';
         const actionDiv = btn.closest('.item-actions');
         if (actionDiv) {
-          actionDiv.innerHTML = `<p class="text-tertiary text-xs">Removed from total <button type="button" class="item-action-undo" style="font-size:var(--text-xs);color:var(--accent-teal);background:none;border:none;cursor:pointer;">Undo</button></p>`;
+          actionDiv.innerHTML = `<p class="text-tertiary text-xs">Removed from total <button type="button" class="item-action-undo text-xs cursor-pointer" style="color:var(--accent-teal);background:none;border:none;">Undo</button></p>`;
           actionDiv.querySelector('.item-action-undo')?.addEventListener('click', () => {
             if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
             portionItem.style.opacity = '1';
@@ -407,12 +407,12 @@ async function searchAndAddFood(query, resultsDiv, result) {
     const nutrition = await res.json();
 
     resultsDiv.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
+      <div class="flex-between p-2 bg-surface-2 rounded-md">
         <div>
-          <div style="font-size:var(--text-sm);font-weight:600;">${esc(nutrition.name)}</div>
+          <div class="text-sm font-semibold">${esc(nutrition.name)}</div>
           <div class="text-tertiary text-xs">${Math.round(Number(nutrition.calories) || 0)} kcal · ${Math.round(Number(nutrition.protein) || 0)}g protein · ${Math.round(Number(nutrition.carbs) || 0)}g carbs · ${Math.round(Number(nutrition.fat) || 0)}g fat</div>
         </div>
-        <button type="button" id="add-food-confirm-btn" style="padding:4px 12px;border-radius:var(--radius-md);background:var(--accent-teal);color:var(--text-primary);border:none;cursor:pointer;font-size:var(--text-xs);font-weight:600;" aria-label="Add ${esc(nutrition.name)} to this meal">+ Add</button>
+        <button type="button" id="add-food-confirm-btn" class="rounded-md text-primary cursor-pointer text-xs font-semibold" style="padding:4px 12px;background:var(--accent-teal);border:none;" aria-label="Add ${esc(nutrition.name)} to this meal">+ Add</button>
       </div>`;
 
     document.getElementById('add-food-confirm-btn')?.addEventListener('click', () => {
@@ -433,15 +433,15 @@ async function searchAndAddFood(query, resultsDiv, result) {
         <div class="flex-between mb-2">
           <div>
             <div class="portion-item-name font-semibold text-sm">${esc(nutrition.name)}</div>
-            <div style="font-size:var(--text-xs);color:var(--accent-green);">Added manually</div>
+            <div class="text-xs text-green">Added manually</div>
           </div>
-          <div style="text-align:right;">
-            <span id="grams-display-${newIndex}" style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:var(--weight-bold);color:var(--accent-teal);">${grams}g</span>
+          <div class="text-right">
+            <span id="grams-display-${newIndex}" class="font-heading text-lg font-bold" style="color:var(--accent-teal);">${grams}g</span>
             <div id="kcal-display-${newIndex}" class="text-tertiary text-xs">${Math.round(nutrition.calories)} kcal</div>
           </div>
         </div>
-        <input type="range" id="portion-slider-${newIndex}" min="20" max="600" step="5" value="${Number(grams) || 150}" aria-label="Portion size for ${esc(nutrition.name)}" style="width:100%;accent-color:var(--accent-teal);cursor:pointer;" />
-        <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);">
+        <input type="range" id="portion-slider-${newIndex}" min="20" max="600" step="5" value="${Number(grams) || 150}" aria-label="Portion size for ${esc(nutrition.name)}" class="w-full cursor-pointer" style="accent-color:var(--accent-teal);" />
+        <div class="flex justify-between mt-1">
           <span class="text-tertiary text-xs">20g</span>
           <span class="text-tertiary text-xs">Taste · Small · Medium · Large · XL</span>
           <span class="text-tertiary text-xs">600g</span>
@@ -472,8 +472,8 @@ async function searchAndAddFood(query, resultsDiv, result) {
   } catch (err) {
     console.warn('[AddFood] Search failed:', err.message);
     resultsDiv.innerHTML = `
-      <div class="empty-state" role="alert" style="padding:var(--space-3);">
-        <h3 class="text-sm">Couldn't search for foods</h3>
+      <div class="empty-state p-3" role="alert">
+        <h2 class="text-sm">Couldn't search for foods</h2>
         <p class="text-xs">Check your connection and try again.</p>
         <button type="button" class="btn btn-sm" id="add-food-retry">Try again</button>
       </div>`;

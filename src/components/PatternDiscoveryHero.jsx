@@ -50,29 +50,29 @@ export default function PatternDiscoveryHero({ userId }) {
     const heroStyle = { background: 'linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', border: '1px solid var(--border)', textAlign: 'center' };
 
     if (loading) return (
-        <div role="status" aria-label="Loading patterns" style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-6)' }}>
+        <div role="status" aria-label="Loading patterns" className="flex justify-center p-6">
             <div className="spinner" />
         </div>
     );
 
     if (loadError) return (
         <div className="empty-state" role="alert" style={heroStyle}>
-            <h3 style={{ fontSize: 'var(--text-base)' }}>Couldn't load your patterns</h3>
-            <p style={{ fontSize: 'var(--text-sm)' }}>Check your connection and try again. Nothing you've logged has been lost.</p>
+            <h2 className="text-base">Couldn't load your patterns</h2>
+            <p className="text-sm">Check your connection and try again. Nothing you've logged has been lost.</p>
             <button type="button" className="btn btn-sm" onClick={() => { setLoading(true); fetchPatterns(); }}>Try again</button>
         </div>
     );
 
     const runErrorNote = runError && (
-        <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--error)', marginTop: 'var(--space-2)' }}>{runError}</div>
+        <div role="alert" className="text-xs text-error mt-2">{runError}</div>
     );
 
     if (meaningful.length === 0) return (
         <div style={heroStyle}>
-            <div aria-hidden="true" style={{ marginBottom: 'var(--space-3)', color: 'var(--text-tertiary)' }} dangerouslySetInnerHTML={{ __html: icons.scan }} />
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>No patterns discovered yet</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>Log meals, sleep, and check-ins for a few days, then run a pattern analysis.</div>
-            <button type="button" className="btn btn-primary" style={{ fontSize: 'var(--text-xs)' }} onClick={runFreshAnalysis} disabled={refreshing}>
+            <div aria-hidden="true" className="mb-3 text-tertiary" dangerouslySetInnerHTML={{ __html: icons.scan }} />
+            <div className="text-sm font-semibold mb-2">No patterns discovered yet</div>
+            <div className="text-xs text-secondary mb-4">Log meals, sleep, and check-ins for a few days, then run a pattern analysis.</div>
+            <button type="button" className="btn btn-primary text-xs" onClick={runFreshAnalysis} disabled={refreshing}>
                 {refreshing ? 'Analyzing...' : 'Run Pattern Analysis'}
             </button>
             {runErrorNote}
@@ -88,33 +88,33 @@ export default function PatternDiscoveryHero({ userId }) {
     const strengthLabel = top.confidence >= 0.8 ? 'Consistent pattern' : top.confidence >= 0.5 ? 'Emerging pattern' : 'Early signal';
 
     return (
-        <div style={{ background: 'linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden' }}>
+        <div className="rounded-lg p-5 border relative overflow-hidden" style={{ background: 'linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%)' }}>
             <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '120px', background: directionColor, opacity: 0.05, borderRadius: '50%', transform: 'translate(30px,-30px)' }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+            <div className="flex items-center gap-2 mb-3">
                 <div aria-hidden="true" style={{ width: '8px', height: '8px', borderRadius: '50%', background: directionColor }} />
                 <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: directionColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     {strengthLabel} · {directionWord(top.direction)}
                 </div>
             </div>
 
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 'var(--space-2)', textTransform: 'capitalize' }}>{domainA} {domainB}</div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-primary)', marginBottom: 'var(--space-3)', lineHeight: 1.5 }}>{top.description}</div>
+            <div className="text-xs text-tertiary mb-2" style={{ textTransform: 'capitalize' }}>{domainA} {domainB}</div>
+            <div className="text-sm font-semibold text-primary mb-3" style={{ lineHeight: 1.5 }}>{top.description}</div>
 
             {top.actionable && (
                 <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${directionColor}`, marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: '2px' }}>Something to explore</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{top.actionable}</div>
+                    <div className="text-xs text-tertiary" style={{ marginBottom: '2px' }}>Something to explore</div>
+                    <div className="text-xs text-secondary">{top.actionable}</div>
                 </div>
             )}
 
             {meaningful.length > 1 && (
-                <ul style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-3)', listStyle: 'none', padding: 0, margin: '0 0 var(--space-3)' }}>
+                <ul className="flex gap-2 flex-wrap mb-3 p-0" style={{ listStyle: 'none', margin: '0 0 var(--space-3)' }}>
                     {meaningful.slice(1, 4).map((c, i) => {
                         const parts = c.correlation_type?.split('-') || [];
                         const col = c.direction === 'positive' ? 'var(--viz-green)' : c.direction === 'negative' ? 'var(--error)' : 'var(--viz-amber)';
                         return (
-                            <li key={i} style={{ padding: 'var(--space-1) var(--space-2)', background: 'var(--surface-1)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                            <li key={i} className="bg-surface-1 rounded-sm border text-xs text-tertiary" style={{ padding: 'var(--space-1) var(--space-2)' }}>
                                 <span aria-hidden="true" style={{ color: col }}>●</span>
                                 <span className="visually-hidden">{directionWord(c.direction)}: </span>
                                 {' '}{parts[0]?.replace(/_/g, ' ')} {parts[1]?.replace(/_/g, ' ')}
@@ -124,9 +124,9 @@ export default function PatternDiscoveryHero({ userId }) {
                 </ul>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <p className="disclaimer" style={{ margin: 0, fontSize: 'var(--text-xs)' }}>Pattern observations · not medical advice</p>
-                <button type="button" onClick={runFreshAnalysis} disabled={refreshing} style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <div className="flex justify-between items-center gap-2">
+                <p className="disclaimer m-0 text-xs">Pattern observations · not medical advice</p>
+                <button type="button" onClick={runFreshAnalysis} disabled={refreshing} className="text-xs text-accent cursor-pointer p-0" style={{ background: 'none', border: 'none' }}>
                     {refreshing ? 'Analyzing...' : 'Run fresh analysis'}
                 </button>
             </div>

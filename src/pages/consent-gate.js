@@ -9,24 +9,24 @@ export function renderConsentGate() {
     if (nav) nav.style.display = 'none';
 
     const links = CONSENT_DOCS
-        .map(d => `<a href="${d.href}" target="_blank" rel="noopener" style="color:var(--accent);">${d.label}</a>`)
+        .map(d => `<a href="${d.href}" target="_blank" rel="noopener" class="text-accent">${d.label}</a>`)
         .join(', ');
 
     content.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--space-6);">
-      <div class="card" style="width:100%;max-width:440px;">
+    <div class="flex items-center justify-center p-6" style="min-height:100vh;">
+      <div class="card w-full" style="max-width:440px;">
         <h2 class="mb-3" tabindex="-1" id="consent-heading">Before you continue</h2>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-4);">
+        <p class="text-sm text-secondary mb-4" style="line-height:1.6;">
           VitalLens is a <strong>general-wellness journal</strong> — it is not a medical
           device and does not diagnose or assess any condition. To use it, please review and
           accept our ${links}.
         </p>
-        <label for="consent-agree" style="display:flex;gap:var(--space-2);align-items:flex-start;font-size:var(--text-sm);cursor:pointer;margin-bottom:var(--space-2);">
+        <label for="consent-agree" class="flex gap-2 items-start text-sm cursor-pointer mb-2">
           <input type="checkbox" id="consent-agree" style="margin-top:3px;">
           <span>I have read and agree to the Terms of Service and Privacy Policy, and I consent to the processing of the wellness and health-related data I choose to provide (including any photos I submit) as described.</span>
         </label>
         <div id="consent-error" role="alert" style="display:none;color:var(--error);font-size:var(--text-sm);margin-bottom:var(--space-2);"></div>
-        <button type="button" id="consent-continue" class="btn btn-glass btn-block" style="margin-top:var(--space-3);">Agree &amp; continue</button>
+        <button type="button" id="consent-continue" class="btn btn-glass btn-block mt-3">Agree &amp; continue</button>
       </div>
     </div>`;
 

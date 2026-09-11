@@ -20,7 +20,7 @@ export async function renderDashboard() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="dashboard stagger-children">
-      <div class="card" style="text-align:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
+      <div class="card text-center" style="padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
     </div>`;
 
   try {
@@ -90,21 +90,21 @@ export async function renderDashboard() {
     content.innerHTML = `
       <div class="dashboard stagger-children">
         <!-- Header -->
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
+        <div class="page-header flex justify-between items-start gap-3">
           <div>
-            <p style="font-size:var(--text-sm);color:var(--text-tertiary);margin-bottom:var(--space-1);">${greeting}</p>
-            <h1 style="font-size:var(--text-2xl);">
+            <p class="text-sm mb-1 text-tertiary">${greeting}</p>
+            <h1 class="text-2xl">
               <span class="text-gradient">${esc(name)}</span>
             </h1>
           </div>
-          <button type="button" data-route="/profile" aria-label="Open your profile" style="cursor:pointer;padding:0;width:42px;height:42px;flex-shrink:0;border-radius:var(--radius-full);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border:1px solid var(--border);">
+          <button type="button" data-route="/profile" aria-label="Open your profile" class="cursor-pointer p-0 shrink-0 rounded-full flex-center text-secondary border" style="width:42px;height:42px;background:var(--bg-chip);">
             ${icons.user}
           </button>
         </div>
 
         <!-- Wellness Score Ring — only rendered from logged data -->
         ${health.state === 'ok' ? `
-        <div class="card card-glow" style="text-align:center;padding:var(--space-6);">
+        <div class="card card-glow text-center p-6">
           <div class="health-ring" style="margin:0 auto var(--space-4);" role="img" aria-label="Wellness score ${health.overall} out of 100">
             ${createRingProgress(health.overall, 100, 160, 10)}
             <div class="ring-label">
@@ -112,34 +112,34 @@ export async function renderDashboard() {
               <div class="ring-text">Wellness score</div>
             </div>
           </div>
-          <div style="display:flex;justify-content:center;gap:var(--space-4);flex-wrap:wrap;">
+          <div class="flex justify-center gap-4 flex-wrap">
             ${renderTrendBadge(health.trend, 'this week')}
             <div class="badge badge-purple"><span>Grade: ${health.grade}</span></div>
           </div>
           <p class="disclaimer mt-3">Based on ${health.domainsLogged.length} logged areas. A wellness reflection, not a medical measure.</p>
         </div>` : `
-        <div class="card" style="text-align:center;padding:var(--space-6);">
-          <h3 class="mb-2">Your wellness score appears after a little logging</h3>
+        <div class="card text-center p-6">
+          <h2 class="h3 mb-2">Your wellness score appears after a little logging</h2>
           <p class="disclaimer">Log at least two areas — for example a meal and a night of sleep — and your score will be computed from your own data. Nothing here is estimated or made up.</p>
-          <button type="button" class="btn btn-glass" style="margin-top:var(--space-4);" data-route="/food-scanner">Log your first meal</button>
+          <button type="button" class="btn btn-glass mt-4" data-route="/food-scanner">Log your first meal</button>
         </div>`}
 
         <!-- Quick Stats Row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-6);">
+        <div class="grid gap-3 mb-6" style="grid-template-columns:1fr 1fr;">
           <!-- Daily Steps Card — reads today's logged habits (manual or wearable sync) -->
-          <button type="button" class="card card-sm step-card" data-route="/health-input" style="margin-bottom:0;width:100%;text-align:left;cursor:pointer;">
+          <button type="button" class="card card-sm step-card mb-0 w-full text-left cursor-pointer" data-route="/health-input">
             <!-- No step goal exists in the profile, so no progress ring or percent — just today's count. -->
-            <span class="step-ring-container" style="display:block;" aria-hidden="true">
-              <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);display:flex;">${icons.steps}</span>
+            <span class="step-ring-container block" aria-hidden="true">
+              <span class="text-secondary flex" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">${icons.steps}</span>
             </span>
-            <span class="step-card-info" style="display:block;">
-              <span style="display:block;font-size:var(--text-sm);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Steps</span>
-              <span class="step-card-value" style="display:block;">${stepsToday != null ? stepsToday.toLocaleString() : '<span style="font-size:var(--text-xs);color:var(--text-tertiary);font-weight:400;">Tap to log</span>'}</span>
+            <span class="step-card-info block">
+              <span class="block text-sm text-tertiary" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Steps</span>
+              <span class="step-card-value block">${stepsToday != null ? stepsToday.toLocaleString() : '<span class="text-xs text-tertiary" style="font-weight:400;">Tap to log</span>'}</span>
             </span>
           </button>
 
           <!-- Sleep / wearable card — shows logged sleep quality; wearable sync lives in Profile -->
-          <div class="card card-sm oura-card" style="margin-bottom:0;">
+          <div class="card card-sm oura-card mb-0">
             <div class="oura-hub-header">
               <div class="oura-ring-icon" aria-hidden="true">${icons.moon}</div>
               <div class="oura-sync-status">${isOuraConnected() ? 'Wearable synced' : 'Last night'}</div>
@@ -159,23 +159,23 @@ export async function renderDashboard() {
 
         <!-- Quick Actions Grid -->
         <div class="section-heading">
-          <h3>Quick actions</h3>
+          <h2 class="text-md font-semibold">Quick actions</h2>
         </div>
-        <div class="grid-3" style="margin-bottom:var(--space-6);">
+        <div class="grid-3 mb-6">
           ${quickActions.map((a) => `
-          <button type="button" class="quick-action" data-route="${a.route}" style="width:100%;">
-            <span class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);" aria-hidden="true">${a.icon}</span>
+          <button type="button" class="quick-action w-full" data-route="${a.route}">
+            <span class="action-icon text-secondary" style="background:var(--bg-chip);" aria-hidden="true">${a.icon}</span>
             <span class="action-label">${a.label}</span>
           </button>`).join('')}
         </div>
 
         <!-- Daily Nutrition Summary -->
         <div class="section-heading">
-          <h3>Today's nutrition</h3>
+          <h2 class="text-md font-semibold">Today's nutrition</h2>
           <button type="button" class="see-all" data-route="/food-scanner">View all</button>
         </div>
-        <div class="card" style="margin-bottom:var(--space-6);">
-          <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-4);">
+        <div class="card mb-6">
+          <div class="flex justify-between mb-4">
             ${renderMacro('Calories', nutrition.calories, calorieGoal, 'kcal', 'var(--text-primary)')}
             ${renderMacro('Protein', nutrition.protein, proteinGoal, 'g', 'var(--text-primary)')}
             ${renderMacro('Carbs', nutrition.carbs, carbsGoal, 'g', 'var(--text-primary)')}
@@ -192,45 +192,45 @@ export async function renderDashboard() {
             Couldn't load your targets. <button type="button" class="btn btn-sm" id="dashboard-retry-targets">Try again</button>
           </p>` : `
           <p class="mt-2 text-center text-secondary text-sm">
-            <a href="#/profile" style="color:var(--accent);">Set your targets in Profile</a> to see progress toward them.
+            <a href="#/profile" class="text-accent">Set your targets in Profile</a> to see progress toward them.
           </p>`}
         </div>
 
         <!-- Health Trend -->
         <div class="section-heading">
-          <h3>Weekly trend</h3>
+          <h2 class="text-md font-semibold">Weekly trend</h2>
           <button type="button" class="see-all" data-route="/analytics">Details</button>
         </div>
-        <div class="card" style="margin-bottom:var(--space-6);">
+        <div class="card mb-6">
           <div class="flex-between mb-2">
             <span class="text-secondary text-sm">Wellness score</span>
             ${health.state === 'ok' ? renderTrendBadge(health.trend, 'pts', 'font-size:var(--text-xs);') : ''}
           </div>
           ${weekly.error ? `
-            <div role="alert" style="height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary);text-align:center;">
+            <div role="alert" class="flex-col items-center justify-center gap-2 text-sm text-secondary text-center" style="height:80px;">
               Couldn't load your weekly trend.
               <button type="button" class="btn btn-sm" id="dashboard-retry-trend">Try again</button>
             </div>` : weeklyScores.length >= 2 ? `
             ${createLineChart(weeklyScores, 340, 80)}
-            <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);" aria-hidden="true">
+            <div class="flex justify-between mt-2" aria-hidden="true">
               ${weeklyLabels.map((d) => `<span class="text-tertiary text-xs">${esc(d)}</span>`).join('')}
             </div>` : `
-            <div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);color:var(--text-secondary);">Your trend appears after a few days of logging.</div>`}
+            <div class="flex-center text-sm text-secondary" style="height:80px;">Your trend appears after a few days of logging.</div>`}
         </div>
 
         <!-- Insights -->
         <div class="section-heading">
-          <h3>Observations from your logs</h3>
+          <h2 class="text-md font-semibold">Observations from your logs</h2>
         </div>
-        <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-6);">
+        <div class="flex-col gap-3 mb-6">
           ${insights.slice(0, 3).map((insight) => `
             <div class="card card-sm">
               <div class="insight-card">
-                <div class="insight-icon" style="background:var(--bg-chip);color:var(--text-secondary);" aria-hidden="true">
+                <div class="insight-icon text-secondary" style="background:var(--bg-chip);" aria-hidden="true">
                   <span>${icons.sparkle}</span>
                 </div>
                 <div class="insight-content">
-                  <h4>${esc(insight.title)}</h4>
+                  <h3 class="text-sm font-semibold mb-1">${esc(insight.title)}</h3>
                   <p>${esc(insight.text)}</p>
                 </div>
               </div>
@@ -240,15 +240,15 @@ export async function renderDashboard() {
 
         <!-- Recent Activity -->
         <div class="section-heading">
-          <h3>Recent activity</h3>
+          <h2 class="text-md font-semibold">Recent activity</h2>
         </div>
-        <div class="card" style="margin-bottom:var(--space-6);">
-          ${activityItems.length > 0 ? activityItems.join('<div class="divider" style="margin:0;"></div>') : '<div class="empty-state" style="padding:var(--space-6);"><p>Nothing logged yet. Your meals, workouts, sleep and scans will show up here.</p></div>'}
+        <div class="card mb-6">
+          ${activityItems.length > 0 ? activityItems.join('<div class="divider m-0"></div>') : '<div class="empty-state p-6"><p>Nothing logged yet. Your meals, workouts, sleep and scans will show up here.</p></div>'}
         </div>
 
         <!-- Streaks -->
         <div class="section-heading">
-          <h3>Your streaks</h3>
+          <h2 class="text-md font-semibold">Your streaks</h2>
         </div>
         <div class="grid-3" style="margin-bottom:var(--space-8);">
           ${renderStreak(icons.zap, 'Logging', streaks.logging, 'var(--text-primary)')}
@@ -269,7 +269,7 @@ export async function renderDashboard() {
     content.innerHTML = `
       <div class="dashboard stagger-children">
         <div class="empty-state" role="alert">
-          <h3>Couldn't load your dashboard</h3>
+          <h2 class="h3">Couldn't load your dashboard</h2>
           <p>${plainReason(error)}</p>
           <button type="button" class="btn btn-sm" id="dashboard-retry">Try again</button>
         </div>
@@ -464,7 +464,7 @@ function renderTrendBadge(trend, suffix, style = '') {
 function renderStreak(icon, label, count, color) {
   return `
     <div class="card card-sm text-center">
-      <div style="margin-bottom:var(--space-1);color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icon}</div>
+      <div class="mb-1 text-secondary flex justify-center" aria-hidden="true">${icon}</div>
       <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:${color};">${count}</div>
       <div class="text-tertiary text-xs">${label} day${count === 1 ? '' : 's'}</div>
     </div>`;

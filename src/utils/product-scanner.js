@@ -34,7 +34,7 @@ export async function startBarcodeScanner(videoElement, onDetected) {
                     onDetected(barcodes[0].rawValue);
                     return;
                 }
-            } catch (e) { /* detection error, continue scanning */ }
+            } catch { /* detection error, continue scanning */ }
 
             requestAnimationFrame(scan);
         };

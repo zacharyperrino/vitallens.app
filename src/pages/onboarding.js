@@ -50,9 +50,9 @@ export async function renderOnboarding() {
   function ensureFrame() {
     if (document.getElementById('ob-step')) return;
     content.innerHTML = `
-      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6);">
-        <div style="width:100%;max-width:460px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3);min-height:44px;">
+      <div class="flex-col items-center justify-center p-6" style="min-height:100vh;">
+        <div class="w-full" style="max-width:460px;">
+          <div class="flex items-center justify-between gap-3 mb-3" style="min-height:44px;">
             <button type="button" class="btn btn-sm" id="ob-back" style="display:none;">← Back</button>
             <span id="ob-step-count" class="disclaimer"></span>
           </div>
@@ -84,8 +84,8 @@ export async function renderOnboarding() {
 
   function skippableFooter(saveId, skipStep) {
     return `
-      <div style="display:flex;gap:var(--space-2);margin-top:var(--space-4);">
-        <button type="button" class="btn" id="ob-skip" data-skip="${skipStep}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Skip for now</button>
+      <div class="flex gap-2 mt-4">
+        <button type="button" class="btn flex-1 bg-surface-2 border text-secondary" id="ob-skip" data-skip="${skipStep}">Skip for now</button>
         <button type="button" class="btn btn-glass" id="${saveId}" style="flex:2;">Save &amp; continue</button>
       </div>
       <p class="disclaimer mt-2 text-center">You can add this later on your Profile.</p>`;
@@ -131,9 +131,9 @@ export async function renderOnboarding() {
   function renderWelcome() {
     shell(`
       <div class="card text-center">
-        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.activity}</div>
-        <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-2);">Welcome to VitalLens</h1>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-5);">
+        <div class="mb-3 text-accent flex justify-center" aria-hidden="true">${icons.activity}</div>
+        <h1 class="text-2xl mb-2" style="font-weight:var(--weight-extrabold);">Welcome to VitalLens</h1>
+        <p class="text-sm text-secondary mb-5" style="line-height:1.6;">
           Let's set up your profile so your observations are based on your own details from day one. It takes about a minute — and you can skip anything you'd rather do later.
         </p>
         <button type="button" class="btn btn-glass btn-block" id="ob-start">Get started</button>
@@ -145,8 +145,8 @@ export async function renderOnboarding() {
     const b = state.baseline;
     shell(`
       <div class="card">
-        <div style="text-align:center;margin-bottom:var(--space-5);">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.clipboard}</div>
+        <div class="text-center mb-5">
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.clipboard}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Your baseline</h2>
           <p class="text-secondary text-sm">We use these to estimate your calorie and macro targets.</p>
         </div>
@@ -164,7 +164,7 @@ export async function renderOnboarding() {
           </div>
           <div class="grid-2 gap-3">
             <div class="input-group"><label for="ob-height">Height</label>
-              <div style="display:flex;gap:var(--space-2);">
+              <div class="flex gap-2">
                 <input class="input-field" type="number" min="0" id="ob-height" value="${b.height || ''}" placeholder="Height" inputmode="decimal">
                 <select class="input-field" id="ob-height-unit" style="width:90px;" aria-label="Height unit">
                   <option value="cm" ${b.heightUnit === 'cm' ? 'selected' : ''}>cm</option>
@@ -173,7 +173,7 @@ export async function renderOnboarding() {
               </div>
             </div>
             <div class="input-group"><label for="ob-weight">Weight</label>
-              <div style="display:flex;gap:var(--space-2);">
+              <div class="flex gap-2">
                 <input class="input-field" type="number" min="0" id="ob-weight" value="${b.weight || ''}" placeholder="Weight" inputmode="decimal">
                 <select class="input-field" id="ob-weight-unit" style="width:90px;" aria-label="Weight unit">
                   <option value="kg" ${b.weightUnit === 'kg' ? 'selected' : ''}>kg</option>
@@ -189,7 +189,7 @@ export async function renderOnboarding() {
             </select>
           </div>
           <div id="ob-baseline-error" role="alert" style="display:none;font-size:var(--text-sm);color:var(--error);"></div>
-          <button type="button" class="btn btn-glass btn-block" id="ob-baseline-next" style="margin-top:var(--space-2);">Calculate my targets</button>
+          <button type="button" class="btn btn-glass btn-block mt-2" id="ob-baseline-next">Calculate my targets</button>
         </div>
       </div>`, 20, 0);
     document.getElementById('ob-baseline-next').addEventListener('click', submitBaseline);
@@ -258,21 +258,21 @@ export async function renderOnboarding() {
     const num = (v) => (v == null || v === '') ? '—' : v;
     shell(`
       <div class="card text-center">
-        <div style="margin-bottom:var(--space-2);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.chart}</div>
+        <div class="mb-2 text-accent flex justify-center" aria-hidden="true">${icons.chart}</div>
         <h2 class="mb-1">Your starting targets</h2>
         <p class="mb-4 text-secondary text-sm">Estimated from your baseline using the Mifflin-St Jeor formula.</p>
-        <div style="display:flex;justify-content:center;gap:var(--space-5);margin-bottom:var(--space-4);">
-          <div><div class="text-tertiary text-xs">Estimated BMR</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.bmr)}</div></div>
-          <div><div class="text-tertiary text-xs">Estimated daily burn (TDEE)</div><div style="font-size:var(--text-lg);font-weight:700;">${num(state.tdee)}</div></div>
+        <div class="flex justify-center gap-5 mb-4">
+          <div><div class="text-tertiary text-xs">Estimated BMR</div><div class="text-lg" style="font-weight:700;">${num(state.bmr)}</div></div>
+          <div><div class="text-tertiary text-xs">Estimated daily burn (TDEE)</div><div class="text-lg" style="font-weight:700;">${num(state.tdee)}</div></div>
         </div>
-        <div style="background:var(--surface-2);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-5);">
-          <div style="font-size:var(--text-3xl);font-weight:var(--weight-extrabold);color:var(--text-primary);">${num(t.calories)}</div>
+        <div class="bg-surface-2 rounded-lg p-4 mb-5">
+          <div class="text-3xl text-primary" style="font-weight:var(--weight-extrabold);">${num(t.calories)}</div>
           <div class="mb-3 text-tertiary text-xs">calories / day</div>
-          <div style="display:flex;justify-content:space-between;text-align:center;">
-            <div class="flex-1"><div style="font-weight:700;color:var(--accent);">${num(t.protein_g)}g</div><div class="text-tertiary text-xs">protein</div></div>
-            <div class="flex-1"><div style="font-weight:700;color:var(--viz-amber);">${num(t.carbs_g)}g</div><div class="text-tertiary text-xs">carbs</div></div>
-            <div class="flex-1"><div style="font-weight:700;color:var(--viz-neutral);">${num(t.fat_g)}g</div><div class="text-tertiary text-xs">fat</div></div>
-            <div class="flex-1"><div style="font-weight:700;color:var(--viz-green);">${num(t.fiber_g)}g</div><div class="text-tertiary text-xs">fiber</div></div>
+          <div class="flex justify-between text-center">
+            <div class="flex-1"><div class="text-accent" style="font-weight:700;">${num(t.protein_g)}g</div><div class="text-tertiary text-xs">protein</div></div>
+            <div class="flex-1"><div class="text-amber" style="font-weight:700;">${num(t.carbs_g)}g</div><div class="text-tertiary text-xs">carbs</div></div>
+            <div class="flex-1"><div class="text-neutral" style="font-weight:700;">${num(t.fat_g)}g</div><div class="text-tertiary text-xs">fat</div></div>
+            <div class="flex-1"><div class="text-green" style="font-weight:700;">${num(t.fiber_g)}g</div><div class="text-tertiary text-xs">fiber</div></div>
           </div>
         </div>
         <button type="button" class="btn btn-glass btn-block" id="ob-payoff-next">Continue</button>
@@ -285,7 +285,7 @@ export async function renderOnboarding() {
     shell(`
       <div class="card">
         <div class="mb-4 text-center">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.alert}</div>
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.alert}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Any allergies?</h2>
           <p class="text-secondary text-sm">Optional — helps us avoid suggesting foods that don't work for you.</p>
         </div>
@@ -304,15 +304,15 @@ export async function renderOnboarding() {
     shell(`
       <div class="card">
         <div class="mb-4 text-center">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.heart}</div>
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.heart}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Any conditions to note?</h2>
           <p class="text-secondary text-sm">Optional — tap any that apply. This adds context to your wellness observations.</p>
         </div>
-        <fieldset style="border:0;padding:0;margin:0;min-width:0;">
+        <fieldset class="p-0 m-0" style="border:0;min-width:0;">
           <legend class="visually-hidden">Conditions</legend>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);max-height:280px;overflow-y:auto;">
+          <div class="grid-2 gap-2" style="max-height:280px;overflow-y:auto;">
             ${CONDITIONS.map((c, i) => `
-              <label for="ob-cond-${i}" class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
+              <label for="ob-cond-${i}" class="condition-toggle flex items-center gap-2 p-2 border rounded-md cursor-pointer">
                 <input class="input-checkbox ob-condition" id="ob-cond-${i}" type="checkbox" value="${c}" ${selected.includes(c) ? 'checked' : ''}>
                 <span class="text-sm">${c}</span>
               </label>`).join('')}
@@ -332,7 +332,7 @@ export async function renderOnboarding() {
     shell(`
       <div class="card">
         <div class="mb-4 text-center">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.leaf}</div>
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.leaf}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Dietary restrictions?</h2>
           <p class="text-secondary text-sm">Optional — e.g. vegetarian, halal, gluten-free, low-FODMAP.</p>
         </div>
@@ -350,7 +350,7 @@ export async function renderOnboarding() {
     shell(`
       <div class="card">
         <div class="mb-4 text-center">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.star}</div>
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.star}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">What are you working toward?</h2>
           <p class="text-secondary text-sm">Optional — pick a focus and add any detail.</p>
         </div>
@@ -378,7 +378,7 @@ export async function renderOnboarding() {
     shell(`
       <div class="card">
         <div class="mb-4 text-center">
-          <div style="color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icons.plus}</div>
+          <div class="text-secondary flex justify-center" aria-hidden="true">${icons.plus}</div>
           <h2 style="margin:var(--space-2) 0 var(--space-1);">Medications (optional)</h2>
           <p class="text-secondary text-sm">A free-text note only, for your own reference. VitalLens never interprets medications or checks interactions.</p>
         </div>
@@ -395,15 +395,15 @@ export async function renderOnboarding() {
   function renderFinish() {
     shell(`
       <div class="card text-center">
-        <div style="margin-bottom:var(--space-2);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.check}</div>
+        <div class="mb-2 text-accent flex justify-center" aria-hidden="true">${icons.check}</div>
         <h2 class="mb-2">You're all set!</h2>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-4);">
+        <p class="text-sm text-secondary mb-4" style="line-height:1.6;">
           Your baseline and starting targets are saved. Log your first meal to start building your history — your first pattern observation appears after about <strong>3 days</strong> of logging.
         </p>
         <div id="ob-finish-error" role="alert" style="display:none;font-size:var(--text-sm);color:var(--error);margin-bottom:var(--space-3);"></div>
         <div class="flex-col gap-2">
           <button type="button" class="btn btn-glass btn-block" id="ob-finish-meal">Log my first meal</button>
-          <button type="button" class="btn" id="ob-finish-dash" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Go to dashboard</button>
+          <button type="button" class="btn bg-surface-2 border text-secondary" id="ob-finish-dash">Go to dashboard</button>
         </div>
       </div>`, 100, 7);
     document.getElementById('ob-finish-meal').addEventListener('click', () => finish('#/food-scanner'));

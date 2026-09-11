@@ -24,7 +24,7 @@ export function setupMemoryHandlers() {
         btn.textContent = 'Logged';
         btn.style.background = 'var(--accent-green)';
         showToast(`${name} logged — ${Math.round(calories)} cal`);
-      } catch (e) {
+      } catch {
         btn.disabled = false;
         btn.textContent = 'Quick Log';
         showToast("Couldn't log this meal. Please try again.");
@@ -65,22 +65,22 @@ export function renderMemoryCard(memory) {
 
   return `
     <div class="card card-sm" id="memory-card-${esc(memory.id)}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0;">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent-blue-dim);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${icons.sparkle}</div>
+      <div class="flex justify-between items-start">
+        <div class="flex items-center gap-3 flex-1" style="min-width:0;">
+          <div class="rounded-md flex-center shrink-0" style="width:36px;height:36px;background:var(--accent-blue-dim);font-size:16px;">${icons.sparkle}</div>
           <div style="min-width:0;">
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(memory.meal_name)}</div>
+            <div class="text-sm font-semibold overflow-hidden" style="white-space:nowrap;text-overflow:ellipsis;">${esc(memory.meal_name)}</div>
             <div class="text-tertiary text-xs">${Math.round(Number(memory.avg_calories) || 0)} cal avg · ${Number(memory.scan_count) || 0}x scanned · ${scannedAgo}</div>
-            ${foods ? `<div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(foods)}</div>` : ''}
+            ${foods ? `<div class="text-xs text-tertiary overflow-hidden" style="margin-top:2px;white-space:nowrap;text-overflow:ellipsis;">${esc(foods)}</div>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:var(--space-2);flex-shrink:0;margin-left:var(--space-2);">
-          <button type="button" class="memory-quick-log" data-id="${esc(memory.id)}" data-name="${esc(memory.meal_name)}" data-calories="${Number(memory.avg_calories) || 0}"
-            style="font-size:var(--text-xs);padding:3px 8px;border-radius:var(--radius-md);background:var(--accent-teal);color:var(--text-primary);border:none;cursor:pointer;font-weight:600;white-space:nowrap;" aria-label="Quick log ${esc(memory.meal_name)}">
+        <div class="flex gap-2 shrink-0" style="margin-left:var(--space-2);">
+          <button type="button" class="memory-quick-log text-xs rounded-md text-primary cursor-pointer font-semibold" data-id="${esc(memory.id)}" data-name="${esc(memory.meal_name)}" data-calories="${Number(memory.avg_calories) || 0}"
+            style="padding:3px 8px;background:var(--accent-teal);border:none;white-space:nowrap;" aria-label="Quick log ${esc(memory.meal_name)}">
             Quick Log
           </button>
-          <button type="button" class="memory-delete" data-id="${esc(memory.id)}" aria-label="Remove saved meal ${esc(memory.meal_name)}"
-            style="font-size:var(--text-xs);padding:3px 8px;border-radius:var(--radius-md);background:transparent;color:var(--text-tertiary);border:1px solid var(--border);cursor:pointer;">
+          <button type="button" class="memory-delete text-xs rounded-md text-tertiary border cursor-pointer" data-id="${esc(memory.id)}" aria-label="Remove saved meal ${esc(memory.meal_name)}"
+            style="padding:3px 8px;background:transparent;">
             ✕
           </button>
         </div>

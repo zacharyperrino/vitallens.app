@@ -31,9 +31,9 @@ export async function renderSubstances() {
       ? supplements.map(s => {
         const cat = SUBSTANCE_CATEGORIES[s.category] || SUBSTANCE_CATEGORIES.supplement;
         return `<div class="card card-sm">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
+        <div class="flex justify-between items-start gap-3">
           <div class="flex-1">
-            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);flex-wrap:wrap;">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
               <div class="font-semibold text-sm">${esc(s.name)}</div>
               <span class="badge" style="background:${cat.bg};color:${cat.text};font-size:var(--text-xs);">${cat.label}</span>
             </div>
@@ -42,7 +42,7 @@ export async function renderSubstances() {
               ${s.notes ? '<br>' + esc(s.notes) : ''}
             </div>
           </div>
-          <button type="button" class="btn btn-sm btn-ghost substance-delete" data-id="${esc(s.id)}" aria-label="Remove ${esc(s.name)}" style="color:var(--text-tertiary);font-size:var(--text-xs);">✕</button>
+          <button type="button" class="btn btn-sm btn-ghost substance-delete text-tertiary text-xs" data-id="${esc(s.id)}" aria-label="Remove ${esc(s.name)}">✕</button>
         </div>
       </div>`;
       }).join('')
@@ -50,7 +50,7 @@ export async function renderSubstances() {
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
-      <h4 class="mb-4">Log a substance</h4>
+      <h2 class="h4 mb-4">Log a substance</h2>
       <form id="substance-form" class="flex-col gap-3">
         <div class="input-group"><label for="substance-name">Name</label>
           <input class="input-field" type="text" id="substance-name" placeholder="e.g. Magnesium, Metformin">
@@ -84,7 +84,7 @@ export async function renderSubstances() {
       </form>
     </div>
 
-    <div class="section-heading"><h3>Active substances</h3>${loadError ? '' : `<span class="badge badge-teal">${supplements.length}</span>`}</div>
+    <div class="section-heading"><h2 class="text-md font-semibold">Active substances</h2>${loadError ? '' : `<span class="badge badge-teal">${supplements.length}</span>`}</div>
     ${list}
   </div>`;
 }

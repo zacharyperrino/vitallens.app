@@ -78,8 +78,9 @@ spend cap honoured; no health text in logs; PostHog bundled (CSP unchanged).
 
 ## Part C — Nice-to-have polish
 
-- Migrate the remaining inline `style=` attributes (795 at last count, down
-  from ~1,500) to utility classes.
-- Screenshots or a short demo clip in `README.md`.
+- Inline `style=` attributes: 1,494 → 455. Every declaration with a design
+  token now uses a utility class (`src/styles/utilities.css`); what remains is
+  dynamic (`${…}`), JS-toggled (`display:none`) or a one-off value with no token.
+- Screenshots are in `README.md` (`docs/screenshots/`, captured from the running app); a short demo clip is still open.
 - Populate `server/evals/meals/` with weighed-meal photos and run
   `npm run eval:food` to publish a measured scan-accuracy number.

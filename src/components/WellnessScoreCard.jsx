@@ -27,16 +27,16 @@ export default function WellnessScoreCard({ userId }) {
     useEffect(() => { fetchReport(); }, [fetchReport]);
 
     if (loading) return (
-        <div role="status" aria-label="Loading weekly score" style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-4)' }}>
+        <div role="status" aria-label="Loading weekly score" className="flex justify-center p-4">
             <div className="spinner" />
         </div>
     );
 
     if (error) return (
-        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-            <div className="empty-state" role="alert" style={{ padding: 'var(--space-4)' }}>
-                <h3 style={{ fontSize: 'var(--text-base)' }}>Couldn't load your weekly score</h3>
-                <p style={{ fontSize: 'var(--text-sm)' }}>Check your connection and try again.</p>
+        <div className="card mb-4">
+            <div className="empty-state p-4" role="alert">
+                <h3 className="text-base">Couldn't load your weekly score</h3>
+                <p className="text-sm">Check your connection and try again.</p>
                 <button type="button" className="btn btn-sm" onClick={fetchReport}>Try again</button>
             </div>
         </div>
@@ -58,18 +58,18 @@ export default function WellnessScoreCard({ userId }) {
     const connection = scores.top_correlation || scores.report_data?.top_connection;
 
     return (
-        <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: '2px' }}>
+        <div className="card mb-4">
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                    <div className="text-xs text-tertiary" style={{ marginBottom: '2px' }}>
                         Week of {scores.week_of}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-semibold)' }}>
+                    <div className="text-sm font-semibold">
                         {scores.headline}
                     </div>
                 </div>
                 {hasScore && (
-                    <div style={{ textAlign: 'center', marginLeft: 'var(--space-3)' }} role="img" aria-label={`Week score ${weekScore} out of 100, ${scoreWord}`}>
+                    <div className="text-center" style={{ marginLeft: 'var(--space-3)' }} role="img" aria-label={`Week score ${weekScore} out of 100, ${scoreWord}`}>
                         <div style={{
                             fontFamily: 'var(--font-heading)',
                             fontSize: 'var(--text-3xl)',
@@ -79,39 +79,39 @@ export default function WellnessScoreCard({ userId }) {
                         }}>
                             {weekScore}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>week score · {scoreWord}</div>
+                        <div className="text-xs text-tertiary">week score · {scoreWord}</div>
                     </div>
                 )}
             </div>
 
             {wins.length > 0 && (
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--viz-green)', marginBottom: 'var(--space-1)' }}>WINS</div>
+                <div className="mb-3">
+                    <div className="text-xs font-semibold text-green mb-1">WINS</div>
                     {wins.map((w, i) => (
-                        <div key={i} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '2px 0' }}>+ {w}</div>
+                        <div key={i} className="text-xs text-secondary" style={{ padding: '2px 0' }}>+ {w}</div>
                     ))}
                 </div>
             )}
 
             {gaps.length > 0 && (
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--viz-amber)', marginBottom: 'var(--space-1)' }}>PATTERNS TO EXPLORE</div>
+                <div className="mb-3">
+                    <div className="text-xs font-semibold text-amber mb-1">PATTERNS TO EXPLORE</div>
                     {gaps.map((g, i) => (
-                        <div key={i} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '2px 0' }}>{g}</div>
+                        <div key={i} className="text-xs text-secondary" style={{ padding: '2px 0' }}>{g}</div>
                     ))}
                 </div>
             )}
 
             {connection && (
-                <div style={{ padding: 'var(--space-2)', background: 'var(--accent-teal-dim)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--accent-teal)', marginBottom: '2px' }}>CONNECTION NOTICED</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                <div className="p-2 rounded-md mb-3" style={{ background: 'var(--accent-teal-dim)' }}>
+                    <div className="text-xs font-semibold" style={{ color: 'var(--accent-teal)', marginBottom: '2px' }}>CONNECTION NOTICED</div>
+                    <div className="text-xs text-secondary">
                         {connection}
                     </div>
                 </div>
             )}
 
-            <p className="disclaimer" style={{ margin: 0 }}>
+            <p className="disclaimer m-0">
                 Pattern observations only — not medical advice.
             </p>
         </div>
