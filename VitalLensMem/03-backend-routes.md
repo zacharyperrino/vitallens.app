@@ -9,7 +9,7 @@ pass `checkAndIncrementUsage` (usage gate + spend guard) and log to
 
 | Route file | Endpoints / behavior |
 |---|---|
-| `vision.js` | Meal photo analysis. **Barcode-first gate**: if a barcode is detected in the image, resolve via product DBs and skip the model call. Otherwise GPT-4o vision with a strict `MEAL_SCAN_SCHEMA` (json_schema response format), `temperature: 0`, `max_tokens: 2000`. Model outputs food labels + gram estimates only; calories are computed by lookup (see 05-algorithms). |
+| `vision.js` | Meal photo analysis (multipart; user from the JWT, usage-gated). **Barcode-first gate**: if a barcode is detected in the image, resolve via product DBs and skip the model call. Otherwise GPT-4o vision with a strict `MEAL_SCAN_SCHEMA` (json_schema response format), `temperature: 0`, `max_tokens: 2000`. Model outputs food labels + gram estimates only; calories are computed by lookup (see 05-algorithms). |
 | `barcode.js` | Barcode → product resolution (Open Food Facts + `products` cache table + `scan_history`). |
 | `nutrition.js` | 3-tier nutrition lookup: HARDCODED table → USDA FoodData Central (`USDA_API_KEY`, falls back to `DEMO_KEY`) → Open Food Facts. |
 | `restaurant.js` | Restaurant-dish nutrition matching. |
@@ -18,7 +18,7 @@ pass `checkAndIncrementUsage` (usage gate + spend guard) and log to
 | `ocr.js` | Google Cloud Vision OCR (nutrition labels). |
 | `parse-labs.js` | Lab-report PDF/photo parsing → `lab_results` (usage-gated). |
 | `hygiene.js` | Personal-care product scans → ingredient concern analysis (`hygiene_scans`). |
-| `biomarker.js`, `biomarker-history.js` | Wellness photo check-in analysis (Claude; wellness framing) + history. |
+| `biomarker.js`, `biomarker-history.js` | Wellness photo check-in analysis (Claude; face/body/tongue only; usage-gated; user from the JWT) + history. |
 
 ## Profile, targets, logging
 
@@ -38,17 +38,16 @@ pass `checkAndIncrementUsage` (usage gate + spend guard) and log to
 | `correlation-engine.js` | 30-day cross-domain pattern analysis (Sonnet, `CorrelationSchema`-validated) + **Haiku secondary language-safety check** that flags clinical language. Persists to `health_correlations`. |
 | `prediction-engine.js` | Trend extrapolation + intervention ranking (Sonnet, `PredictionSchema`-validated) → `health_predictions`, worth-watching items → `health_insights`. |
 | `weekly-report.js` | Weekly patterns summary → `weekly_reports`. |
-| `early-patterns.js` | Early-signal detection over recent logs. |
-| `custom-correlation.js` | User-picked variable-pair correlation (e.g. sleep × calories) computed from logged data. |
-| `correlate.js` | Legacy/simple correlation endpoint. |
-| `ingest.js` | Event ingestion → `health_events` (+ embedding via `eventIngestion.js`). |
+| `early-patterns.js` | Early-signal detection over recent logs (usage-gated). |
+| `custom-correlation.js` | User-picked variable-pair correlation from logged data (usage-gated; `days` bounded 7–180). |
+| `ingest.js` | Event ingestion → `health_events` + async embedding + context-cache invalidation. User from the JWT. |
 
 ## Frozen / consent-heavy features
 
 | Route file | Status |
 |---|---|
-| `genomics.js` | Phase 1, wellness-framed, local file parse only, **frozen** behind hardening flags. |
-| `practitioner.js` | Read-only consented practitioner access via `practitioner_links` (invite by email through service-role-only RPC `get_user_id_by_email`; consent link must be `status='active'`; 403 otherwise — covered by integration tests). **Frozen.** |
+| `genomics.js` | Wellness-framed local DNA-file parse; mounted only when `ENABLE_EXPERIMENTAL_ROUTES=true`. |
+| `practitioner.js` | Read-only consented practitioner access via `practitioner_links` (invite by email through service-role-only RPC `get_user_id_by_email`; consent link must be `status='active'`; 403 otherwise — covered by integration tests). Mounted only when `ENABLE_EXPERIMENTAL_ROUTES=true`. |
 
 ## Platform
 
@@ -57,6 +56,6 @@ pass `checkAndIncrementUsage` (usage gate + spend guard) and log to
 | `consents.js` | Consent status + acceptance recording (`user_consents`, versioned, append-only). |
 | `user-data.js` | Full data export (all user tables) + deletion. |
 | `usage.js` | Free-tier usage summary + month-to-date spend (`getUserSpend`). |
-| `billing.js` | Stripe checkout/portal/webhook (webhook uses raw body, mounted pre-auth). |
+| `billing.js` | Stripe checkout + status (both `requireAuth` inline, user from the JWT — the old unauthenticated `?userId=` IDOR is closed) and the signed webhook (raw body, public). |
 | `push.js` | Web-push (VAPID) subscription + notifications. |
-| `oura.js` | Oura OAuth scaffold (needs real client id/secret). |
+| `oura.js` + `oura-public.js` | Oura OAuth: `/oura/connect` returns a URL with HMAC-signed state; the public `/oura/callback` verifies the state and stores tokens; status/sync use the JWT user. Needs developer credentials to activate. |

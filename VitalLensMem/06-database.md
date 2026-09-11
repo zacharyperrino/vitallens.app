@@ -1,71 +1,70 @@
 # Database (Supabase project `vitallens`, id `nlxptctihrotizvaywdo`)
 
+**Reproducible from the repo:** `server/supabase/schema-baseline.sql` is the full
+schema (extensions, 40 tables, constraints, indexes, RLS, policies, functions)
+introspected from the live project on 2026-09-10. `server/supabase/migrations/`
+is the incremental history.
+
 ## Access model
 
 - **Frontend** uses the anon key → every query passes RLS owner policies.
-- **API** uses the service-role key → bypasses RLS; safety comes from
-  `requireAuth` + the global ownership guard in Express.
-- RLS is enabled on every user table; policies use the initplan-optimized
-  form `(select auth.uid()) = user_id` (evaluated once per query, not per row).
+- **API** uses the service-role key → bypasses RLS; safety comes from local JWT
+  verification + the global ownership guard in Express.
+- RLS is enabled on every table; policies use the initplan-optimized form
+  `(select auth.uid()) = user_id`.
+- **`user_id` is `uuid` everywhere** (2026-09-10 migration converted the nine
+  legacy `text` columns and `scan_history`'s `varchar`) with a foreign key to
+  `auth.users(id) ON DELETE CASCADE` (or to `profiles(id)`, which itself
+  cascades from `auth.users`). Deleting the auth user erases every row the
+  account ever wrote — account deletion is complete.
 
 ## Tables by domain
 
-**Identity / platform**
-- `profiles` — keyed on auth `id`; `subscription_status`, `trial_end`,
-  `onboarding_completed`.
-- `user_consents` — append-only versioned consent records
-  (`document ∈ {terms_of_service, privacy_policy, health_data_processing,
-  ai_processing}`, unique on `user_id, document, version`; select+insert only).
-- `usage_tracking` — free-tier feature counters per window.
-- `api_cost_log` — per-AI-call cost rows (feeds the spend guard).
+**Identity / platform** — `profiles` (keyed on auth `id`; subscription fields,
+`onboarding_completed`, `timezone`), `user_consents` (append-only, versioned,
+unique per user/document/version), `usage_tracking` (unique per
+user/feature/window), `api_cost_log`.
 
-**Logging**
-- `meals`, `daily_nutrition` (upserted via uuid SECURITY INVOKER
-  `increment_daily_nutrition`), `water_log`, `habits` (unique `user_id,date`;
-  includes `steps`, `mood`, `stress_level`, `water_glasses`), `sleep_log`,
-  `exercise_log`, `supplement_logs`, `lab_results`, `medication_log`,
-  `cycle_log`, `environment_logs` (canonical; empty twin `environmental_log`
-  was dropped), `hr_readings`, `hygiene_scans`, `product_scans`, `scan_history`,
-  `stool_scans`, `body_scans`, `biomarker_scans`.
+**Logging** — `meals`, `daily_nutrition` (rollup via `increment_daily_nutrition`),
+`water_log`, `habits` (unique per user/date; `steps`, `mood`, `stress_level`,
+`water_glasses`), `sleep_log`, `exercise_log`, `supplement_logs`, `lab_results`,
+`medication_log`, `cycle_log`, `environment_logs`, `hr_readings`,
+`hygiene_scans`, `product_scans`, `scan_history`, `body_scans`,
+`biomarker_scans`. (`stool_scans` remains in the schema but the feature was
+removed — it generated fabricated results.)
 
-**Derived / AI**
-- `health_events` — the RAG store: every log becomes an event row with a
-  1536-dim pgvector `embedding`.
-- `health_correlations`, `health_predictions`, `health_insights`,
-  `weekly_reports` (AI weekly summaries), `weekly_scores` (numeric score
-  history — different feature, both live), `chat_history`.
-- `meal_memory`, `food_corrections`, `portion_corrections` — scan-accuracy loop.
-- `health_profile` — baseline stats + computed targets (snake_case columns:
-  `bmr`, `tdee`, `target_calories`, `target_protein`, …, `goal_weight_kg`).
-- `tcm_profile`, `user_goals`, `genomics_traits` (frozen feature).
+**Derived / AI** — `health_events` (RAG store, 1536-dim pgvector `embedding`,
+ivfflat index), `health_correlations`, `health_predictions`, `health_insights`,
+`weekly_reports`, `weekly_scores`, `chat_history`, `meal_memory`,
+`food_corrections`, `portion_corrections`, `health_profile` (targets),
+`tcm_profile`, `user_goals`, `genomics_traits` (experimental).
 
-**Sharing**
-- `practitioner_links` — `practitioner_id`/`client_id`/`status`; consent gate
-  for the read-only practitioner view; client-only insert, either-party
-  update/select policies; indexed on `client_id`.
-
-**Products**
-- `products` — shared barcode cache; authenticated-insert policy.
+**Sharing / products** — `practitioner_links` (experimental), `products`
+(shared barcode cache), `wearable_connections`.
 
 ## Functions (RPC)
 
 | Function | Notes |
 |---|---|
-| `match_health_events(query_embedding, match_user_id, match_count=10, match_threshold=0.3, days_back=90)` | Canonical 5-arg pgvector similarity search; pinned `search_path`; the accidental 3-arg overload was dropped (it caused silent PostgREST ambiguity). |
-| `get_user_id_by_email(p_email)` | SECURITY DEFINER, **service_role-execute only** (revoked from anon/authenticated to block email enumeration); used by practitioner invites. |
-| `increment_daily_nutrition(uuid, date, …)` | SECURITY INVOKER (RLS enforces ownership); the SECURITY DEFINER text-arg overload was dropped (IDOR). |
+| `match_health_events(embedding, user, count=10, threshold=0.3, days_back=90)` | pgvector cosine search, user-scoped, pinned `search_path`. |
+| `sum_ai_spend(since, user?)` | Aggregates `api_cost_log` in Postgres for the spend guard. service_role only. |
+| `increment_usage(user, feature, window_start, window_type, limit)` | Atomic increment-if-under-limit; returns `(allowed, current_count)`. service_role only. |
+| `get_user_id_by_email(email)` | SECURITY DEFINER, service_role only (email-enumeration guard). |
+| `increment_daily_nutrition(uuid, date, …)` | SECURITY INVOKER; RLS enforces ownership. |
 
-## Migrations
+## Hot-path indexes (all present)
 
-All applied migrations are exported to `server/supabase/migrations/`
-(11 files, 2026-07-04 → 2026-07-08): steps column, onboarding flag,
-goal weight, function hardening, RLS owner policies + initplan optimization
-passes, consent table, dead-table drop. The **base schema** predates these —
-run `supabase db pull` once for a full baseline.
+`daily_nutrition(user_id,date)`, `meals(user_id,logged_at desc)`,
+`exercise_log(user_id,logged_at desc)`, `habits(user_id,date desc)`,
+`biomarker_scans/environment_logs/hygiene_scans(user_id, *_at desc)`,
+`supplement_logs(user_id,active)`, `lab_results(user_id,collected_at desc)`,
+`health_correlations/health_predictions(user_id,generated_at desc)`,
+`weekly_reports(user_id,week_of desc)`, `api_cost_log(user_id,logged_at)`,
+unique `usage_tracking(user_id,feature,window_start)`.
 
-## Known DB ops facts
+## Ops facts
 
-- ivfflat index building needs `SET LOCAL maintenance_work_mem='128MB'`.
-- Security advisor: clean except the leaked-password-protection dashboard
-  toggle (user step). Performance advisor: only unused-index noise.
-- Test users A/B exist for integration tests (`server/.env.test`).
+- ivfflat index builds need `SET LOCAL maintenance_work_mem='128MB'`.
+- Free-tier project auto-pauses after ~1 week idle (DNS disappears); restore
+  via dashboard/MCP takes 2–5 minutes. Pro removes this.
+- Test users A/B exist for the integration suite (`server/.env.test`).

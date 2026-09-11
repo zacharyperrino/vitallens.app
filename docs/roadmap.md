@@ -5,56 +5,40 @@ status: living
 
 # Roadmap
 
-The operational launch checklist lives in the repo root `ROADMAP.md`
-(Parts A / A.2 = executed with evidence; Part B = owner steps). This note is
-the Obsidian-side summary.
+**Framing (2026-09-10):** VitalLens is a portfolio project. The goal is a
+complete, honest, secure, accessible app — not user growth. The operational
+checklist lives in the repo root `ROADMAP.md`; the audit and its remediation
+in `AUDIT-2026-09.md`.
 
-## Now (blocking launch, in order)
+## Owner steps (cannot be done from the codebase)
 
-1. **Fix the "Confirm signup" email template** — currently empty; users cannot
-   confirm accounts. 2-min Supabase dashboard edit; exact HTML in `ROADMAP.md`
-   §8b. Then one real signup test. (See [[gotchas]].)
-2. **Attorney review** of ToS + Privacy drafts (`legal/*.md`); fill
-   jurisdiction/arbitration brackets.
-3. **Supabase dashboard**: leaked-password protection toggle; confirm
-   backup/PITR plan.
-4. **Frontend git remote** (`vitallens-app`, private) + push.
-5. **Deploy**: choose hosting; set `NODE_ENV=production`, `VITE_API_BASE`,
-   `FRONTEND_URL`, spend caps; provider-side billing limits on
-   OpenAI/Anthropic.
+1. **Supabase dashboard**: restore the "Confirm signup" email template (2 min);
+   enable leaked-password protection.
+2. **Rotate** the API keys that lived in `server/.env.test` (never committed).
+3. **GitHub**: create the private `vitallens-app` repo and push the frontend;
+   add the CI secrets to the server repo so the integration suite runs.
+4. Optional: Oura developer credentials, PostHog key, Stripe live keys.
 
-## Next
+## Done (2026-09-10 hardening)
 
-- Weighed-meal eval photos → `npm run eval:food` → tune the scan pipeline
-  (highest-leverage accuracy work).
-- PostHog key → activation/retention funnels ([[user-research]]).
-- Oura OAuth creds → real steps/sleep sync.
-- Support/privacy email addresses; email-confirmation flow re-test.
+- All fabricated data removed; wellness score honest; targets real.
+- Security: local JWT verification, multipart guard bypass closed, billing
+  IDORs closed, signed OAuth state, CSP/HSTS, bundled auth library, esc() at
+  every sink, Sentry actually capturing.
+- Cost control: Postgres-aggregated spend guard (fails closed), atomic usage
+  counters, embeddings priced.
+- Data: `user_id` unified to uuid, cascade FKs everywhere, hot-path indexes,
+  full schema baseline in the repo.
+- Product: Medications + Cycle UI, Steps page from real data, Profile account
+  controls (billing, wearables, notifications, MFA, export, delete),
+  analytics components mounted, honest offline writes, 404/error/offline
+  states, accessibility foundations (buttons, labels, focus, contrast, 44px).
+- Quality: unit + integration tests, ESLint/Prettier, CI in both repos.
 
-## Later / explicitly deferred
+## Later (nice-to-have for the portfolio)
 
-- 🧊 Unfreeze genomics + practitioner (after counsel).
-- React Native / native wrap (trigger-gated; HealthKit steps needs native).
-- Inline-styles → tokenized components migration (~1.5k call sites, not urgent).
-- Aggregate population insights; developer API (trigger-gated).
-
-## Changelog (shipped)
-
-- **2026-07-15** — VitalLensMem knowledge base; Obsidian vault (`docs/`).
-- **2026-07-09** — Email-confirmation leg tested end-to-end (found the
-  template blocker); queue stack deleted; migrations exported; `.env.example`
-  secret scrubbed; dead `environmental_log` dropped; steps card reads real
-  habit data + steps input added; Oura button light-theme fix; PostHog
-  env-gated.
-- **2026-07-08** — Pre-pilot hardening: security seal (XSS esc, CORS
-  allow-list, 19 auth tests), regulatory language purge + lint, consent
-  system + legal drafts + in-app pages, spend guard + model downgrades,
-  prod error sanitizer, CI, deploy configs. Fresh-user E2E (consent →
-  onboarding → verified targets → dashboard). Full YAGNI audit (~1,350 dead
-  lines removed). Quiet-luxury redesign completed (Lora, de-emoji, de-pill).
-- **2026-07-04→07** — Feature build-out: water, RAG, early patterns, cycle,
-  custom correlation, practitioner (now frozen), medications, genomics
-  (now frozen), analytics events, onboarding flow, cost tracking,
-  barcode gate, calculate-targets.
+- Migrate the remaining inline styles to utility classes.
+- Split the three largest page files along their existing seams.
+- Screenshots / short demo video in the README.
 
 Related: [[_home]] · [[features]] · [[decision-log]]

@@ -8,8 +8,8 @@ status: verified-2026-07-18
 Supabase Postgres. Every user table has RLS owner policies
 (`(select auth.uid()) = user_id`, initplan-optimized). The API's service-role
 client bypasses RLS; its safety is the Express ownership guard
-(see [[architecture]]). Text-vs-uuid `user_id` columns are a legacy split —
-policies cast accordingly.
+(see [[architecture]]). `user_id` is `uuid` on every table with `ON DELETE CASCADE` to `auth.users`
+(directly or via `profiles`), so deleting an account erases everything.
 
 ## Identity & platform
 
@@ -24,7 +24,7 @@ policies cast accordingly.
 
 | Table | Fields | Represents |
 |---|---|---|
-| `health_profile` | `user_id` (text), `sex`, `age`, `height_cm`, `weight_kg`, `activity_level`, `bmr`, `tdee`, `target_calories/protein/carbs/fat/fiber`, `goal_weight_kg`, `conditions`, `allergies`, `medications_note` | Baseline stats + Mifflin-St Jeor computed targets (see [[glossary]]) |
+| `health_profile` | `user_id` (uuid), `sex`, `age`, `height_cm`, `weight_kg`, `activity_level`, `bmr`, `tdee`, `target_calories/protein/carbs/fat/fiber`, `goal_weight_kg`, `conditions`, `allergies`, `medications_note` | Baseline stats + Mifflin-St Jeor computed targets (see [[glossary]]) |
 | `user_goals`, `tcm_profile` | — | Goal selections; TCM wellness profile |
 
 ## Logging (one row per event/day)
@@ -63,9 +63,10 @@ policies cast accordingly.
 
 ## Functions (RPC)
 
-- `match_health_events(embedding, user, count=10, threshold=0.3, days_back=90)` — cosine similarity search, user-scoped. The 3-arg overload was dropped (PostgREST ambiguity — see [[gotchas]]).
+- `match_health_events(embedding, user, count=10, threshold=0.3, days_back=90)` — cosine similarity search, user-scoped.
+- `sum_ai_spend(since, user?)` / `increment_usage(user, feature, window_start, window_type, limit)` — the cost-control plane, computed atomically in Postgres (service_role only).
 - `get_user_id_by_email(email)` — SECURITY DEFINER, service-role-only (email-enumeration guard).
 - `increment_daily_nutrition(uuid, …)` — SECURITY INVOKER (RLS enforces ownership); DEFINER text overload dropped (IDOR — see [[gotchas]]).
 
-Migrations: `server/supabase/migrations/` (11 exported files, 2026-07-04→08).
-Base schema predates them — `supabase db pull` for a full baseline is a TODO.
+Schema: `server/supabase/schema-baseline.sql` reproduces the whole database;
+`server/supabase/migrations/` is the history (12 files, 2026-07-04→09-10).

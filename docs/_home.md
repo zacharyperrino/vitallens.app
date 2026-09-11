@@ -32,9 +32,10 @@ Algorithm-level detail with exact formulas and constants lives in
 If this vault is opened at the repo root, those resolve as:
 [[05-algorithms]], [[03-backend-routes]], [[04-backend-services]], [[08-operations]].
 
-## Status at a glance (2026-07-18)
+## Status at a glance (2026-09-10)
 
-- Pre-launch. **Launch blocker:** Supabase "Confirm signup" email template is
-  empty (no confirmation link) — 2-min dashboard fix, see [[roadmap]].
-- Legal drafts await attorney review; genomics + practitioner features frozen.
-- Frontend repo has no git remote yet; server repo is on GitHub.
+- Portfolio-ready hardening complete: no fabricated data, security holes
+  closed, cost controls real, schema reproducible, tests + CI in place.
+- Owner steps remaining: Supabase email template, key rotation, GitHub
+  remote for the frontend (see [[roadmap]]).
+- Practitioner sharing + genomics ship OFF behind `ENABLE_EXPERIMENTAL_ROUTES`.

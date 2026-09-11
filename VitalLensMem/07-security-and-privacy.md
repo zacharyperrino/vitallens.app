@@ -2,52 +2,61 @@
 
 ## Auth chain (API)
 
-1. `requireAuth` (`server/middleware/auth.js`) — verifies the Supabase Bearer
-   JWT, sets `req.user`. 401 without a valid token.
-2. **Global ownership guard** (`server.js`) — if the request names a `userId`
-   (query or body) that ≠ `req.user.id` → 403. Covers every authenticated
-   route, current and future, in one middleware.
-3. `requireSelf` — per-route variant used where explicit.
-4. Practitioner data additionally requires an `active` `practitioner_links`
-   row (consent), else 403 even for authenticated callers.
+1. `requireAuth` — Supabase JWT verified **locally** against the project JWKS
+   (`jose`; issuer + audience checked). 401 on bad/expired token; 503 if the
+   key set can't be fetched (never a hung request).
+2. **Global ownership guard** (`server.js`) — any `userId` **or `user_id`** in
+   query/body must equal the token's `sub`, else 403. One middleware, every
+   authenticated route.
+3. Multipart routes (`/vision-scan`, `/biomarker-scan`, `/parse-labs`,
+   `/genomics/upload`) take the user from `req.user.id` — the body isn't
+   parsed until after the guard, so it is never trusted.
+4. Public-by-design routes each authenticate themselves or verify a
+   signature: Stripe webhook (signature), Oura callback (HMAC-signed state),
+   billing status/checkout (`requireAuth` inline; user from the token).
 
-Proven by `server/tests/security.test.js` — **19 integration tests** with real
-JWTs: practitioner consent gate (403 no-link / 200 active-link / 403 identity
-mismatch), export 401/403/200, cross-user 403s on medications, water, cycle,
-custom-correlation, health-profile, supplements, user-goals, biomarker-history,
-meal-memory, hygiene-history; self-access still succeeds.
+Proven by `server/tests/security.test.js` — **20 integration tests** with real
+JWTs (practitioner consent gate, export 401/403/200, cross-user 403s on ten
+routes, billing IDOR regressions) — plus unit tests for the spend guard,
+usage gates, OAuth state, retry budget, auth middleware, and webhook
+signatures (see `08-operations.md`).
 
 ## Defense layers
 
 | Layer | Mechanism |
 |---|---|
-| DB | RLS owner policies on every table; hardened RPCs (see 06-database) |
-| API | JWT auth, ownership guard, 60 req/min global limiter, `heavyAILimiter` on engines, helmet, CORS allow-list from `FRONTEND_URL`, 5xx error sanitizer in production |
-| XSS | `esc()` applied at every innerHTML interpolation of user/AI strings (scanner pages had 25+ sinks); `showToast` uses `textContent` |
-| Cost abuse | spend guard ($5/$50/$250 monthly caps) + free-tier count gates + per-model cost logging |
-| Secrets | none in tracked files (audited); `.env.example` templates are clean and committable; a real OpenAI key briefly sat in the ignored `.env.example` — never committed; rotation optional |
+| DB | RLS owner policies on every table; `uuid` user ids with cascade FKs; hardened RPCs (service_role-only where they read `auth.users` or write counters) |
+| API | local JWT verify, ownership guard, `trust proxy`, per-user rate limits on AI routes, helmet, CORS allow-list, 5xx sanitizer, Sentry with body/header/cookie scrubbing, graceful shutdown, `/api/ready` |
+| Cost | spend guard (Postgres aggregate, global cap fails closed) → premium → atomic usage counters; every model AND embedding call priced |
+| Web | CSP (`script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`), HSTS, nosniff, referrer + permissions policies; auth library bundled (no CDN); `esc()` at every user/AI string sink; session tokens never in URLs |
+| OAuth | HMAC-signed, 10-minute, provider-bound `state`; callback resolves the user only from it |
+| Secrets | none in tracked files; `.env.example` / `.env.test.example` are placeholder templates |
 
-## Consent & regulatory posture
+## Honesty guarantees (product-level security)
 
-- **Consent gate** blocks the app until the current versions of 4 documents
-  are accepted; records are append-only and versioned (version bump ⇒
-  automatic re-prompt). E2E-verified for fresh users.
-- **Wellness-only framing**: canonical `WELLNESS_SYSTEM_PROMPT`; a repo lint
-  (`scripts/check-regulatory-language.mjs`) fails on disease/diagnostic terms
-  in user-facing copy and prompts; the correlation engine runs a Haiku
-  language-safety second pass on its own output.
-- **Medications = logging only** (no interactions/dosage/clinical logic).
-  **Genomics + practitioner views are frozen** pending counsel.
-- Legal drafts in `legal/*.md` are counsel-gated; in-app pages render them.
-- Privacy audit of image-handling routes: `server/PRIVACY_AUDIT.md`
-  (images processed in-memory, not persisted server-side).
+- No fabricated data anywhere: the stool analyzer, mock step counts, mock
+  product/OCR fallbacks, hardcoded trend lines, and the invented empty-account
+  score were all removed. The wellness score reports `insufficient_data`
+  until two domains are logged.
+- Body-scan output is observational: no "suggested lab tests", syndromes,
+  risk tiers, or triage chips.
+- A CI lint (`scripts/check-regulatory-language.mjs`) fails the build on
+  disease/diagnostic terms in user-facing copy or prompts; the correlation
+  engine runs a Haiku second pass on its own output.
+- Medications is logging only. Practitioner sharing and genomics ship OFF
+  behind `ENABLE_EXPERIMENTAL_ROUTES`.
 
-## Known open items (as of 2026-07-15)
+## Consent & data rights
 
-1. **LAUNCH BLOCKER:** Supabase "Confirm signup" email template is empty — the
-   email arrives with no `{{ .ConfirmationURL }}` link, so real users cannot
-   confirm accounts. Everything downstream of the email (verify endpoint,
-   session redirect, first sign-in → consent gate) is proven healthy. Fix is a
-   2-minute dashboard template edit — exact HTML in `ROADMAP.md` §8b.
-2. Leaked-password protection: Supabase dashboard toggle still off (user step).
-3. Attorney review of the legal drafts before launch.
+- Versioned consent gate (append-only `user_consents`); a version bump
+  re-prompts; the gate **fails closed**.
+- Export (JSON of every table) and deletion (email-confirmed; cascades through
+  every table) are in Profile → Your data.
+- Privacy audit of image handling: `server/PRIVACY_AUDIT.md`.
+
+## Open items that only the owner can close
+
+1. Rotate the keys that lived in `server/.env.test` (never committed).
+2. Supabase dashboard: fix the "Confirm signup" email template; enable
+   leaked-password protection.
+3. Legal drafts (`legal/*.md`) remain drafts until reviewed by counsel.

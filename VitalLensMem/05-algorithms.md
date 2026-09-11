@@ -29,26 +29,25 @@ Persisted to `health_profile` (upsert on `user_id`). E2E-verified:
 29 y male, 180 cm, 78 kg, moderate → BMR 1765, TDEE 2736, 2750 kcal,
 172 g protein, 275 g carbs, 92 g fat.
 
-## 2. Composite health score (`src/utils/health-score.js`)
+## 2. Composite wellness score (`src/utils/health-score.js`)
 
-Weighted average of 8 domain scores (each 0–100):
+Scores **only the domains the user has logged**; weights are re-normalized over
+the domains present. With fewer than 2 logged domains the result is
+`{ state: 'insufficient_data', overall: null }` — never an invented number.
 
-| Domain | Weight | Score formula |
+| Domain | Weight | Score formula (only when data exists) |
 |---|---|---|
-| nutrition | 0.20 | `cal>0 ? clamp(85 − |cal−2000|/30, 40, 100) : 70` |
-| exercise | 0.15 | `min(100, 50 + 10·sessionCount)` |
-| sleep | 0.15 | `max(30, 100 − |avgHours − 7.5|·15)`; 68 if no data |
-| habits | 0.15 | start 80; smoking −30; heavy alcohol −20 (moderate −5); water ≥8 glasses +10; clamp 20–100 |
-| bodyMarkers | 0.10 | latest body-scan `overallScore`, else 72 |
-| gutHealth | 0.10 | latest stool-scan `gutHealthScore`, else 72 |
-| environment | 0.08 | AQI good→85, moderate→65, else 45 |
-| mentalWellness | 0.07 | `round(0.4·sleep + 0.3·habits + 0.3·exercise)` (derived) |
+| nutrition | 0.25 | `clamp(85 − |cal−2000|/30, 40, 100)` |
+| exercise | 0.20 | `min(100, 50 + 10·sessions)` |
+| sleep | 0.20 | `max(30, 100 − |avgHours − 7.5|·15)` |
+| habits | 0.15 | 80; smoking −30; heavy alcohol −20 (moderate −5); water ≥8 +10; clamp 20–100 |
+| bodyMarkers | 0.10 | latest body-scan `overall_score` |
+| environment | 0.10 | AQI good→85, moderate→65, else 45 |
 
-`overall = round(Σ weightᵢ·scoreᵢ)` (missing domains default 70).
-Grade: ≥90 A+, ≥80 A, ≥70 B, ≥60 C, else D.
-Trend = last weekly score − previous weekly score.
-`getHealthInsights` emits rule-based cards (sleep<70 warning, habits<60 alert,
-nutrition>80 positive, exercise<65 suggestion, plus one rotating tip).
+`overall = round(Σ scoreᵢ · weightᵢ / Σ weightᵢ)` over present domains.
+Grade: ≥90 A+, ≥80 A, ≥70 B, ≥60 C, else D. Trend = last − previous weekly score.
+Insights are rule-based per logged domain; tips are neutral prompts with no
+quantified physiological claims.
 
 ## 3. Food-scan pipeline (vision.js + foodScanApi.js + nutrition.js)
 
@@ -87,26 +86,31 @@ against weighed-meal photos in `server/evals/meals/` (user must supply).
 
 Order of checks before ANY model call:
 
-1. **Spend guard** (applies to everyone, premium included):
-   month-to-date sums from `api_cost_log`; global cap $250 → "AI paused",
-   per-user cap $5 free / $50 premium → "monthly limit". Fails open (logged)
-   on DB errors.
+1. **Spend guard** (everyone, premium included): `sum_ai_spend(since, user?)`
+   aggregates `api_cost_log` **in Postgres** (a client-side row sum silently
+   broke past PostgREST's 1,000-row cap). Global cap $250 → deny and **fail
+   closed** on error; per-user cap $5 free / $50 premium → deny.
 2. **Premium bypass** of count gates (`profiles.subscription_status='active'`,
    or `trialing` with unexpired `trial_end`).
-3. **Free-tier windowed counters** (`usage_tracking`, upserted per window):
+3. **Free-tier counters** via the atomic `increment_usage(user, feature,
+   window_start, window_type, limit)` RPC — increment-if-under-limit in one
+   statement, backed by a unique index on `(user_id, feature, window_start)`.
 
 | feature | limit | window |
 |---|---|---|
 | food_vision_scan | 5 | day |
 | ai_chat | 10 | day |
+| biomarker_scan | 3 | day |
+| early_patterns | 5 | day |
+| custom_correlation | 5 | day |
 | lab_upload | 2 | month |
 | correlation_run | 3 | month |
 | prediction_run | 3 | month |
 | weekly_report | 1 | week (Mon-start) |
-| narrative | 1 | month |
+| narrative | 1 | month (checked AFTER the cache, so a cached read is free) |
 
-After each call, `trackCost` converts token usage → USD by per-model pricing
-and appends to `api_cost_log` (which the spend guard reads — closed loop).
+`trackCost` prices every model call **and every embedding** and appends to
+`api_cost_log` — the same table the guard reads (closed loop).
 
 ## 6. Correlation & prediction engines (Claude Sonnet)
 
@@ -126,8 +130,9 @@ and appends to `api_cost_log` (which the spend guard reads — closed loop).
 
 ## 7. Guardrail micro-algorithms
 
-- **Global ownership guard** (server.js): any `userId` in query/body must equal
-  the JWT's `sub`, else 403 — one middleware covering every authenticated route.
+- **Global ownership guard** (server.js): any `userId` or `user_id` in query/body
+  must equal the JWT's `sub`, else 403 — one middleware covering every authenticated
+  route. Multipart routes take the user from the JWT because the body isn't parsed yet.
 - **Production error sanitizer** (server.js): monkey-patches `res.json`; 5xx
   bodies with an `error` key are replaced by a generic message in production.
 - **XSS escaper** (`src/utils/esc.js`): `& < > " '` → entities; applied at every

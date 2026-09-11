@@ -12,6 +12,33 @@ status: living
 > - **Reasoning:**
 
 Entries below are reconstructed from the code, migrations, and commit history.
+
+### 2026-09-10 — Portfolio framing: make every feature work honestly rather than cut features
+- **Decision:** keep the full feature set (13 areas) but remove every source of fabricated data and make each feature complete and safe; ship practitioner sharing + genomics behind `ENABLE_EXPERIMENTAL_ROUTES` instead of deleting them.
+- **Alternatives rejected:** the audit's "narrow to food scanning" pivot (right for a business, wrong for a portfolio piece); leaving simulated modules in with disclaimers.
+- **Reasoning:** the goal is to demonstrate complete, secure, viable development. A feature that invents numbers is a liability, not a feature.
+
+### 2026-09-10 — Verify JWTs locally instead of a network call per request
+- **Decision:** `jose` + the project JWKS in `requireAuth`; remote `getUser` only as a legacy fallback.
+- **Reasoning:** removes 50–200 ms and an auth-quota hit from every request; a 503 replaces a hung request when auth is unreachable.
+
+### 2026-09-10 — Cost controls computed in the database
+- **Decision:** `sum_ai_spend()` and `increment_usage()` Postgres functions; global cap fails closed.
+- **Alternatives rejected:** client-side row sums (silently capped at 1,000 rows by PostgREST); read-modify-write counters (raced into permanent fail-open).
+
+### 2026-09-10 — One `user_id` type, real cascades
+- **Decision:** convert the nine `text` `user_id` columns to `uuid`, add `ON DELETE CASCADE` to `auth.users` everywhere, delete the hand-maintained table list.
+- **Reasoning:** erasure must be complete by construction, not by remembering to update a list.
+
+### 2026-09-10 — Signed OAuth state; the user id never rides in the URL
+- **Decision:** HMAC-signed, provider-bound, 10-minute `state`; public callback resolves the user only from it.
+- **Reasoning:** the raw-id `state` let anyone bind their wearable tokens to a victim's account.
+
+### 2026-09-10 — Offline writes are never reported as saved
+- **Decision:** the service worker returns 503 + `{queued:true}`; the page shows "saved offline, pending sync"; replays re-mint the token and are capped.
+- **Reasoning:** a synthetic 200 was a data-loss lie.
+
+
 Items marked **[INFERRED]** predate the recorded history — verify.
 
 ### 2026-07-09 — Delete the BullMQ queue stack
@@ -50,8 +77,8 @@ Items marked **[INFERRED]** predate the recorded history — verify.
 - **Reasoning:** packaged food is exact + free via lookup; grams×per-100g beats model guessing; big cost reduction.
 
 ### **[INFERRED]** Vanilla-JS SPA over a framework
-- **Decision:** hash-router vanilla JS with Vite; no React migration (explicitly out of scope during redesign). React deps exist in package.json but are unmounted.
-- **Reasoning (inferred):** small surface, no build-time framework tax, redesign stayed visual-layer-only. TODO: confirm whether the React deps should be removed.
+- **Decision:** hash-router vanilla JS with Vite, plus React 19 "islands" for the four richest widgets (wellness score card, pattern discovery, nutrition tracker, hygiene result) mounted via `mountReact`.
+- **Reasoning (inferred):** small surface, no framework tax on simple pages; React where local state gets complex.
 
 ### **[INFERRED]** Supabase over self-hosted Postgres/auth
 - **Reasoning (inferred):** auth + RLS + pgvector + storage in one managed service for a solo builder. 

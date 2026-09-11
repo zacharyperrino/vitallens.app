@@ -10,20 +10,19 @@
 | `dashboard.js` | `#/` | Health-score ring, steps card (reads `habits.steps`, "Tap to log" when empty), Oura card, quick actions, today's nutrition, recent activity. |
 | `food-scanner.js` | `#/food-scanner` | Meal photo scan pipeline UI (camera → barcode-first gate → GPT-4o vision → portion/label correction → log). Also meal-memory quick logging and scan history. |
 | `body-scanner.js` | `#/body-scanner` | Wellness photo check-ins (eye/skin/nail/tongue modes; wellness-only framing post-hardening). |
-| `stool-scanner.js` | `#/stool-scanner` | Bristol-type gut check-in scan. |
 | `hygiene-scanner.js` | `#/hygiene-scanner` | Personal-care product scan → ingredient concern levels (via Open Beauty Facts + additive analyzer). |
-| `health-input.js` | `#/health-input` | Manual logging tabs: labs, exercise, sleep, habits (incl. water glasses, stress, mood, **steps**). |
+| `health-input.js` | `#/health-input` | Manual logging tabs: labs (PDF parse, fields escaped), exercise, sleep, habits (water, stress, mood, steps — no invented defaults), substances, background, goals, environment, **medications** (log only), **cycle**. |
 | `health-chat.js` | `#/health-chat` | AI copilot chat (RAG over the user's `health_events`). |
 | `analytics.js` | `#/analytics` | Charts + correlation/prediction engine results. |
 | `eastern-medicine.js` | `#/eastern-medicine` | TCM/Ayurveda wellness profiling (tongue observation etc.). |
 | `product-results.js` | `#/product-results` | Barcode-scan product detail view. |
-| `profile.js` | `#/profile` | Profile + targets editing (shares constants with onboarding via `profile-shared.js`), integrations, billing, data export. |
-| `step-details.js` | `#/step-details` | Steps detail page. |
+| `profile.js` | `#/profile` | Profile + targets; **Subscription** (Stripe checkout, $9.99/mo · $79/yr), **Wearables** (Oura OAuth), **Notifications**, **Security** (TOTP enrol/disable), **Your data** (JSON export, email-confirmed deletion). A failed load renders an error, never an empty form. |
+| `step-details.js` | `#/step-details` | Real step history from `habits.steps` (7/30-day views); no estimates. |
 | `legal.js` | `#/legal/*` | In-app ToS and Privacy Policy pages rendered from `legal/*.md` drafts. |
 
 ## Libraries (`src/lib/`)
 
-- `supabase.js` — Supabase client (public anon key; RLS-protected).
+- `supabase.js` — bundled `@supabase/supabase-js` client (no CDN import); URL/anon key from `VITE_*` env with dev defaults.
 - `db.js` — all direct table helpers (`profile`, `meals`, `dailyNutrition`,
   `sleepLog`, `exerciseLog`, `habits.logToday/getToday` (upsert on
   `user_id,date`; includes `steps`), `bodyScans`, water, wearables…). Each write
@@ -40,7 +39,7 @@
 
 | File | What it is |
 |---|---|
-| `api.js` | `apiFetch` — attaches Bearer token, base URL from `src/config.js` (`VITE_API_BASE`). |
+| `api.js` | `apiFetch` — Bearer token, base URL from `src/config.js`, 45 s timeout. |
 | `esc.js` | HTML-escaper used at every innerHTML interpolation of user/AI strings (XSS seal). |
 | `toast.js` | Single shared `showToast` (uses `textContent` — XSS-safe). |
 | `consent.js` | Consent status check + document versions (drives the consent gate). |
@@ -50,7 +49,7 @@
 | `camera-system.js` | getUserMedia capture + downscale/compress for scan uploads. |
 | `biomarker-engine.js`, `food-analyzer.js`, `stool-analyzer.js`, `product-scanner.js` | Client-side glue for the respective scanners. |
 | `eastern-medicine-data.js` | Static TCM/Ayurveda reference data. |
-| `oura.js`, `strava.js`, `apple-health.js` | Wearable integration stubs (Oura flagged Off until real OAuth creds). |
+| `oura.js` | Real Oura client: `refreshOuraStatus`, `startOuraConnect` (server issues a signed-state OAuth URL). `strava.js` handles the Strava OAuth callback. |
 | `analytics-events.js` | `trackEvent` wrapper; PostHog loads itself only when `VITE_POSTHOG_KEY` is set. |
 
 ## Design system
