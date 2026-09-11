@@ -54,6 +54,7 @@ Guards, in order: no session → `#/auth`; consent incomplete (fails closed) →
 8. **Global ownership guard** — any `userId`/`user_id` in query or body must equal the token's `sub` → else 403; multipart routes take the user from the token
 9. ~35 feature routers (AI routes: usage gate → spend guard → `trackCost`)
 10. Sentry error handler, then the responding handler; graceful `SIGTERM` drain
+
 ## Repos
 
 - Frontend repo = project root (`Archive3/`). **No git remote yet** (user step).
