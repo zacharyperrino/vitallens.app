@@ -35,31 +35,25 @@ Browser (SPA) ──Bearer JWT──▶ Express API :3001 ──service-role─�
    secrets, cross-table aggregation, or third-party APIs. Safety = `requireAuth`
    JWT check + global ownership guard (see 07-security).
 
+## Frontend boot
+
+`src/main.js` registers the service worker only in prod builds (dev unregisters stale ones), builds the bottom nav as real `<button>`s, and hands off to `src/router.js`.
+Guards, in order: no session → `#/auth`; consent incomplete (fails closed) → consent gate; onboarding status unknown → "Can't reach the server" retry screen; onboarding incomplete → `#/onboarding`. Unknown hashes render a 404; a route that throws renders an error boundary with retry; an offline banner appears on the `offline` event. The router owns bottom-nav visibility.
+
 ## Request lifecycle on the API
 
 `server/server.js` middleware order (matters):
 
-1. Stripe webhook raw-body exception (`/api/billing/webhook`)
-2. CORS — allow-list from `FRONTEND_URL` (comma-separated), credentials on
-3. JSON body (10 MB limit, for base64 scan images), urlencoded, morgan, helmet
-4. **Production error sanitizer** — wraps `res.json`; any 5xx body with an
-   `error` field is replaced with a generic message when `NODE_ENV=production`
+1. `env.js` (dotenv) then `instrument.js` (Sentry, with body/header/cookie scrubbing)
+2. Stripe webhook raw-body exception (`/api/billing/webhook`)
+3. CORS allow-list from `FRONTEND_URL`, JSON body (10 MB, base64 scans), helmet, `trust proxy`
+4. **Production error sanitizer** — 5xx bodies generified when `NODE_ENV=production`
 5. Global rate limit: 60 req/min per IP on `/api`
-6. Public routes: `GET /api/health`, billing routes
-7. `requireAuth` — verifies the Bearer JWT, sets `req.user`
-8. **Global ownership guard** — if `req.query.userId` or `req.body.userId`
-   exists and ≠ `req.user.id` → 403 (one seal over every authenticated route)
-9. ~35 feature routers, all mounted at `/api`
-10. Error handler (message + stack in dev only), then Sentry error handler
-
-## Frontend boot
-
-`src/main.js` → registers service worker **only in prod builds** (dev HMR was
-being sabotaged by SW caching) → `src/router.js` hash routing.
-Route guards, in order: no session → `#/auth`; missing consents → consent gate
-(`consent-gate.js`); `profiles.onboarding_completed=false` → `#/onboarding`;
-otherwise the requested page.
-
+6. Public routes: `GET /api/health` (liveness), `GET /api/ready` (DB probe), billing (self-authenticating), Oura OAuth callback (signed state)
+7. `requireAuth` — **local JWT verification** against the project JWKS (`jose`); sets `req.user`
+8. **Global ownership guard** — any `userId`/`user_id` in query or body must equal the token's `sub` → else 403; multipart routes take the user from the token
+9. ~35 feature routers (AI routes: usage gate → spend guard → `trackCost`)
+10. Sentry error handler, then the responding handler; graceful `SIGTERM` drain
 ## Repos
 
 - Frontend repo = project root (`Archive3/`). **No git remote yet** (user step).
