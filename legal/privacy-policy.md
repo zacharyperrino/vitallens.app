@@ -34,7 +34,7 @@ To provide AI and data features we transmit the minimum necessary data to:
 - **Anthropic (Claude)** — wellness reflections, copilot chat, summaries.
 - **Google Fonts** — font delivery (loads on page view).
 - **Supabase** — database, authentication, storage (our primary processor).
-- **Upstash** — background-job queue.
+- **Upstash** — short-lived cache of your aggregated log snapshot (expires within minutes) so repeated analyses do not re-query your records.
 - **Sentry** — error monitoring.
 - **Stripe** — subscription billing (we never see your full card number).
 - **USDA FoodData Central & Open Food Facts** — nutrition lookups (queried by food name/barcode, not tied to your identity).
