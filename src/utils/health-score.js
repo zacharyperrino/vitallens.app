@@ -15,8 +15,9 @@ const WEIGHTS = {
 };
 const MIN_DOMAINS = 2;
 
-// `targets` is the user's health_profile row (target_calories, ...). Nutrition
-// is scored against THEIR calorie target — with no target it is not scored.
+// `targets` is the user's health_profile row (target_calories, ...), null when
+// none is set, or `{ error: true }` when it couldn't be loaded. Nutrition is
+// scored against THEIR calorie target — otherwise it is not scored.
 export function computeHealthScore(data = {}, targets = null) {
     const scores = {};
 
@@ -101,7 +102,11 @@ export function getHealthInsights(healthData, targets = null) {
         insights.push({ type: 'suggestion', icon: icons.activity, title: 'Room to move',
             text: 'A few more logged sessions this week would lift this domain. Short walks count.', color: 'var(--accent-blue)' });
     }
-    if (!calorieTarget(targets)) {
+    if (targets?.error) {
+        // A failed load is not "no target set" — say so instead of asking them to set one.
+        insights.push({ type: 'warning', icon: icons.leaf, title: 'Nutrition is not scored right now',
+            text: "Nutrition targets couldn't be loaded right now, so nutrition is left out of your score.", color: 'var(--accent-amber)' });
+    } else if (!calorieTarget(targets)) {
         insights.push({ type: 'suggestion', icon: icons.leaf, title: 'Nutrition is not scored yet',
             text: 'Set a calorie target in your profile to score nutrition.', color: 'var(--accent-blue)' });
     }

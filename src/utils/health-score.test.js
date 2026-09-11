@@ -125,6 +125,12 @@ describe('computeHealthScore', () => {
       }
     });
 
+    it('leaves nutrition unscored when the targets could not be loaded', () => {
+      const r = computeHealthScore({ ...nutrition, ...sleep }, { error: true });
+      expect(r.breakdown.nutrition).toBeUndefined();
+      expect(r.domainsLogged).toEqual(['sleep']);
+    });
+
     it('never falls back to a default 2000 kcal target', () => {
       // 2000 kcal would score 85 against a 2000 default; against the real 3000 target it is 52.
       const r = computeHealthScore(nutrition, { target_calories: 3000 });
@@ -203,6 +209,17 @@ describe('getHealthInsights', () => {
     expect(titles(nutrition, null)).not.toContain('Nutrition looks steady');
     expect(titles(nutrition, TARGETS)).not.toContain('Nutrition is not scored yet');
     expect(titles(nutrition, TARGETS)).toContain('Nutrition looks steady');
+  });
+
+  it('reports a failed targets load instead of asking for a target to be set', () => {
+    const t = titles(nutrition, { error: true });
+    expect(t).toContain('Nutrition is not scored right now');
+    expect(t).not.toContain('Nutrition is not scored yet');
+    expect(t).not.toContain('Nutrition looks steady');
+    expect(getHealthInsights(nutrition, { error: true }).find((i) => i.title === 'Nutrition is not scored right now').text)
+      .toMatch(/couldn't be loaded/);
+    // A missing target still gets the "set one" prompt, never the load-failure copy.
+    expect(titles(nutrition, null)).not.toContain('Nutrition is not scored right now');
   });
 
   it('flags a low sleep score and a habits problem when those domains say so', () => {

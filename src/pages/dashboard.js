@@ -24,7 +24,7 @@ export async function renderDashboard() {
     </div>`;
 
   try {
-    const [profileData, nutritionToday, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weekly, mealsForStreak, exerciseForStreak, sleepForStreak, targetsResult] = await Promise.all([
+    const [profileData, nutritionToday, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weekly, mealsForStreak, exerciseForStreak, sleepForStreak, targets] = await Promise.all([
       profile.get(),
       dailyNutrition.get(),
       meals.getRecent(5),
@@ -49,8 +49,6 @@ export async function renderDashboard() {
       const d = new Date(row.date);
       return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString([], { weekday: 'short' });
     });
-    const targets = targetsResult.profile;
-
     const healthPayload = {
       dailyNutrition: nutrition,
       exerciseLog: recentExercise,
@@ -130,8 +128,8 @@ export async function renderDashboard() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-6);">
           <!-- Daily Steps Card — reads today's logged habits (manual or wearable sync) -->
           <button type="button" class="card card-sm step-card" data-route="/health-input" style="margin-bottom:0;width:100%;text-align:left;cursor:pointer;">
+            <!-- No step goal exists in the profile, so no progress ring or percent — just today's count. -->
             <span class="step-ring-container" style="display:block;" aria-hidden="true">
-              ${createRingProgress(stepsToday || 0, 10000, 60, 6, 'var(--viz-green)')}
               <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);display:flex;">${icons.steps}</span>
             </span>
             <span class="step-card-info" style="display:block;">
@@ -189,7 +187,7 @@ export async function renderDashboard() {
           </div>
           <p class="mt-2 text-center text-secondary text-sm">
             ${Math.max(0, Math.round(calorieGoal - (nutrition.calories || 0)))} kcal remaining of your ${calorieGoal} target
-          </p>` : targetsResult.error ? `
+          </p>` : targets?.error ? `
           <p role="alert" class="mt-2 text-center text-secondary text-sm">
             Couldn't load your targets. <button type="button" class="btn btn-sm" id="dashboard-retry-targets">Try again</button>
           </p>` : `
@@ -280,18 +278,20 @@ export async function renderDashboard() {
   }
 }
 
-// Resolves to { profile, error } so the page can tell "no targets set" from "couldn't load".
+// Resolves to the health_profile row, null when no targets are set yet, or the
+// `{ error: true }` sentinel when the load failed — so the page and health-score
+// can tell "no targets set" from "couldn't load".
 async function fetchTargets() {
   try {
     const userId = await getUserId();
     const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
-    if (res.status === 404) return { profile: null, error: null };
-    if (!res.ok) return { profile: null, error: new Error(`Server responded ${res.status}`) };
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
     const json = await res.json();
-    return { profile: json.profile || null, error: null };
+    return json.profile || null;
   } catch (error) {
     console.warn('[Dashboard] targets load failed', error?.message);
-    return { profile: null, error };
+    return { error: true };
   }
 }
 

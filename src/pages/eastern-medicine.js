@@ -11,7 +11,7 @@ let activeTab = 'dosha';
 let quizStep = 0;
 let quizAnswers = [];
 let tcmProfile = null;
-let healthProfile = null;
+let userProfile = null; // profiles row — `dosha` lives here
 let userId = null;
 let profileLoading = false;
 let profileError = false;
@@ -71,7 +71,7 @@ async function loadProfileData() {
     profileError = true;
     return;
   }
-  const results = await Promise.all([fetchTCMProfile(), fetchHealthProfile()]);
+  const results = await Promise.all([fetchTCMProfile(), fetchUserProfile()]);
   profileLoading = false;
   profileError = results.some(ok => !ok);
 }
@@ -90,16 +90,17 @@ async function fetchTCMProfile() {
   }
 }
 
-async function fetchHealthProfile() {
+// The saved dosha is a column on `profiles` (written by saveDoshaResult via
+// profile.update), so it has to be read back from that same row.
+async function fetchUserProfile() {
   try {
-    const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
-    if (!res.ok) throw new Error(`Health profile request failed (${res.status})`);
-    const data = await res.json();
-    healthProfile = data.profile || null;
+    userProfile = await profile.get();
     return true;
   } catch (err) {
-    console.warn('[EasternMedicine] Health profile fetch failed:', err.message);
-    healthProfile = null;
+    // No profiles row yet means nothing saved — not a load failure.
+    if (err?.code === 'PGRST116') { userProfile = null; return true; }
+    console.warn('[EasternMedicine] Profile fetch failed:', err.message);
+    userProfile = null;
     return false;
   }
 }
@@ -239,7 +240,7 @@ function renderPatternRows(title, items, total) {
 }
 
 function renderDoshaTab() {
-  const savedDosha = healthProfile?.dosha || tcmProfile?.dosha;
+  const savedDosha = userProfile?.dosha;
   if (savedDosha && quizStep === 0) return renderDoshaProfile(savedDosha);
   return renderQuiz();
 }
@@ -268,8 +269,8 @@ function finishQuiz() {
   quizStep = 0;
   quizAnswers = [];
   saveDoshaResult(dominant);
-  if (!healthProfile) healthProfile = {};
-  healthProfile.dosha = dominant;
+  if (!userProfile) userProfile = {};
+  userProfile.dosha = dominant; // show immediately; saveDoshaResult persists the same column
   return renderDoshaProfile(dominant);
 }
 

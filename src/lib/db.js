@@ -94,16 +94,22 @@ export const meals = {
             .single();
         if (error) throw error;
 
-        // Update daily nutrition totals
-        await dailyNutrition.add({
-            calories: meal.calories || 0,
-            protein: meal.protein || 0,
-            carbs: meal.carbs || 0,
-            fat: meal.fat || 0,
-            fiber: meal.fiber || 0,
-        });
+        // The meals row is the source of truth. Daily totals and the ingest
+        // event are follow-ups: if they fail the meal is still logged, so never
+        // reject here (a rejection invites a duplicate meal on retry).
+        try {
+            await dailyNutrition.add({
+                calories: meal.calories || 0,
+                protein: meal.protein || 0,
+                carbs: meal.carbs || 0,
+                fat: meal.fat || 0,
+                fiber: meal.fiber || 0,
+            });
+        } catch (err) {
+            console.warn('[db] Meal logged but daily totals not updated:', err?.message || err);
+        }
 
-        ingestEvent('meal', data);
+        ingestEvent('meal', data).catch(() => { }); // fire and forget
         return data;
     },
 

@@ -10,7 +10,7 @@ const VARIABLES = [
   { key: 'sleep', label: 'Sleep (hours)' },
   { key: 'calories', label: 'Calories' },
   { key: 'exercise', label: 'Exercise (minutes)' },
-  { key: 'water', label: 'Water (ml)' },
+  { key: 'water', label: 'Water (glasses)' },
   { key: 'skin_score', label: 'Skin/face wellness score' },
   { key: 'caffeine', label: 'Caffeine (0–3 scale)' },
   { key: 'mood', label: 'Mood (1–5 scale)' },
