@@ -38,8 +38,8 @@ export async function renderExercise() {
         <div class="input-group">
           <label for="res-rpe">Effort (rate of perceived exertion, 1–10)</label>
           <div style="display:flex;align-items:center;gap:var(--space-3);">
-            <input class="input-field flex-1" type="range" min="1" max="10" id="res-rpe" value="5">
-            <output for="res-rpe" id="res-rpe-display" style="min-width:28px;text-align:center;">5</output>
+            <input class="input-field flex-1" type="range" min="1" max="10" id="res-rpe" value="5" data-touched="0">
+            <output for="res-rpe" id="res-rpe-display" style="min-width:64px;text-align:center;">Not rated</output>
           </div>
         </div>
         <fieldset class="input-group" style="border:0;padding:0;margin:0;min-width:0;">

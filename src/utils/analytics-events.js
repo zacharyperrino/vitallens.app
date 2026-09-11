@@ -10,12 +10,29 @@ const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com';
 
 if (POSTHOG_KEY && typeof window !== 'undefined' && !window.posthog) {
-    const s = document.createElement('script');
-    s.async = true;
-    s.src = `${POSTHOG_HOST}/static/array.js`;
-    s.onload = () => window.posthog?.init?.(POSTHOG_KEY, { api_host: POSTHOG_HOST });
-    s.onerror = () => console.warn('[Analytics] PostHog script failed to load.');
-    document.head.appendChild(s);
+    // Lazy-load the npm bundle so it ships from our own origin (CSP script-src 'self').
+    // disable_external_dependency_loading stops posthog-js from injecting any
+    // <script> tags (remote-config, recorder, surveys, toolbar); it falls back to
+    // plain fetches, which connect-src allows.
+    try {
+        import('posthog-js')
+            .then((mod) => {
+                const posthog = mod.default || mod.posthog;
+                posthog.init(POSTHOG_KEY, {
+                    api_host: POSTHOG_HOST,
+                    autocapture: false,
+                    capture_pageview: false,
+                    disable_session_recording: true,
+                    disable_surveys: true,
+                    disable_external_dependency_loading: true,
+                    persistence: 'localStorage',
+                });
+                window.posthog = posthog;
+            })
+            .catch((err) => console.warn('[Analytics] PostHog failed to load:', err?.message || err));
+    } catch (err) {
+        console.warn('[Analytics] PostHog failed to load:', err?.message || err);
+    }
 }
 
 export function trackEvent(eventName, properties = {}) {

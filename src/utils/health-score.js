@@ -15,11 +15,14 @@ const WEIGHTS = {
 };
 const MIN_DOMAINS = 2;
 
-export function computeHealthScore(data = {}) {
+// `targets` is the user's health_profile row (target_calories, ...). Nutrition
+// is scored against THEIR calorie target — with no target it is not scored.
+export function computeHealthScore(data = {}, targets = null) {
     const scores = {};
 
     const cal = Number(data.dailyNutrition?.calories) || 0;
-    if (cal > 0) scores.nutrition = clamp(85 - Math.abs(cal - 2000) / 30, 40, 100);
+    const calTarget = calorieTarget(targets);
+    if (cal > 0 && calTarget) scores.nutrition = clamp(85 - Math.abs(cal - calTarget) / 30, 40, 100);
 
     const sessions = (data.exerciseLog || []).length;
     if (sessions > 0) scores.exercise = Math.min(100, 50 + sessions * 10);
@@ -39,17 +42,18 @@ export function computeHealthScore(data = {}) {
         scores.habits = clamp(h, 20, 100);
     }
 
-    const scans = data.bodyScans || [];
-    const latestScore = Number(scans[0]?.overall_score ?? scans[0]?.overallScore);
-    if (scans.length > 0 && Number.isFinite(latestScore)) scores.bodyMarkers = clamp(latestScore, 0, 100);
+    // Pulse check-ins store a null score — skip them, use the latest scored scan.
+    const latestScore = (data.bodyScans || []).map(scanScore).find(Number.isFinite);
+    if (latestScore !== undefined) scores.bodyMarkers = clamp(latestScore, 0, 100);
 
     const air = data.environmental?.airQuality;
     if (air) scores.environment = air === 'good' ? 85 : air === 'moderate' ? 65 : 45;
 
     const present = Object.keys(scores);
+    // null (not 0) until two weekly scores exist — there is no trend to report.
     const trend = data.weeklyScores?.length > 1
         ? data.weeklyScores[data.weeklyScores.length - 1] - data.weeklyScores[data.weeklyScores.length - 2]
-        : 0;
+        : null;
 
     if (present.length < MIN_DOMAINS) {
         return { state: 'insufficient_data', overall: null, grade: null, breakdown: scores, domainsLogged: present, trend };
@@ -65,9 +69,19 @@ export function computeHealthScore(data = {}) {
 
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
+function calorieTarget(targets) {
+    const t = Number(targets?.target_calories);
+    return t > 0 ? t : null;
+}
+
+function scanScore(scan) {
+    const raw = scan?.overall_score ?? scan?.overallScore;
+    return raw == null || raw === '' ? NaN : Number(raw);
+}
+
 // ─── Rule-based observations (only for logged domains) ────────
-export function getHealthInsights(healthData) {
-    const score = computeHealthScore(healthData);
+export function getHealthInsights(healthData, targets = null) {
+    const score = computeHealthScore(healthData, targets);
     const b = score.breakdown;
     const insights = [];
 
@@ -86,6 +100,10 @@ export function getHealthInsights(healthData) {
     if (b.exercise != null && b.exercise < 65) {
         insights.push({ type: 'suggestion', icon: icons.activity, title: 'Room to move',
             text: 'A few more logged sessions this week would lift this domain. Short walks count.', color: 'var(--accent-blue)' });
+    }
+    if (!calorieTarget(targets)) {
+        insights.push({ type: 'suggestion', icon: icons.leaf, title: 'Nutrition is not scored yet',
+            text: 'Set a calorie target in your profile to score nutrition.', color: 'var(--accent-blue)' });
     }
     if (score.state === 'insufficient_data') {
         insights.push({ type: 'suggestion', icon: icons.sparkle, title: 'Log a little more to unlock your score',

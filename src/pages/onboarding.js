@@ -36,7 +36,7 @@ export async function renderOnboarding() {
 
   const state = {
     step: 0,
-    baseline: { heightUnit: 'cm', weightUnit: 'kg', activity_level: 'moderate', sex: '' },
+    baseline: { heightUnit: 'cm', weightUnit: 'kg', activity_level: '', sex: '' },
     conditions: [],
     targets: null,
     bmr: null,
@@ -184,6 +184,7 @@ export async function renderOnboarding() {
           </div>
           <div class="input-group"><label for="ob-activity">Activity level</label>
             <select class="input-field" id="ob-activity">
+              <option value="" disabled ${b.activity_level ? '' : 'selected'}>Select…</option>
               ${ACTIVITY_OPTIONS.map(o => `<option value="${o.value}" ${b.activity_level === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
           </div>

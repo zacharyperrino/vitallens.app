@@ -101,25 +101,21 @@ export function renderFaceResults(r, m) {
 
   const badges = `
       <div style="display:flex;justify-content:center;gap:var(--space-2);margin-top:var(--space-3);flex-wrap:wrap;">
-        ${r.hydration ? `<span class="badge badge-teal">${words(r.hydration)} skin</span>` : ''}
         ${r.primary_breakout_type && r.primary_breakout_type !== 'none' ? `<span class="badge badge-amber">${words(r.primary_breakout_type)} pattern noted</span>` : '<span class="badge badge-green">No breakout pattern noted</span>'}
       </div>`;
 
   return `
     ${renderScoreHeader(m, r.overallScore, 'Skin appearance score', badges)}
 
-    <!-- Skin profile -->
+    <!-- Skin profile — surface appearance only; a photo cannot measure dermal-layer properties -->
     ${r.fitzpatrick_type ? `
     <div class="card">
       <h4 class="mb-3">Skin Profile</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-3);">
         ${statTile('Fitzpatrick Type', `Type ${words(r.fitzpatrick_type)}`, 'var(--viz-green)')}
-        ${statTile('Skin Barrier', words(r.skin_barrier, 'unknown'), toneFor(r.skin_barrier).color)}
-        ${statTile('Collagen', words(r.collagen_density_estimate))}
         ${statTile('Texture', words(r.skin_texture))}
       </div>
       ${r.fitzpatrick_notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;margin-bottom:var(--space-2);">${esc(r.fitzpatrick_notes)}</p>` : ''}
-      ${r.skin_barrier_notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);line-height:1.5;">${esc(r.skin_barrier_notes)}</p>` : ''}
     </div>` : ''}
 
     <!-- Structure notes -->

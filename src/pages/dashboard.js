@@ -28,7 +28,7 @@ export async function renderDashboard() {
       profile.get(),
       dailyNutrition.get(),
       meals.getRecent(5),
-      bodyScans.getRecent(1),
+      bodyScans.getRecent(5),   // pulse check-ins carry no score; the score domain needs a scored scan
       sleepLog.getRecent(1),
       exerciseLog.getRecent(5),
       habits.getToday?.(),
@@ -60,8 +60,8 @@ export async function renderDashboard() {
       weeklyScores,
     };
 
-    const health = computeHealthScore(healthPayload);
-    const insights = getHealthInsights(healthPayload);
+    const health = computeHealthScore(healthPayload, targets);
+    const insights = getHealthInsights(healthPayload, targets);
     const greeting = getGreeting();
     const name = profileData?.name || 'there';
     const latestSleepQuality = recentSleep?.[0]?.quality || null;
@@ -115,10 +115,7 @@ export async function renderDashboard() {
             </div>
           </div>
           <div style="display:flex;justify-content:center;gap:var(--space-4);flex-wrap:wrap;">
-            <div class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}">
-              ${health.trend >= 0 ? icons.trending : icons.trendingDown}
-              <span>${health.trend >= 0 ? 'Up' : 'Down'} ${Math.abs(health.trend)} this week</span>
-            </div>
+            ${renderTrendBadge(health.trend, 'this week')}
             <div class="badge badge-purple"><span>Grade: ${health.grade}</span></div>
           </div>
           <p class="disclaimer mt-3">Based on ${health.domainsLogged.length} logged areas. A wellness reflection, not a medical measure.</p>
@@ -209,10 +206,7 @@ export async function renderDashboard() {
         <div class="card" style="margin-bottom:var(--space-6);">
           <div class="flex-between mb-2">
             <span class="text-secondary text-sm">Wellness score</span>
-            ${health.state === 'ok' ? `
-            <span class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}" style="font-size:var(--text-xs);">
-              ${health.trend >= 0 ? icons.trending : icons.trendingDown} ${health.trend >= 0 ? 'up' : 'down'} ${Math.abs(health.trend)} pts
-            </span>` : ''}
+            ${health.state === 'ok' ? renderTrendBadge(health.trend, 'pts', 'font-size:var(--text-xs);') : ''}
           </div>
           ${weekly.error ? `
             <div role="alert" style="height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary);text-align:center;">
@@ -400,11 +394,14 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
   }
 
   if (latestBodyScan) {
+    // Pulse check-ins have no score (only a pulse estimate) — never show "Score —".
+    const isPulse = latestBodyScan.scan_type === 'heart';
+    const scored = latestBodyScan.overall_score != null;
     items.push({
-      icon: icons.body,
+      icon: isPulse ? icons.heart : icons.body,
       bg: 'var(--bg-chip)',
-      title: 'Body scan',
-      detail: `Score ${numOr(latestBodyScan.overall_score, '')} • ${formatRelativeTime(latestBodyScan.scanned_at || latestBodyScan.created_at)}`,
+      title: isPulse ? 'Pulse check-in' : 'Body scan',
+      detail: `${isPulse ? numOr(latestBodyScan.hr, ' BPM') : scored ? `Score ${numOr(latestBodyScan.overall_score, '')}` : 'No score'} • ${formatRelativeTime(latestBodyScan.scanned_at || latestBodyScan.created_at)}`,
       value: latestBodyScan.risk_tier ? capitalize(latestBodyScan.risk_tier) : '—',
     });
   }
@@ -455,6 +452,13 @@ function renderMacro(label, value, target, unit, color) {
       <div class="text-tertiary text-xs">${label}</div>
       <div class="text-tertiary text-xs">${pct !== null ? `${pct}% of target` : 'no target'}</div>
     </div>`;
+}
+
+// Trend is null until two weekly scores exist: say so, never "Up 0".
+function renderTrendBadge(trend, suffix, style = '') {
+  if (trend == null) return `<span class="badge" style="${style}">No trend yet</span>`;
+  const up = trend >= 0;
+  return `<span class="badge ${up ? 'badge-green' : 'badge-amber'}" style="${style}">${up ? icons.trending : icons.trendingDown} <span>${up ? 'Up' : 'Down'} ${Math.abs(trend)} ${suffix}</span></span>`;
 }
 
 function renderStreak(icon, label, count, color) {

@@ -8,7 +8,7 @@ import { createInteractiveTrendChart } from '../utils/charts.js';
 import { esc } from '../utils/esc.js';
 import { todayLocalISO, daysAgoLocalISO, startOfDayISO } from '../utils/dates.js';
 
-const GOAL = 10000;
+// No step goal exists in the profile, so none is shown — steps are reported as logged.
 let currentView = 'weekly';
 
 export async function renderStepDetails() {
@@ -37,7 +37,9 @@ export async function renderStepDetails() {
     const todayStr = todayLocalISO();
     const today = history.find(h => h.date === todayStr);
     const todaySteps = today ? today.value : null;
-    const progress = todaySteps == null ? 0 : Math.min((todaySteps / GOAL) * 100, 100);
+    const week = history.filter(h => h.date >= daysAgoLocalISO(6));
+    const weekTotal = week.reduce((sum, h) => sum + h.value, 0);
+    const weekAvg = week.length ? Math.round(weekTotal / week.length) : null;
 
     const rangeDays = currentView === 'weekly' ? 7 : 30;
     const rangeLabel = currentView === 'weekly' ? 'Last 7 days' : 'Last 30 days';
@@ -65,13 +67,11 @@ export async function renderStepDetails() {
           <div class="step-count">${todaySteps == null ? '—' : todaySteps.toLocaleString()}</div>
           <div class="step-label">${todaySteps == null ? 'No steps logged today' : 'Steps today'}</div>
         </div>
-        <div class="step-progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="${GOAL}" aria-valuenow="${todaySteps ?? 0}" aria-label="Progress toward daily step goal">
-          <div class="step-progress-bar" style="width:${progress}%"></div>
-        </div>
         <div class="step-goal-info">
-          <span>Goal: ${GOAL.toLocaleString()}</span>
-          <span>${todaySteps == null ? '' : Math.round(progress) + '%'}</span>
+          <span>Last 7 days: ${week.length ? `${weekTotal.toLocaleString()} total` : 'no entries'}</span>
+          <span>${weekAvg == null ? '' : `${weekAvg.toLocaleString()} avg over ${week.length} logged ${week.length === 1 ? 'day' : 'days'}`}</span>
         </div>
+        <p class="text-tertiary text-xs" style="margin:var(--space-2) 0 0;">No step goal set</p>
       </div>
 
       <div class="tab-bar" role="tablist" aria-label="Step history range">
@@ -116,13 +116,11 @@ function renderHistoryList(history) {
         const date = new Date(startOfDayISO(item.date));
         const day = date.toLocaleDateString([], { weekday: 'short' });
         const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const pct = Math.min((item.value / GOAL) * 100, 100);
         return `
         <div class="card card-sm step-history-item">
           <div class="step-history-date"><span class="day">${esc(day)}</span><span class="date">${esc(label)}</span></div>
           <div class="step-history-value">
-            <span class="count">${item.value.toLocaleString()} <span class="visually-hidden">steps, ${Math.round(pct)}% of goal</span></span>
-            <div class="mini-progress" aria-hidden="true"><div style="width:${pct}%"></div></div>
+            <span class="count">${item.value.toLocaleString()} <span class="visually-hidden">steps</span></span>
           </div>
         </div>`;
     }).join('');

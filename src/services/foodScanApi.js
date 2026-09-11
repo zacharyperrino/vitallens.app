@@ -16,9 +16,12 @@ const PORTION_BASELINES = {
 
 export async function lookupBarcode(barcode) {
     try {
+        // userId is optional server-side (scan history only) but, when sent,
+        // must be the caller's own — the global ownership guard 403s anything else.
+        const userId = await getUserId();
         const res = await apiFetch(`/api/barcode-lookup`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ barcode, userId: getDeviceId() }),
+            body: JSON.stringify(userId ? { barcode, userId } : { barcode }),
         });
         if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Lookup failed (${res.status})`); }
         return await res.json();
@@ -43,7 +46,11 @@ export async function getHealthScore(nutrition, additives = []) {
         });
         if (!res.ok) throw new Error(`Score failed`);
         return await res.json();
-    } catch (err) { return computeLocalScore(nutrition, additives); }
+    } catch (err) {
+        // No fallback heuristic: a missing score is shown as missing, never invented.
+        console.warn('[FoodScanApi] Health score unavailable:', err.message);
+        return null;
+    }
 }
 
 export async function getMealAnalysis(imageFiles, portion = 'medium') {
@@ -141,6 +148,9 @@ export async function getMealAnalysis(imageFiles, portion = 'medium') {
 
     const finalItems = dedupeFoods(foodItems).filter(item => item.confidence >= 0.25).sort((a, b) => b.confidence - a.confidence);
     const aggregated = aggregateNutrition(nutritionResults);
+    // Only items with a real rating count toward the meal average; none rated → null.
+    const healthRating = averageKnown(nutritionResults, 'healthRating');
+    const digestibilityScore = averageKnown(nutritionResults, 'digestibility');
 
     return {
         food: {
@@ -156,8 +166,8 @@ export async function getMealAnalysis(imageFiles, portion = 'medium') {
         },
         foods: finalItems,
         detections,
-        healthRating: aggregated.healthRating,
-        digestibilityScore: aggregated.digestibility,
+        healthRating,
+        digestibilityScore,
         combinations: generateFoodCombinations(finalItems),
         confidence: finalItems[0]?.confidence || 0.5,
         meal_description: primaryResult.meal_description,
@@ -189,8 +199,8 @@ async function batchNutritionLookupWithRestaurant(detectionInputs) {
                     sugar: 0,
                     sodium: det.restaurantNutrition.sodium || 0,
                     micronutrients: [],
-                    healthRating: 55,
-                    digestibility: 60,
+                    healthRating: null,
+                    digestibility: null,
                     source: `${det.restaurantNutrition.restaurant} (official nutrition data)`,
                 };
             }
@@ -226,8 +236,8 @@ async function batchNutritionLookupWithRestaurant(detectionInputs) {
             sugar: 0,
             sodium: 0,
             micronutrients: [],
-            healthRating: 50,
-            digestibility: 60,
+            healthRating: null,
+            digestibility: null,
             source: 'Estimated (no database match)',
         };
     });
@@ -299,20 +309,16 @@ function dedupeFoods(items) {
     return kept;
 }
 
-function getDeviceId() {
-    let id = localStorage.getItem('vitallens_device_id');
-    if (!id) { id = 'device_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('vitallens_device_id', id); }
-    return id;
+function averageKnown(items, key) {
+    const known = items.map(i => i?.[key]).filter(v => Number.isFinite(v));
+    return known.length ? Math.round(known.reduce((s, v) => s + v, 0) / known.length) : null;
 }
 
-function computeLocalScore(n, additives = []) {
-    let score = 60;
-    score -= Math.min(20, (n.sugar || 0) * 1.5);
-    score -= Math.min(15, (n.sodium || 0) * 0.012);
-    score += Math.min(10, (n.fiber || 0) * 2.0);
-    score += Math.min(10, (n.protein || 0) * 0.8);
-    score = Math.max(0, Math.min(100, Math.round(score)));
-    const rating = score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : 'Poor';
-    return { score, rating, color: score >= 75 ? '#4CAF50' : score >= 50 ? '#FFC107' : '#F44336', positives: [], negatives: [], breakdown: {} };
+async function getUserId() {
+    try {
+        const { supabase } = await import('../lib/supabase.js');
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id || null;
+    } catch { return null; }
 }
 

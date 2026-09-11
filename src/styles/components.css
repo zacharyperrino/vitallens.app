@@ -1071,7 +1071,7 @@ select.input-field {
     background: rgba(0, 0, 0, 0.6);
     padding: 3px 8px;
     border-radius: var(--radius-full);
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: white;
 }
 
@@ -1312,7 +1312,7 @@ select.input-field {
 }
 
 .step-history-date .date {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
 }
 
@@ -1553,7 +1553,7 @@ select.input-field {
 .product-score-label {
     position: relative;
     z-index: 1;
-    font-size: 9px;
+    font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-tertiary);
@@ -1661,7 +1661,7 @@ select.input-field {
 }
 
 .oura-sync-status {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1689,7 +1689,7 @@ select.input-field {
 }
 
 .oura-score-label {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: rgba(255, 255, 255, 0.6);
     text-transform: uppercase;
     margin-top: 2px;
@@ -1899,7 +1899,7 @@ select.input-field {
 }
 
 .chat-bubble-time {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
     margin-top: var(--space-1);
     text-align: right;
@@ -1977,7 +1977,7 @@ select.input-field {
 }
 
 .chat-stat-label {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2074,7 +2074,7 @@ select.input-field {
     font-weight: var(--weight-semibold);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: 10px;
+    font-size: var(--text-xs);
 }
 
 .chat-callout {

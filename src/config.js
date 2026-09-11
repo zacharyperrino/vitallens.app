@@ -7,7 +7,13 @@
 //
 // Callers append the route path themselves, e.g. `${API_BASE}/api/vision-scan`.
 
+const ENV = (typeof import.meta !== 'undefined' && import.meta.env) || {};
+const PROD_FALLBACK = 'https://api.vitallens.app';
+
+if (!ENV.VITE_API_BASE && ENV.PROD) {
+  // Module evaluates once, so this warns once per page load.
+  console.warn(`[Config] VITE_API_BASE is not set; falling back to ${PROD_FALLBACK}`);
+}
+
 export const API_BASE =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE)
-    ? import.meta.env.VITE_API_BASE
-    : 'http://localhost:3001';
+  ENV.VITE_API_BASE || (ENV.PROD ? PROD_FALLBACK : 'http://localhost:3001');

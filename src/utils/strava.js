@@ -224,7 +224,7 @@ function mapStravaActivity(activity) {
         stravaType: activity.type,
         duration: durationMin,
         intensity,
-        calories: activity.calories || estimateCalories(activity),
+        calories: activity.calories ?? null, // Strava-reported only; never estimated
         distanceKm,
         distanceMi,
         avgHeartRate: activity.average_heartrate || null,
@@ -236,19 +236,6 @@ function mapStravaActivity(activity) {
         movingTime: activity.moving_time,
         imported: false,
     };
-}
-
-function estimateCalories(activity) {
-    // Rough MET-based estimation when Strava doesn't provide calories
-    const minutes = activity.moving_time / 60;
-    const metMap = {
-        'Run': 9.8, 'TrailRun': 10.5, 'Ride': 7.5, 'Swim': 8.0,
-        'Walk': 3.5, 'Hike': 6.0, 'WeightTraining': 5.0, 'Yoga': 3.0,
-        'Workout': 8.0, 'Rowing': 7.0,
-    };
-    const met = metMap[activity.type] || 5.0;
-    const weight = 70; // default kg assumption
-    return Math.round((met * weight * minutes) / 60);
 }
 
 // ── Import into Exercise Log ────────────────────────────

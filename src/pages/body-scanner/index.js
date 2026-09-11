@@ -342,7 +342,14 @@ function startHeartRateScan() {
 
     try {
       await hrReadings.log({ hr: result.hr, hrv: result.hrv, confidence: result.confidence, quality: result.quality });
-      await bodyScans.log({ type: 'heart', overallScore: result.confidence, hr: result.hr, hrv: result.hrv, confidence: result.confidence, quality: result.quality });
+      // A pulse check-in has no wellness score: signal confidence is camera
+      // signal quality, so it is kept under its own name, not as overall_score.
+      await bodyScans.log({
+        type: 'heart',
+        overallScore: null,
+        results: { hr: result.hr, hrv: result.hrv, signal_confidence: result.confidence, signal_quality: result.quality },
+        hr: result.hr, hrv: result.hrv, confidence: result.confidence, quality: result.quality,
+      });
     } catch (dbErr) {
       console.warn('[BodyScanner] Failed to save pulse reading:', dbErr?.message || dbErr);
       showToast("Couldn't save this reading to your history.");

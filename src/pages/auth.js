@@ -48,7 +48,7 @@ export function renderAuth() {
             <div id="dob-field" style="display:none;">
               <label for="auth-dob" style="${LABEL_STYLE}">Date of birth</label>
               <input type="date" id="auth-dob" max="${todayLocalISO()}" autocomplete="bday" aria-describedby="auth-dob-help" style="${FIELD_STYLE}">
-              <div id="auth-dob-help" class="disclaimer" style="font-size:var(--text-xs);margin-top:4px;">You must be 18 or older to use VitalLens.</div>
+              <div id="auth-dob-help" class="disclaimer mt-2">You must be 18 or older to use VitalLens.</div>
             </div>
 
             <div>

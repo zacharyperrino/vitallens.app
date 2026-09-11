@@ -1,8 +1,10 @@
 import { supabase } from '../lib/supabase.js';
+import { profile } from '../lib/db.js';
 import { icons } from '../icons.js';
 import { doshaData, doshaQuiz, faceMappingZones, tongueDiagnosis } from '../utils/eastern-medicine-data.js';
 import { apiFetch } from '../utils/api.js';
 import { esc } from '../utils/esc.js';
+import { initTablist } from '../utils/tablist.js';
 
 import { showToast } from '../utils/toast.js';
 let activeTab = 'dosha';
@@ -45,18 +47,12 @@ export async function renderEasternMedicine() {
       <div id="em-content" role="tabpanel" aria-labelledby="em-tab-${activeTab}"></div>
     </div>`;
 
-  document.querySelectorAll('#em-tabs .tab-item').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#em-tabs .tab-item').forEach(t => {
-        t.classList.remove('active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.classList.add('active');
-      tab.setAttribute('aria-selected', 'true');
-      activeTab = tab.dataset.tab;
-      document.getElementById('em-content')?.setAttribute('aria-labelledby', `em-tab-${activeTab}`);
-      renderEMContent();
-    });
+  // Click + Arrow/Home/End handling and active/aria-selected/tabindex state
+  // live in initTablist (WAI-ARIA tabs pattern).
+  initTablist(document.getElementById('em-tabs'), tab => {
+    activeTab = tab.dataset.tab;
+    document.getElementById('em-content')?.setAttribute('aria-labelledby', `em-tab-${activeTab}`);
+    renderEMContent();
   });
 
   await loadProfileData();
@@ -410,12 +406,8 @@ async function saveDoshaResult(doshaKey) {
     return;
   }
   try {
-    const res = await apiFetch('/api/health-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, dosha: doshaKey }),
-    });
-    if (!res.ok) throw new Error(`Save failed (${res.status})`);
+    // `dosha` lives on profiles (not health_profile); write it through the RLS-scoped profile helper.
+    await profile.update({ dosha: doshaKey });
     showToast('Dosha saved to your profile');
   } catch (err) {
     console.error('[EasternMedicine] Save dosha failed:', err);

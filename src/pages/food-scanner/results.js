@@ -136,7 +136,7 @@ export function renderFoodResults(result) {
         <div class="flex-between mb-3">
           <div>
             <h3 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${esc(food.name)}</h3>
-            <span class="badge badge-teal">Health Rating: ${Math.round(healthRating || 0)}/100</span>
+            <span class="badge badge-teal">${Number.isFinite(Number(healthRating)) && healthRating !== null ? `Health Rating: ${Math.round(healthRating)}/100` : 'Rating unavailable'}</span>
           </div>
           <div class="text-center">
             <div id="total-calories-display" style="font-family:var(--font-heading);font-size:var(--text-3xl);font-weight:var(--weight-extrabold);color:var(--accent-teal);">${Math.round(food.calories || 0)}</div>
@@ -284,7 +284,7 @@ export function renderFoodResults(result) {
             <h4 class="mb-1">Digestibility Score</h4>
             <p class="text-xs">How easily your body can process this meal</p>
           </div>
-          <div style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-bold);color:${(digestibilityScore || 0) >= 80 ? 'var(--accent-green)' : 'var(--accent-amber)'};">${Math.round(digestibilityScore || 0)}%</div>
+          <div style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-bold);color:${digestibilityScore === null || digestibilityScore === undefined ? 'var(--text-tertiary)' : digestibilityScore >= 80 ? 'var(--accent-green)' : 'var(--accent-amber)'};">${digestibilityScore === null || digestibilityScore === undefined ? '—' : `${Math.round(digestibilityScore)}%`}</div>
         </div>
       </div>
 

@@ -121,25 +121,25 @@ export const doshaQuiz = [
 export const faceMappingZones = [
     {
         id: 'forehead', name: 'Forehead', organ: 'Small Intestine / Bladder', position: { top: '8%', left: '30%', width: '40%', height: '15%' },
-        signs: ['Redness: Stress, poor digestion', 'Acne: Toxin buildup, poor diet', 'Lines: Worry, overconsumption of sugar'],
+        signs: ['Redness: traditionally linked to stress or digestion', 'Acne: traditionally linked to diet and digestion', 'Lines: traditionally linked to worry or excess sugar'],
         tcmMeridian: 'Bladder & Small Intestine Meridian',
         recommendations: ['Improve digestion with warm, cooked foods', 'Reduce processed sugar and alcohol', 'Practice stress management techniques']
     },
     {
         id: 'betweenBrows', name: 'Between Brows', organ: 'Liver', position: { top: '22%', left: '40%', width: '20%', height: '10%' },
-        signs: ['Vertical lines: Liver stagnation, anger', 'Redness: Excess alcohol or fatty foods', 'Puffiness: Emotional suppression'],
+        signs: ['Vertical lines: traditionally read as liver qi stagnation', 'Redness: traditionally linked to rich foods or alcohol', 'Puffiness: traditionally linked to held-in emotion'],
         tcmMeridian: 'Liver & Gallbladder Meridian',
         recommendations: ['Reduce alcohol and greasy foods', 'Practice anger management', 'Eat more bitter greens to support liver']
     },
     {
         id: 'leftCheek', name: 'Left Cheek', organ: 'Stomach / Liver', position: { top: '40%', left: '10%', width: '22%', height: '20%' },
-        signs: ['Breakouts: Stomach or liver overload', 'Redness: Food sensitivities', 'Dryness: Lung qi deficiency'],
+        signs: ['Breakouts: traditionally read as stomach or liver qi', 'Redness: traditionally linked to diet and heat', 'Dryness: traditionally read as lung qi'],
         tcmMeridian: 'Stomach & Lung Meridian',
         recommendations: ['Check for food sensitivities', 'Eat more cooling foods', 'Practice deep breathing exercises']
     },
     {
         id: 'rightCheek', name: 'Right Cheek', organ: 'Lungs / Large Intestine', position: { top: '40%', left: '68%', width: '22%', height: '20%' },
-        signs: ['Breakouts: Respiratory issues or allergies', 'Redness: Smoking or air pollution effects', 'Dullness: Poor oxygen circulation'],
+        signs: ['Breakouts: traditionally read as lung qi', 'Redness: traditionally linked to smoke or air quality', 'Dullness: traditionally linked to circulation'],
         tcmMeridian: 'Lung & Large Intestine Meridian',
         recommendations: ['Improve air quality in your environment', 'Practice breathwork and cardio exercise', 'Increase antioxidant-rich foods']
     },

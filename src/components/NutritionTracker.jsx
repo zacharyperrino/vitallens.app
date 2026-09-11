@@ -25,8 +25,9 @@ export default function NutritionTracker({ userId }) {
             } else if (!nutritionRes.ok) {
                 throw new Error(`Nutrition request failed (${nutritionRes.status})`);
             } else {
-                const data = await nutritionRes.json();
-                setNutrition(data.nutrition || data || null);
+                // GET /api/daily-nutrition responds { data: row | null } — unwrap the row.
+                const json = await nutritionRes.json();
+                setNutrition(json.data ?? null);
             }
 
             if (profileRes.status === 404) {

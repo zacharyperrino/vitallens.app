@@ -18,6 +18,8 @@ const BANNED = [
   'anemia', 'jaundice', 'melanoma', 'icterus', 'xanthelasma', 'bilirubin',
   'abcde', 'bradycardia', 'tachycardia', 'conjunctival pallor', 'malignan',
   'cancerous', 'lesion triage', 'diagnosis of', 'medical diagnosis of',
+  // Retired clinical-scan identifiers — must never return (audit §2.5).
+  'pallor_present', 'drooping_present', 'fungal_pattern',
 ];
 // Phrases that legitimately contain a banned substring, or are the prompt
 // instructing the model to AVOID clinical language (which is desirable).

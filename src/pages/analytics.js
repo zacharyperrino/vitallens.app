@@ -1,10 +1,10 @@
-import { createBarChart, createInteractiveTrendChart } from '../utils/charts.js';
 import { mountReact } from '../components/mountReact.js';
 import WellnessScoreCard from '../components/WellnessScoreCard.jsx';
 import PatternDiscoveryHero from '../components/PatternDiscoveryHero.jsx';
 import NutritionTracker from '../components/NutritionTracker.jsx';
 import { apiFetch } from '../utils/api.js';
 import { esc } from '../utils/esc.js';
+import { renderExploreCards } from './analytics-explore.js';
 import { daysAgoLocalISO, startOfDayISO, daysSince } from '../utils/dates.js';
 
 // ── Shared helpers ──────────────────────────────────────────────
@@ -49,13 +49,15 @@ export async function renderAnalytics() {
     const uid = encodeURIComponent(userId);
     const sevenDaysAgo = daysAgoLocalISO(7);
 
-    const [mealsRes, biomarkerRes, suppRes, envRes, weeklyRes, profileRes] = await Promise.allSettled([
+    const [mealsRes, biomarkerRes, suppRes, envRes, weeklyRes, profileRes, streakRes] = await Promise.allSettled([
       supabase.from('meals').select('name, calories, protein, carbs, fat, fiber, logged_at').eq('user_id', userId).gte('logged_at', sevenDaysAgo).order('logged_at', { ascending: true }),
       apiFetch(`/api/biomarker-history?userId=${uid}&limit=20`),
       apiFetch(`/api/supplements?userId=${uid}`),
       apiFetch(`/api/environment/latest?userId=${uid}`),
       supabase.from('daily_nutrition').select('date, calories, protein, carbs, fat, fiber').eq('user_id', userId).gte('date', sevenDaysAgo).order('date', { ascending: true }),
       apiFetch(`/api/health-profile?userId=${uid}`),
+      // Streaks need a real window (the 7-day chart would cap them at 7).
+      supabase.from('daily_nutrition').select('date').eq('user_id', userId).gte('date', daysAgoLocalISO(90)),
     ]);
 
     // Every source is tracked separately so a failure renders as a failure —
@@ -77,6 +79,7 @@ export async function renderAnalytics() {
 
     const meals = fromQuery(mealsRes, 'meals');
     const nutrition = fromQuery(weeklyRes, 'nutrition');
+    const streakDays = fromQuery(streakRes, 'log streak');
     const biomarkerData = await fromApi(biomarkerRes, 'wellness check-ins');
     const suppData = await fromApi(suppRes, 'supplements');
     const envData = await fromApi(envRes, 'environment');
@@ -98,32 +101,26 @@ export async function renderAnalytics() {
       const dateStr = daysAgoLocalISO(6 - i);
       const d = new Date(startOfDayISO(dateStr));
       const dayData = nutrition.find(n => n.date === dateStr);
+      // A day with no row is null — "no entry", never a charted 0.
+      const val = (k) => (dayData && dayData[k] != null ? Number(dayData[k]) : null);
       return {
         label: dayLabels[d.getDay() === 0 ? 6 : d.getDay() - 1],
         date: dateStr,
-        calories: dayData?.calories || 0,
-        protein: dayData?.protein || 0,
-        fiber: dayData?.fiber || 0,
+        calories: val('calories'),
+        protein: val('protein'),
+        fiber: val('fiber'),
       };
     }) : null;
 
     // Targets come only from the user's profile. No target = no made-up target.
     const calTarget = Number(profile?.target_calories) || null;
     const protTarget = Number(profile?.target_protein) || null;
-    const calDays = last7 ? last7.filter(d => d.calories > 0) : [];
-    const protDays = last7 ? last7.filter(d => d.protein > 0) : [];
+    const calDays = last7 ? last7.filter(d => d.calories != null) : [];
+    const protDays = last7 ? last7.filter(d => d.protein != null) : [];
     const daysLogged = calDays.length;
     const avgCal = daysLogged ? calDays.reduce((s, d) => s + d.calories, 0) / daysLogged : null;
     const avgProt = protDays.length ? protDays.reduce((s, d) => s + d.protein, 0) / protDays.length : null;
-    const logStreak = (() => {
-      if (!last7) return 0;
-      let streak = 0;
-      for (let i = last7.length - 1; i >= 0; i--) {
-        if (last7[i].calories > 0) streak++;
-        else break;
-      }
-      return streak;
-    })();
+    const logStreak = streakDays ? logStreakFrom(streakDays.map(r => r.date)) : null;
 
     const scanTypes = scans ? [...new Set(scans.map(s => s.scan_type))] : [];
     const latestByType = scanTypes.map(type => {
@@ -166,7 +163,7 @@ export async function renderAnalytics() {
       <!-- Summary Stats -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);margin-bottom:var(--space-5);">
         ${renderStatBox(last7 ? `${daysLogged}/7` : null, 'Days logged', 'var(--text-primary)')}
-        ${renderStatBox(last7 ? `${logStreak} day${logStreak !== 1 ? 's' : ''}` : null, 'Log streak', 'var(--viz-green)')}
+        ${renderStatBox(logStreak !== null ? `${logStreak} day${logStreak !== 1 ? 's' : ''}` : null, 'Log streak', 'var(--viz-green)')}
         ${renderStatBox(scans ? scans.length : null, 'Check-ins', 'var(--accent)')}
         ${renderStatBox(supplements ? supplements.length : null, 'Supplements', 'var(--viz-amber)')}
       </div>
@@ -187,14 +184,11 @@ export async function renderAnalytics() {
             ${vsTarget(avgCal, calTarget)}
           </div>
         </div>
-        ${createInteractiveTrendChart(last7.map(d => ({
-          label: d.label,
-          value: Math.round(d.calories),
-        })), 340, 100, 'var(--viz-green)', 'calorie-chart')}
+        ${renderDayBars(last7.map(d => ({ label: d.label, value: d.calories })), ' kcal', () => 'var(--viz-green)', 'calories', 'Calories, last 7 days')}
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);" aria-hidden="true">
           ${last7.map(d => `<span class="text-tertiary text-xs">${d.label}</span>`).join('')}
         </div>
-        <p class="disclaimer mt-2">${targetNote(calTarget, ' kcal')} Days with no logged meals are shown in grey.</p>
+        <p class="disclaimer mt-2">${targetNote(calTarget, ' kcal')} Days with no entry are hatched, not counted as zero.</p>
       </div>` : pageErrorState('your calorie trend', null, 'analytics-retry-calories')}
 
       <!-- 7-Day Protein Trend -->
@@ -211,15 +205,11 @@ export async function renderAnalytics() {
             ${vsTarget(avgProt, protTarget)}
           </div>
         </div>
-        ${createBarChart(last7.map(d => ({
-          label: d.label,
-          value: Math.round(d.protein),
-          color: d.protein <= 0 ? 'var(--surface-3)' : (!protTarget || d.protein >= protTarget * 0.9) ? 'var(--accent)' : 'var(--viz-amber)',
-        })), 340, 100)}
+        ${renderDayBars(last7.map(d => ({ label: d.label, value: d.protein })), 'g', (v) => (!protTarget || v >= protTarget * 0.9) ? 'var(--accent)' : 'var(--viz-amber)', 'protein', 'Protein, last 7 days')}
         <div style="display:flex;justify-content:space-between;margin-top:var(--space-1);" aria-hidden="true">
           ${last7.map(d => `<span class="text-tertiary text-xs">${d.label}</span>`).join('')}
         </div>
-        <p class="disclaimer mt-2">${targetNote(protTarget, 'g')}${protTarget ? ' Amber bars are days below 90% of it.' : ''}</p>
+        <p class="disclaimer mt-2">${targetNote(protTarget, 'g')}${protTarget ? ' Amber bars are days below 90% of it.' : ''} Days with no entry are hatched.</p>
       </div>` : pageErrorState('your protein trend', null, 'analytics-retry-protein')}
 
       <!-- Wellness Check-in Summary -->
@@ -292,6 +282,8 @@ export async function renderAnalytics() {
       <div id="correlation-section">
         ${await renderCorrelationSection(userId)}
       </div>
+      <!-- Early patterns + Explore a correlation (click-to-run, see analytics-explore.js) -->
+      <div id="explore-section"></div>
 
       <!-- Weekly Summary -->
       <div class="section-heading mt-4"><h3>Your week, summarized</h3></div>
@@ -311,6 +303,7 @@ export async function renderAnalytics() {
     mountReact(WellnessScoreCard, 'weekly-score-react', { userId });
     mountReact(PatternDiscoveryHero, 'pattern-hero-react', { userId });
     mountReact(NutritionTracker, 'nutrition-tracker-react', { userId });
+    renderExploreCards(document.getElementById('explore-section'), userId);
     // Rendered from the server on load (previously only reachable from its own button)
     const weeklyEl = document.getElementById('weekly-report-section');
     if (weeklyEl) weeklyEl.innerHTML = await renderWeeklyReportSection(userId);
@@ -652,6 +645,41 @@ function setupAnalyticsHandlers(userId) {
     userId, btnId: 'generate-report-btn', sectionKey: 'weekly',
     url: '/api/weekly-report/generate', working: 'Writing your weekly summary…', failedTitle: "Couldn't write the weekly summary",
   }));
+}
+
+// Consecutive logged days ending today or yesterday (an unlogged morning
+// doesn't break it). `dates` are local YYYY-MM-DD strings.
+function logStreakFrom(dates) {
+  const logged = new Set(dates);
+  let back = logged.has(daysAgoLocalISO(0)) ? 0 : 1;
+  let streak = 0;
+  while (logged.has(daysAgoLocalISO(back))) { streak++; back++; }
+  return streak;
+}
+
+// 7-day bar chart. A null value is a day with no entry: drawn as a hatched
+// outline and announced/tooltipped as "No entry" — never charted as zero.
+function renderDayBars(data, unit, colorFor, chartId, caption) {
+  const width = 340, height = 100, plotH = height - 20;
+  const max = Math.max(1, ...data.filter(d => d.value != null).map(d => d.value));
+  const barWidth = Math.min(24, (width / data.length) - 8);
+  const gap = (width - barWidth * data.length) / (data.length + 1);
+  const valueText = (d) => d.value == null ? 'No entry' : `${Math.round(d.value)}${unit}`;
+  const bars = data.map((d, i) => {
+    const x = gap + i * (barWidth + gap);
+    const barHeight = d.value == null ? plotH : (d.value / max) * plotH;
+    const paint = d.value == null
+      ? `fill="url(#hatch-${chartId})" stroke="var(--border)" stroke-dasharray="3 2"`
+      : `fill="${esc(colorFor(d.value))}" opacity="0.85"`;
+    return `<rect x="${x}" y="${height - barHeight - 10}" width="${barWidth}" height="${barHeight}" rx="4" ${paint}><title>${esc(d.label)}: ${esc(valueText(d))}</title></rect>`;
+  }).join('');
+  const summary = data.map(d => `${d.label} ${valueText(d)}`).join(', ');
+  const rows = data.map(d => `<tr><th scope="row">${esc(d.label)}</th><td>${esc(valueText(d))}</td></tr>`).join('');
+  return `<svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(`${caption}: ${summary}`)}">
+    <defs><pattern id="hatch-${chartId}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--border)" stroke-width="1.5"/></pattern></defs>
+    ${bars}
+  </svg>
+  <table class="visually-hidden"><caption>${esc(caption)}</caption><tbody>${rows}</tbody></table>`;
 }
 
 // value === null means the source failed to load; render a dash, not a zero.

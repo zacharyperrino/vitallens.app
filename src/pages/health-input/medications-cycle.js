@@ -49,14 +49,21 @@ export async function renderMedications() {
 // CYCLE — observational log that feeds cross-domain patterns.
 // ═══════════════════════════════════════
 export async function renderCycle() {
-  let history = []; let loadError = null;
+  // GET /api/cycle/history → { events: raw log rows (newest first), cycles, averageCycleLength, periodsLogged }
+  let history = []; let averageCycleLength = null; let periodsLogged = 0; let loadError = null;
   try {
     const res = await apiFetch(`/api/cycle/history?userId=${encodeURIComponent(currentUserId)}`);
     if (!res.ok) throw new Error(`Server responded ${res.status}`);
     const data = await res.json();
-    history = data.history || data.entries || data.events || [];
+    history = Array.isArray(data.events) ? data.events : [];
+    averageCycleLength = data.averageCycleLength;
+    periodsLogged = Number(data.periodsLogged) || 0;
   } catch (e) { loadError = e; }
   const today = todayLocalISO();
+  // Only show an average when it is a real number derived from at least two logged period starts.
+  const cycleSummary = typeof averageCycleLength === 'number' && periodsLogged >= 2
+    ? `Average cycle length so far: ${esc(averageCycleLength)} days (from ${esc(periodsLogged)} logged period starts).`
+    : 'Not enough periods logged to estimate a cycle length.';
 
   return `<div class="stagger-children flex-col gap-4">
     <div class="card">
@@ -65,7 +72,8 @@ export async function renderCycle() {
       <form id="cycle-form" class="flex-col gap-3">
         <div class="grid-2">
           <div class="input-group"><label for="cycle-type">Event</label>
-            <select class="input-field" id="cycle-type"><option value="period_start">Period start</option><option value="period_end">Period end</option><option value="symptom">Symptom</option><option value="ovulation">Ovulation (estimated)</option></select>
+            <!-- Options mirror the server whitelist and the cycle_log_event_type_check DB constraint. -->
+            <select class="input-field" id="cycle-type" required><option value="" disabled selected>Select…</option><option value="period_start">Period start</option><option value="period_end">Period end</option><option value="symptom">Symptom</option><option value="ovulation">Ovulation</option></select>
           </div>
           <div class="input-group"><label for="cycle-date">Date</label><input class="input-field" id="cycle-date" type="date" value="${today}" max="${today}"></div>
         </div>
@@ -79,6 +87,7 @@ export async function renderCycle() {
       </form>
     </div>
     <div class="section-heading"><h3>Recent entries</h3></div>
+    ${loadError ? '' : `<p class="text-secondary text-xs mb-2">${cycleSummary}</p>`}
     ${loadError ? loadErrorState('your cycle history', loadError, 'cycle-retry')
       : history.length ? history.slice(0, 30).map(h => `<div class="card card-sm" style="display:flex;justify-content:space-between;gap:var(--space-3);">
           <span class="text-sm">${esc((h.event_type || '').replace(/_/g, ' '))}${h.symptom ? ' — ' + esc(h.symptom) : ''}${h.flow ? ' (' + esc(h.flow) + ')' : ''}</span>

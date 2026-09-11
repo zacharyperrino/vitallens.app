@@ -7,7 +7,7 @@ import { esc } from '../utils/esc.js';
 import { getScoreColor, getScoreLabel } from '../utils/product-scanner.js';
 import { createDonutChart } from '../utils/charts.js';
 import { apiFetch } from '../utils/api.js';
-import { todayLocalISO } from '../utils/dates.js';
+import { meals } from '../lib/db.js';
 
 const RISK_LEVELS = new Set(['high', 'moderate', 'low']);
 // Additive risk levels come from a third-party service; only known values
@@ -39,12 +39,15 @@ export function renderProductResults() {
     return;
   }
 
-  const { product = {}, healthScore = {}, additives } = data;
+  const { product = {}, additives } = data;
+  const healthScore = data.healthScore || {};
   const n = product.nutrition || {};
-  const score = Number(healthScore.score) || 0;
+  // A missing score is shown as missing — never as 0.
+  const hasScore = healthScore.score !== null && healthScore.score !== undefined && healthScore.score !== '' && Number.isFinite(Number(healthScore.score));
+  const score = hasScore ? Number(healthScore.score) : null;
   // Colour always comes from our own token scale — never from the API payload.
-  const scoreColor = getScoreColor(score);
-  const scoreLabel = healthScore.rating || getScoreLabel(score);
+  const scoreColor = hasScore ? getScoreColor(score) : 'var(--text-tertiary)';
+  const scoreLabel = hasScore ? (healthScore.rating || getScoreLabel(score)) : 'Score unavailable';
 
   // Macro percentages for chart
   const totalMacro = Math.round(((Number(n.protein) || 0) + (Number(n.carbs) || 0) + (Number(n.fat) || 0)) * 10) / 10;
@@ -88,8 +91,8 @@ export function renderProductResults() {
       <!-- Product Header + Score Badge -->
       <div class="card product-header-card">
         <div style="display:flex;gap:var(--space-4);align-items:center;">
-          <div class="product-score-badge" style="--score-color:${scoreColor};" role="img" aria-label="Wellness score ${score} out of 100, ${esc(scoreLabel)}">
-            <div class="product-score-value">${score}</div>
+          <div class="product-score-badge" style="--score-color:${scoreColor};" role="img" aria-label="${hasScore ? `Wellness score ${score} out of 100, ` : ''}${esc(scoreLabel)}">
+            <div class="product-score-value">${hasScore ? score : '—'}</div>
             <div class="product-score-label">${esc(scoreLabel)}</div>
           </div>
           <div class="flex-1">
@@ -228,33 +231,21 @@ async function logProductToFoodLog(product, n) {
     const fiber = Math.round((Number(n.fiber) || 0) * scale * 10) / 10;
     const mealName = `${product.brand ? product.brand + ' ' : ''}${product.name || 'Scanned product'}`;
 
-    // Save to meals table — this is the write that counts as "logged".
-    const ingestRes = await apiFetch(`/api/ingest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id,
-        eventType: 'meal',
-        data: {
-          name: mealName,
-          calories,
-          protein,
-          carbs,
-          fat,
-          fiber,
-          grams: servingSize,
-          source: 'product_scan',
-          barcode: product.barcode,
-          timestamp: new Date().toISOString(),
-        },
-      }),
+    // Write the meals row — this is the write that counts as "logged". The
+    // shared helper also increments today's daily_nutrition totals and fires
+    // the /api/ingest event (non-blocking), same path the meal scanner uses.
+    await meals.log({
+      name: mealName,
+      calories,
+      protein,
+      carbs,
+      fat,
+      fiber,
+      foods: [{ name: product.name, grams: servingSize }],
     });
-    if (!ingestRes.ok) throw new Error(`Ingest failed (${ingestRes.status})`);
 
-    // Meal memory and daily totals are follow-ups. If they fail the meal is
-    // still logged, so report a partial result rather than a failure that
-    // would invite a duplicate log.
-    let totalsUpdated = true;
+    // Meal memory is a follow-up: if it fails the meal is still logged, so
+    // only warn rather than report a failure that would invite a duplicate log.
     try {
       const memRes = await apiFetch(`/api/meal-memory`, {
         method: 'POST',
@@ -268,30 +259,15 @@ async function logProductToFoodLog(product, n) {
         }),
       });
       if (!memRes.ok) console.warn('[ProductLog] Meal memory not saved:', memRes.status);
-
-      const today = todayLocalISO();
-      const { error: rpcError } = await supabase.rpc('increment_daily_nutrition', {
-        p_user_id: user.id,
-        p_date: today,
-        p_calories: calories,
-        p_protein: protein,
-        p_carbs: carbs,
-        p_fat: fat,
-        p_fiber: fiber,
-      });
-      if (rpcError) throw rpcError;
-    } catch (partialErr) {
-      totalsUpdated = false;
-      console.warn('[ProductLog] Daily totals not updated:', partialErr?.message || partialErr);
+    } catch (memErr) {
+      console.warn('[ProductLog] Meal memory not saved:', memErr?.message || memErr);
     }
 
     btn.textContent = 'Logged';
     btn.style.background = 'var(--viz-green)';
     status.style.display = 'block';
-    status.style.color = totalsUpdated ? 'var(--viz-green)' : 'var(--viz-amber)';
-    status.textContent = totalsUpdated
-      ? `${mealName} — ${calories} cal logged to today`
-      : `${mealName} was logged, but today's nutrition totals couldn't be updated right now.`;
+    status.style.color = 'var(--viz-green)';
+    status.textContent = `${mealName} — ${calories} cal logged to today`;
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Log to Food Diary';

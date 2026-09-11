@@ -12,16 +12,64 @@ import { renderStepDetails } from './pages/step-details.js';
 import { renderProductResults } from './pages/product-results.js';
 import { checkOAuthCallback, exchangeCodeForToken } from './utils/strava.js';
 import { getSession, renderAuth } from './pages/auth.js';
-import { meals } from './lib/db.js';
+import { meals, profile } from './lib/db.js';
 import { renderHygieneScanner } from './pages/hygiene-scanner.js';
 import { renderOnboarding } from './pages/onboarding.js';
 import { renderTerms, renderPrivacy } from './pages/legal.js';
 import { apiFetch } from './utils/api.js';
 import { showToast } from './utils/toast.js';
+import { esc } from './utils/esc.js';
 const NOTIFICATION_PERMISSION_KEY = 'vitallens_notifications_permission_requested';
 const NOTIFICATION_ENABLED_KEY = 'vitallens_notifications_enabled';
 const LAST_WEEKLY_REPORT_KEY = 'vitallens_last_weekly_report_week';
 const NOTIFICATION_WIDGET_ID = 'notification-settings-widget';
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+
+// ── Web push (opt-in; only when VITE_VAPID_PUBLIC_KEY is configured) ───
+// Without the key, reminders stay local exactly as before. Best-effort:
+// never throws, never blocks the local toggle or boot.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+}
+
+async function syncPushSubscription(userId, enabled) {
+  if (!VAPID_PUBLIC_KEY || !userId || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    // `ready` never settles without a registration (dev unregisters the SW), so check first.
+    if (!(await navigator.serviceWorker.getRegistration())) return;
+    const reg = await navigator.serviceWorker.ready;
+    if (enabled) {
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      await apiFetch('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ userId, subscription: subscription.toJSON() }) });
+    } else {
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+      await apiFetch('/api/push/unsubscribe', { method: 'DELETE', body: JSON.stringify({ userId }) });
+    }
+  } catch (err) {
+    console.warn('[Push] Subscription sync failed:', err?.message);
+  }
+}
+
+// The API computes "today" per user from profiles.timezone; keep it current.
+// Best-effort and non-blocking: never throws, never delays first render.
+async function syncProfileTimezone(userId) {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (typeof tz !== 'string' || !tz) return;
+    const key = 'vitallens_tz_' + userId;
+    if (localStorage.getItem(key) === tz) return;
+    await profile.update({ timezone: tz });
+    localStorage.setItem(key, tz);
+  } catch (err) {
+    console.warn('[Profile] Timezone sync skipped:', err?.message);
+  }
+}
 
 function getNotificationPreference() {
   const value = localStorage.getItem(NOTIFICATION_ENABLED_KEY);
@@ -89,9 +137,12 @@ window.addEventListener('vitallens:notifications:changed', async (e) => {
       const session = await getSession();
       const userId = session?.user?.id;
       if (userId) setupNotificationTriggers(userId);
+      syncPushSubscription(userId, true);
       showToast('Notifications enabled');
     } else {
       showToast('Notifications disabled');
+      const session = await getSession();
+      syncPushSubscription(session?.user?.id, false);
     }
   } catch (err) {
     console.warn('[Notifications] Event handler error:', err.message);
@@ -124,6 +175,7 @@ async function handleNotificationToggle() {
   if (enabled) {
     setNotificationPreference(false);
     showToast('Notifications turned off');
+    try { const s = await getSession(); syncPushSubscription(s?.user?.id, false); } catch { /* best-effort */ }
     return;
   }
 
@@ -140,6 +192,7 @@ async function handleNotificationToggle() {
     const session = await getSession();
     const userId = session?.user?.id;
     if (userId) setupNotificationTriggers(userId);
+    syncPushSubscription(userId, true);
   } else {
     setNotificationPreference(false);
     showToast('Notifications remain disabled');
@@ -421,6 +474,7 @@ async function init() {
 
   const notificationReady = await initializeNotificationPreferences();
   const userId = session?.user?.id;
+  if (userId) syncProfileTimezone(userId);
   if (userId && notificationReady) {
     setupNotificationTriggers(userId);
   }
@@ -463,7 +517,7 @@ async function init() {
       if (c) {
         const t = document.createElement('div');
         t.className = 'toast';
-        t.innerHTML = `<span>Strava auth failed: ${err.message}</span>`;
+        t.innerHTML = `<span>Strava auth failed: ${esc(err.message)}</span>`;
         c.appendChild(t);
         setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, 4000);
       }

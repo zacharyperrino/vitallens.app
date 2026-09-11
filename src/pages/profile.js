@@ -74,7 +74,7 @@ function normalizeProfileData(profile) {
     goalWeight: Number(profile.goal_weight_kg) || 0,
     heightUnit: 'cm',
     weightUnit: 'kg',
-    activityLevel: profile.activity_level || 'sedentary',
+    activityLevel: profile.activity_level || '',
     liftingSessions: parseInt(profile.lifting_frequency, 10) || 0,
     primaryGoal: profile.goal || '',
     calorieTarget: Number(profile.target_calories ?? profile.custom_calories) || 0,
@@ -145,6 +145,7 @@ function renderProfileForm(profile, user) {
             </div>
             <div class="input-group"><label for="p-activity-level">Activity level</label>
               <select class="input-field" id="p-activity-level">
+                <option value="" disabled ${profile.activityLevel ? '' : 'selected'}>Select…</option>
                 <option value="sedentary" ${profile.activityLevel === 'sedentary' ? 'selected' : ''}>Sedentary</option>
                 <option value="light" ${profile.activityLevel === 'light' ? 'selected' : ''}>Light</option>
                 <option value="moderate" ${profile.activityLevel === 'moderate' ? 'selected' : ''}>Moderate</option>
@@ -206,6 +207,7 @@ function renderProfileForm(profile, user) {
             Suggested from your stats: about <strong id="p-suggested-calories">${tdee ? Math.round(tdee) : ''}</strong> kcal/day.
             <button type="button" class="btn btn-sm" id="p-use-suggested-calories" style="margin-left:var(--space-2);">Use this</button>
           </div>
+          <p id="p-activity-hint" class="disclaimer" style="margin-bottom:var(--space-3);${profile.activityLevel ? 'display:none;' : ''}">Set your activity level to get a target.</p>
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);">
             <div class="input-group"><label for="p-protein-target">Protein target (g)</label><input class="input-field" type="number" min="0" id="p-protein-target" value="${profile.proteinTarget || ''}" placeholder="g"></div>
             <div class="input-group"><label for="p-carbs-target">Carbs target (g)</label><input class="input-field" type="number" min="0" id="p-carbs-target" value="${profile.carbsTarget || ''}" placeholder="g"></div>
@@ -243,6 +245,11 @@ function renderProfileForm(profile, user) {
         <div id="billing-status" class="disclaimer" aria-live="polite">Checking your plan…</div>
         <div id="billing-actions" style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);"></div>
         <p class="disclaimer mt-3">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 class="mb-3">AI usage</h4>
+        <div id="usage-status" class="disclaimer" aria-live="polite">Checking your usage…</div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
@@ -288,6 +295,7 @@ function attachProfileHandlers(profile, userId) {
   const calorieInput = document.getElementById('p-calorie-target');
   const suggestionEl = document.getElementById('p-calorie-suggestion');
   const suggestedEl = document.getElementById('p-suggested-calories');
+  const activityHintEl = document.getElementById('p-activity-hint');
   let suggestedCalories = null;
 
   function getNumberValue(id) {
@@ -324,7 +332,7 @@ function attachProfileHandlers(profile, userId) {
     const weight = getNumberValue('p-weight');
     const age = getNumberValue('p-age');
     const sex = document.getElementById('p-sex')?.value || '';
-    const activityLevel = document.getElementById('p-activity-level')?.value || 'sedentary';
+    const activityLevel = document.getElementById('p-activity-level')?.value || '';
     const heightUnit = document.getElementById('p-height-unit')?.value || 'cm';
     const weightUnit = document.getElementById('p-weight-unit')?.value || 'kg';
 
@@ -338,6 +346,7 @@ function attachProfileHandlers(profile, userId) {
     suggestedCalories = tdee ? Math.round(tdee) : null;
     if (suggestionEl) suggestionEl.style.display = suggestedCalories ? '' : 'none';
     if (suggestedEl) suggestedEl.textContent = suggestedCalories ?? '';
+    if (activityHintEl) activityHintEl.style.display = activityLevel ? 'none' : '';
   }
   updateCalculatedTargets();
 
@@ -415,7 +424,7 @@ function attachProfileHandlers(profile, userId) {
     const weightRaw = getNumberValue('p-weight');
     const heightUnit = document.getElementById('p-height-unit')?.value || 'cm';
     const weightUnit = document.getElementById('p-weight-unit')?.value || 'kg';
-    const activityLevel = document.getElementById('p-activity-level')?.value || 'sedentary';
+    const activityLevel = document.getElementById('p-activity-level')?.value || '';
 
     // health_profile always stores cm / kg — convert before saving.
     const height_cm = roundValue(heightUnit === 'in' ? inchesToCm(heightRaw) : heightRaw);
@@ -435,7 +444,7 @@ function attachProfileHandlers(profile, userId) {
       weight_kg,
       goal_weight_kg,
       goal: document.getElementById('p-primary-goal')?.value || '',
-      activity_level: activityLevel,
+      activity_level: activityLevel || null,
       lifting_frequency: String(getNumberValue('p-lifting-sessions')),
       target_calories: getOptionalNumber('p-calorie-target'),
       target_protein: getOptionalNumber('p-protein-target'),
@@ -475,9 +484,10 @@ function calculateBmr(weightKg, heightCm, age, sex) {
   return 10 * weightKg + 6.25 * heightCm - 5 * age - 78;
 }
 
-function calculateTdee(bmr, activityLevel = 'sedentary') {
-  if (!bmr) return 0;
-  return bmr * (ACTIVITY_FACTORS[activityLevel] || ACTIVITY_FACTORS.sedentary);
+// No activity level → no TDEE (0). Never assumes a default level.
+function calculateTdee(bmr, activityLevel) {
+  if (!bmr || !ACTIVITY_FACTORS[activityLevel]) return 0;
+  return bmr * ACTIVITY_FACTORS[activityLevel];
 }
 
 // ── Account sections: billing, wearables, notifications, MFA, data ──────
@@ -523,6 +533,33 @@ async function attachAccountHandlers(userId) {
     document.getElementById('billing-retry')?.addEventListener('click', () => renderProfile());
   }
 
+  // AI usage (labels, limits and windows come from the server; nothing hardcoded)
+  const usageEl = document.getElementById('usage-status');
+  const USAGE_WINDOW = { day: 'today', week: 'this week', month: 'this month' };
+  async function renderUsage() {
+    if (!usageEl) return;
+    usageEl.textContent = 'Checking your usage…';
+    try {
+      const res = await apiFetch(`/api/usage/status?userId=${encodeURIComponent(userId)}`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const u = await res.json();
+      if (u?.premium) { usageEl.textContent = 'Premium — AI features are unlimited.'; return; }
+      const entries = Object.entries(u?.limits || {});
+      if (!entries.length) { usageEl.textContent = 'No usage to show yet.'; return; }
+      usageEl.innerHTML = `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);">${entries.map(([feature, f]) => {
+        const count = f?.limit === 'unlimited'
+          ? 'Unlimited'
+          : `${esc(f?.used ?? 0)} of ${esc(f?.limit)} ${esc(USAGE_WINDOW[f?.window] || f?.window || '')}`.trim();
+        return `<li class="flex-between gap-3"><span>${esc(f?.label || feature)}</span><span class="text-secondary">${count}</span></li>`;
+      }).join('')}</ul>`;
+    } catch (err) {
+      console.warn('[Profile] usage status unavailable', err?.message);
+      usageEl.innerHTML = '<span role="alert">Couldn\'t check your AI usage right now. </span><button type="button" class="btn btn-sm" id="usage-retry">Try again</button>';
+      document.getElementById('usage-retry')?.addEventListener('click', () => renderUsage());
+    }
+  }
+  renderUsage();
+
   // Wearables (Oura)
   const ouraEl = document.getElementById('oura-status');
   const ouraBtn = document.getElementById('oura-connect-btn');
@@ -542,6 +579,9 @@ async function attachAccountHandlers(userId) {
   }
 
   // Notifications (preference lives in main.js; permission is the browser's)
+  // The Oura status above awaited a network call — if the user navigated away
+  // meanwhile, the account section is gone and the loaders below must stop.
+  if (!document.getElementById('notif-state') || !document.getElementById('mfa-section')) return;
   const notifState = document.getElementById('notif-state');
   const notifBtn = document.getElementById('notif-toggle');
   const renderNotif = () => {

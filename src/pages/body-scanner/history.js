@@ -53,8 +53,9 @@ export function renderScanHistory(history, loadFailed) {
     const t = s.scanned_at
       ? new Date(s.scanned_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       : 'Recently';
-    const score = Number(s.overall_score) || 0;
-    const tone = scoreTone(score);
+    const hasScore = s.overall_score !== null && s.overall_score !== undefined && Number.isFinite(Number(s.overall_score));
+    const score = hasScore ? Number(s.overall_score) : null;
+    const tone = scoreTone(score ?? 0);
     const isPulse = s.scan_type === 'heart' && Number.isFinite(Number(s.hr));
 
     return `<div class="card card-sm">
@@ -67,7 +68,7 @@ export function renderScanHistory(history, loadFailed) {
           </div>
         </div>
         <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${isPulse ? 'var(--text-primary)' : tone.color};">
-          ${isPulse ? `${num(s.hr)}<span class="text-tertiary text-xs"> BPM</span>` : `${score}<span class="text-tertiary text-xs">/100</span>`}
+          ${isPulse ? `${num(s.hr)}<span class="text-tertiary text-xs"> BPM</span>` : hasScore ? `${score}<span class="text-tertiary text-xs">/100</span>` : '<span class="text-tertiary text-xs">No score</span>'}
         </div>
       </div>
     </div>`;

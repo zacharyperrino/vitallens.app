@@ -7,6 +7,7 @@ import { initCamera, stopCamera, startBarcodeScanner } from '../../utils/product
 import { meals, productScans, dailyNutrition } from '../../lib/db.js';
 import { apiFetch } from '../../utils/api.js';
 import { showToast } from '../../utils/toast.js';
+import { todayLocalISO } from '../../utils/dates.js';
 import { setupFoodUpload } from './meal-scan.js';
 import { renderMemoryCard, setupMemoryHandlers } from './memory.js';
 import { renderEmptyMeals, renderEmptyScans, renderMealCard, renderProductScanCard } from './cards.js';
@@ -388,13 +389,16 @@ async function handleOcrCapture(file) {
   try {
     const ocrResult = await parseNutritionLabel(file);
     const scoreResult = await getHealthScore(ocrResult.nutrition, []);
+    // /api/ocr-parse returns only nutrition/servingSize/rawText/confidence/warnings —
+    // no product or brand name — so label the scan by what it is rather than inventing one.
+    const scanName = `Label scan · ${todayLocalISO()}`;
     try {
-      await productScans.log({ barcode: 'OCR-SCAN', name: 'Scanned Product', score: scoreResult.score, rating: scoreResult.rating, nutrition: ocrResult.nutrition, scanType: 'ocr' });
+      await productScans.log({ barcode: 'OCR-SCAN', name: scanName, score: scoreResult?.score ?? null, rating: scoreResult?.rating ?? null, nutrition: ocrResult.nutrition, scanType: 'ocr' });
     } catch (dbErr) {
       console.error('[OCR] Failed to save:', dbErr.message);
       showToast("We read the label but couldn't save it to your history.");
     }
-    window._lastProductScan = { product: { barcode: 'OCR-SCAN', name: 'Scanned Product', brand: '', ingredients: '', nutrition: ocrResult.nutrition, nutriscore: null, nova_group: null, image_url: null }, healthScore: scoreResult, additives: { analyzed: [], summary: { total: 0, high: 0, moderate: 0, low: 0 } } };
+    window._lastProductScan = { product: { barcode: 'OCR-SCAN', name: scanName, brand: '', ingredients: '', nutrition: ocrResult.nutrition, nutriscore: null, nova_group: null, image_url: null }, healthScore: scoreResult, additives: { analyzed: [], summary: { total: 0, high: 0, moderate: 0, low: 0 } } };
     location.hash = '#/product-results';
   } catch (err) {
     console.warn('[OCR] Label parse failed:', err.message);

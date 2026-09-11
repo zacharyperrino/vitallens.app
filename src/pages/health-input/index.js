@@ -163,6 +163,7 @@ function setupFormHandlers() {
   });
 
   document.getElementById('res-rpe')?.addEventListener('input', event => {
+    event.target.dataset.touched = '1';
     const display = document.getElementById('res-rpe-display');
     if (display) display.textContent = event.target.value;
   });
@@ -180,7 +181,9 @@ function setupFormHandlers() {
     const sets = document.getElementById('res-sets')?.value;
     const reps = document.getElementById('res-reps')?.value;
     const weight = document.getElementById('res-weight')?.value;
-    const rpe = document.getElementById('res-rpe')?.value;
+    // The slider always has a position; only a value the user actually set counts.
+    const rpeInput = document.getElementById('res-rpe');
+    const rpe = rpeInput?.dataset.touched === '1' ? Number(rpeInput.value) : null;
     const muscleGroups = Array.from(document.querySelectorAll('#res-muscle-groups button.active')).map(btn => btn.dataset.group);
     const notes = document.getElementById('res-notes')?.value.trim();
 
@@ -206,7 +209,7 @@ function setupFormHandlers() {
         sets: setsValue || null,
         reps: repsValue || null,
         weight_kg: weightValue || null,
-        rpe: rpe ? parseInt(rpe, 10) : null,
+        rpe,
         muscle_groups: muscleGroups.length ? muscleGroups.join(', ') : null,
         notes: notes || null,
         total_volume_kg: totalVolume,
@@ -307,10 +310,12 @@ function setupFormHandlers() {
   // ── Cycle ──
   document.getElementById('cycle-form')?.addEventListener('submit', async e => {
     e.preventDefault();
+    const cycleType = document.getElementById('cycle-type')?.value;
+    if (!cycleType) { showToast('Choose an event type'); return; }
     try {
       const res = await apiFetch('/api/cycle/log', { method: 'POST', body: JSON.stringify({
         userId: currentUserId,
-        event_type: document.getElementById('cycle-type')?.value,
+        event_type: cycleType,
         flow: document.getElementById('cycle-flow')?.value || null,
         symptom: document.getElementById('cycle-symptom')?.value.trim() || null,
         date: document.getElementById('cycle-date')?.value || undefined,
