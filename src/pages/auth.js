@@ -3,6 +3,10 @@ import { icons } from '../icons.js';
 import { supabase } from '../lib/supabase.js';
 import { migrateFromLocalStorage } from '../lib/db.js';
 import { trackEvent } from '../utils/analytics-events.js';
+import { esc } from '../utils/esc.js';
+
+const FIELD_STYLE = 'width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;';
+const LABEL_STYLE = 'font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;';
 
 export function renderAuth() {
     const content = document.getElementById('page-content');
@@ -10,74 +14,71 @@ export function renderAuth() {
     if (nav) nav.style.display = 'none';
 
     let mode = 'signin'; // 'signin' | 'signup'
+    let mfaVerify = null; // set while the MFA enrolment screen is showing
 
     content.innerHTML = `
     <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-6);">
 
       <!-- Logo -->
       <div style="text-align:center;margin-bottom:var(--space-8);">
-        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;">${icons.activity}</div>
+        <div style="margin-bottom:var(--space-3);color:var(--accent);display:flex;justify-content:center;" aria-hidden="true">${icons.activity}</div>
         <h1 style="font-size:var(--text-2xl);font-weight:var(--weight-extrabold);margin-bottom:var(--space-1);">VitalLens</h1>
-        <p style="font-size:var(--text-sm);color:var(--text-secondary);">Your personal health intelligence platform</p>
+        <p style="font-size:var(--text-sm);color:var(--text-secondary);">Your private wellness journal</p>
       </div>
 
       <!-- Card -->
       <div class="card" style="width:100%;max-width:400px;">
 
         <!-- Mode toggle -->
-        <div class="scan-mode-toggle" style="margin-bottom:var(--space-5);">
-          <button class="mode-btn mode-btn-active" id="btn-signin-mode">Sign In</button>
-          <button class="mode-btn" id="btn-signup-mode">Create Account</button>
+        <div class="scan-mode-toggle" style="margin-bottom:var(--space-5);" role="group" aria-label="Sign in or create an account">
+          <button type="button" class="mode-btn mode-btn-active" id="btn-signin-mode" aria-pressed="true">Sign in</button>
+          <button type="button" class="mode-btn" id="btn-signup-mode" aria-pressed="false">Create account</button>
         </div>
 
         <!-- Form -->
-        <div id="auth-form">
+        <form id="auth-form" novalidate>
           <div style="display:flex;flex-direction:column;gap:var(--space-3);">
 
             <div id="name-field" style="display:none;">
-              <label style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;">Full Name</label>
-              <input type="text" id="auth-name" placeholder="Your name"
-                style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;">
+              <label for="auth-name" style="${LABEL_STYLE}">Full name</label>
+              <input type="text" id="auth-name" placeholder="Your name" autocomplete="name" style="${FIELD_STYLE}">
             </div>
 
             <div id="dob-field" style="display:none;">
-              <label style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;">Date of Birth</label>
-              <input type="date" id="auth-dob" max="${new Date().toISOString().split('T')[0]}"
-                style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;">
-              <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">You must be 18 or older to use VitalLens.</div>
+              <label for="auth-dob" style="${LABEL_STYLE}">Date of birth</label>
+              <input type="date" id="auth-dob" max="${new Date().toISOString().split('T')[0]}" autocomplete="bday" aria-describedby="auth-dob-help" style="${FIELD_STYLE}">
+              <div id="auth-dob-help" class="disclaimer" style="font-size:var(--text-xs);margin-top:4px;">You must be 18 or older to use VitalLens.</div>
             </div>
 
             <div>
-              <label style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;">Email</label>
-              <input type="email" id="auth-email" placeholder="you@example.com"
-                style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;">
+              <label for="auth-email" style="${LABEL_STYLE}">Email</label>
+              <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" inputmode="email" style="${FIELD_STYLE}">
             </div>
 
             <div>
-              <label style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);display:block;">Password</label>
-              <input type="password" id="auth-password" placeholder="••••••••"
-                style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;">
+              <label for="auth-password" style="${LABEL_STYLE}">Password</label>
+              <input type="password" id="auth-password" placeholder="At least 6 characters" autocomplete="current-password" style="${FIELD_STYLE}">
             </div>
 
             <!-- Consent (signup only) -->
-            <label id="consent-field" style="display:none;gap:var(--space-2);align-items:flex-start;font-size:var(--text-xs);color:var(--text-secondary);cursor:pointer;line-height:1.5;">
+            <label for="auth-consent" id="consent-field" style="display:none;gap:var(--space-2);align-items:flex-start;font-size:var(--text-xs);color:var(--text-secondary);cursor:pointer;line-height:1.5;">
               <input type="checkbox" id="auth-consent" style="margin-top:2px;">
-              <span>I am 18+ and agree to the <a href="#/legal/terms" target="_blank" style="color:var(--accent);">Terms</a> and <a href="#/legal/privacy" target="_blank" style="color:var(--accent);">Privacy Policy</a>, and consent to processing of the wellness data I provide.</span>
+              <span>I am 18+ and agree to the <a href="#/legal/terms" target="_blank" rel="noopener" style="color:var(--accent);">Terms</a> and <a href="#/legal/privacy" target="_blank" rel="noopener" style="color:var(--accent);">Privacy Policy</a>, and consent to processing of the wellness data I provide.</span>
             </label>
 
-            <!-- Error message -->
-            <div id="auth-error" style="display:none;padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);font-size:var(--text-xs);color:var(--accent-coral);">
+            <!-- Error / status message -->
+            <div id="auth-error" role="alert" style="display:none;padding:var(--space-3);background:var(--error-dim);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--error);">
             </div>
 
             <!-- Submit button -->
-            <button id="auth-submit" class="btn btn-glass btn-block" style="margin-top:var(--space-2);">
-              Sign In
+            <button type="submit" id="auth-submit" class="btn btn-glass btn-block" style="margin-top:var(--space-2);">
+              Sign in
             </button>
 
           </div>
-        </div>
+        </form>
 
-        <p style="font-size:var(--text-xs);color:var(--text-tertiary);text-align:center;margin-top:var(--space-4);line-height:1.5;">
+        <p class="disclaimer" style="text-align:center;margin-top:var(--space-4);">
           Your health data is encrypted and stored securely.<br>We never sell your data.
         </p>
       </div>
@@ -85,33 +86,29 @@ export function renderAuth() {
   `;
 
     // ── Mode toggle ────────────────────────────────────────────
-    document.getElementById('btn-signin-mode').addEventListener('click', () => {
-        mode = 'signin';
-        document.getElementById('btn-signin-mode').className = 'mode-btn mode-btn-active';
-        document.getElementById('btn-signup-mode').className = 'mode-btn';
-        document.getElementById('name-field').style.display = 'none';
-        document.getElementById('dob-field').style.display = 'none';
-        document.getElementById('consent-field').style.display = 'none';
-        document.getElementById('auth-submit').textContent = 'Sign In';
+    function setMode(next) {
+        if (mfaVerify) return;
+        mode = next;
+        const signup = mode === 'signup';
+        document.getElementById('btn-signin-mode').className = signup ? 'mode-btn' : 'mode-btn mode-btn-active';
+        document.getElementById('btn-signup-mode').className = signup ? 'mode-btn mode-btn-active' : 'mode-btn';
+        document.getElementById('btn-signin-mode').setAttribute('aria-pressed', signup ? 'false' : 'true');
+        document.getElementById('btn-signup-mode').setAttribute('aria-pressed', signup ? 'true' : 'false');
+        document.getElementById('name-field').style.display = signup ? 'block' : 'none';
+        document.getElementById('dob-field').style.display = signup ? 'block' : 'none';
+        document.getElementById('consent-field').style.display = signup ? 'flex' : 'none';
+        document.getElementById('auth-password').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+        document.getElementById('auth-submit').textContent = signup ? 'Create account' : 'Sign in';
         hideError();
-    });
+    }
+    document.getElementById('btn-signin-mode').addEventListener('click', () => setMode('signin'));
+    document.getElementById('btn-signup-mode').addEventListener('click', () => setMode('signup'));
 
-    document.getElementById('btn-signup-mode').addEventListener('click', () => {
-        mode = 'signup';
-        document.getElementById('btn-signup-mode').className = 'mode-btn mode-btn-active';
-        document.getElementById('btn-signin-mode').className = 'mode-btn';
-        document.getElementById('name-field').style.display = 'block';
-        document.getElementById('dob-field').style.display = 'block';
-        document.getElementById('consent-field').style.display = 'flex';
-        document.getElementById('auth-submit').textContent = 'Create Account';
-        hideError();
-    });
-
-    // ── Submit ─────────────────────────────────────────────────
-    document.getElementById('auth-submit').addEventListener('click', () => handleSubmit());
-
-    document.getElementById('auth-password').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleSubmit();
+    // ── Submit (Enter in any field works because this is a real form) ──
+    document.getElementById('auth-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (mfaVerify) { mfaVerify(); return; }
+        handleSubmit();
     });
 
     async function handleSubmit() {
@@ -126,7 +123,7 @@ export function renderAuth() {
         }
 
         if (password.length < 6) {
-            showError('Password must be at least 6 characters.');
+            showError('Your password needs at least 6 characters.');
             return;
         }
 
@@ -139,7 +136,7 @@ export function renderAuth() {
             }
             const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
             if (age < 18) {
-                showError('VitalLens is available for users 18 and older.');
+                showError('VitalLens is available for people 18 and older.');
                 return;
             }
             if (!document.getElementById('auth-consent')?.checked) {
@@ -149,7 +146,7 @@ export function renderAuth() {
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto;"></div>';
+        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto;"></div><span class="visually-hidden">Please wait</span>';
 
         try {
             if (mode === 'signup') {
@@ -160,17 +157,18 @@ export function renderAuth() {
                 if (error) throw error;
 
                 if (data.user) {
-                    await supabase.from('profiles').insert({
+                    const { error: profileErr } = await supabase.from('profiles').insert({
                         id: data.user.id,
                         name: name || '',
                         date_of_birth: dob,
                         age,
                     });
+                    if (profileErr) console.warn('[Auth] profile row not created:', profileErr.message);
                 }
 
-                showSuccess('Account created! Check your email to confirm, then sign in.');
+                showSuccess('Account created. Check your email to confirm, then sign in.');
                 btn.disabled = false;
-                btn.textContent = 'Create Account';
+                btn.textContent = 'Create account';
 
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -202,36 +200,64 @@ export function renderAuth() {
                 window.location.reload();
             }
         } catch (err) {
-            showError(err.message || 'Something went wrong. Please try again.');
+            showError(friendlyAuthError(err));
             btn.disabled = false;
-            btn.textContent = mode === 'signup' ? 'Create Account' : 'Sign In';
+            btn.textContent = mode === 'signup' ? 'Create account' : 'Sign in';
         }
     }
 
+    // Supabase messages are mostly readable; translate the terse ones.
+    function friendlyAuthError(err) {
+        const msg = String(err?.message || '');
+        if (/invalid login credentials/i.test(msg)) return "That email and password don't match. Please try again.";
+        if (/email not confirmed/i.test(msg)) return 'Please confirm your email first — check your inbox for the link.';
+        if (/already registered|already exists/i.test(msg)) return 'An account with that email already exists. Try signing in.';
+        if (/failed to fetch|network/i.test(msg)) return 'Check your connection and try again.';
+        return msg || 'Something went wrong. Please try again.';
+    }
+
     function showMFAEnrollment(qrCode, factorId) {
-        document.getElementById('auth-form').innerHTML = `
+        const form = document.getElementById('auth-form');
+        const toggle = document.querySelector('.scan-mode-toggle');
+        if (toggle) toggle.style.display = 'none';
+        form.innerHTML = `
             <div style="text-align:center;">
-                <div style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--space-3);">Secure your account</div>
-                <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">Scan this QR code with an authenticator app like Google Authenticator or Authy.</p>
-                <img src="${qrCode}" alt="QR code to add VitalLens to your authenticator app" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
-                <input type="text" id="mfa-code" placeholder="Enter 6-digit code"
-                    style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;text-align:center;letter-spacing:0.2em;margin-bottom:var(--space-3);">
-                <button id="mfa-verify-btn" class="btn btn-primary btn-block">Verify & Continue</button>
-                <button id="mfa-skip-btn" style="margin-top:var(--space-2);background:none;border:none;color:var(--text-tertiary);font-size:var(--text-xs);cursor:pointer;">Skip for now</button>
+                <h2 style="font-size:var(--text-md);font-weight:600;margin-bottom:var(--space-3);" tabindex="-1" id="mfa-heading">Secure your account</h2>
+                <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-4);">Scan this QR code with an authenticator app like Google Authenticator or Authy, then enter the 6-digit code it shows.</p>
+                <img src="${esc(qrCode)}" alt="QR code to add VitalLens to your authenticator app" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
+                <label for="mfa-code" class="visually-hidden">6-digit code</label>
+                <input type="text" id="mfa-code" placeholder="Enter 6-digit code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+                    style="${FIELD_STYLE}text-align:center;letter-spacing:0.2em;margin-bottom:var(--space-3);">
+                <div id="auth-error" role="alert" style="display:none;padding:var(--space-3);background:var(--error-dim);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--error);margin-bottom:var(--space-3);"></div>
+                <button type="button" id="mfa-verify-btn" class="btn btn-primary btn-block">Verify &amp; continue</button>
+                <button type="button" id="mfa-skip-btn" class="btn btn-ghost btn-block" style="margin-top:var(--space-2);color:var(--text-tertiary);font-size:var(--text-sm);">Skip for now</button>
             </div>
         `;
+        document.getElementById('mfa-heading')?.focus();
 
-        document.getElementById('mfa-verify-btn').addEventListener('click', async () => {
-            const code = document.getElementById('mfa-code').value.trim();
-            if (!code) return;
-            const { data: challengeData } = await supabase.auth.mfa.challenge({ factorId });
-            const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challengeData.id, code });
-            if (error) {
-                showError('Invalid code — please try again.');
-                return;
+        mfaVerify = async () => {
+            const codeInput = document.getElementById('mfa-code');
+            const verifyBtn = document.getElementById('mfa-verify-btn');
+            const code = codeInput?.value.trim();
+            if (!code) { showError('Enter the 6-digit code from your authenticator app.'); codeInput?.focus(); return; }
+            if (verifyBtn) { verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying…'; }
+            try {
+                const { data: challengeData, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId });
+                if (challengeErr || !challengeData?.id) throw challengeErr || new Error('No challenge');
+                const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challengeData.id, code });
+                if (error) {
+                    showError("That code didn't match — please try again.");
+                    return;
+                }
+                window.location.reload();
+            } catch (err) {
+                console.warn('[Auth] MFA verify failed:', err?.message);
+                showError("Couldn't verify the code. " + friendlyAuthError(err));
+            } finally {
+                if (verifyBtn) { verifyBtn.disabled = false; verifyBtn.textContent = 'Verify & continue'; }
             }
-            window.location.reload();
-        });
+        };
+        document.getElementById('mfa-verify-btn').addEventListener('click', () => mfaVerify());
 
         document.getElementById('mfa-skip-btn').addEventListener('click', async () => {
             try {
@@ -246,16 +272,20 @@ export function renderAuth() {
 
     function showError(msg) {
         const el = document.getElementById('auth-error');
+        if (!el) return;
         el.textContent = msg;
         el.style.display = 'block';
+        el.style.background = 'var(--error-dim)';
+        el.style.color = 'var(--error)';
     }
 
     function showSuccess(msg) {
         const el = document.getElementById('auth-error');
+        if (!el) return;
         el.textContent = msg;
         el.style.display = 'block';
-        el.style.background = 'var(--accent-teal-dim)';
-        el.style.color = 'var(--accent-teal)';
+        el.style.background = 'var(--viz-green-dim)';
+        el.style.color = 'var(--viz-green)';
     }
 
     function hideError() {

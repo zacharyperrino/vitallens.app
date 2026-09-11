@@ -1,8 +1,9 @@
 import { supabase } from '../lib/supabase.js';
 import { apiFetch } from '../utils/api.js';
-
 import { showToast } from '../utils/toast.js';
+import { esc } from '../utils/esc.js';
 import { CONDITIONS, GOAL_OPTIONS, inchesToCm, lbsToKg, kgToLbs, cmToInches } from '../utils/profile-shared.js';
+
 const ACTIVITY_FACTORS = {
   sedentary: 1.2,
   light: 1.375,
@@ -11,14 +12,19 @@ const ACTIVITY_FACTORS = {
   very_active: 1.9,
 };
 
-
+function plainReason(err) {
+  const msg = String(err?.message || '');
+  if (/not authenticated|jwt|session|signed in/i.test(msg)) return 'You need to be signed in to see your profile.';
+  if (/failed to fetch|networkerror|load failed|network|timeout/i.test(msg)) return 'Check your connection and try again.';
+  return 'Something went wrong on our side. Nothing was changed — please try again.';
+}
 
 export async function renderProfile() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="profile stagger-children">
-      <div class="page-header"><h1>Profile</h1><p>Loading your profile data...</p></div>
-      <div style="display:flex;justify-content:center;padding:var(--space-8);"><div class="spinner"></div></div>
+      <div class="page-header"><h1>Profile</h1><p>Loading your profile…</p></div>
+      <div style="display:flex;justify-content:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
     </div>`;
 
   try {
@@ -28,7 +34,7 @@ export async function renderProfile() {
 
     const profileResponse = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(user.id)}`);
     // A failed load must NOT render an empty form — the next save would overwrite the real row with blanks.
-    if (!profileResponse.ok) throw new Error(`Could not load your profile (server responded ${profileResponse.status}). Nothing was changed.`);
+    if (!profileResponse.ok) throw new Error(`Server responded ${profileResponse.status}`);
     const profileJson = await profileResponse.json();
     // Name lives on the profiles table (not health_profile) — read it there.
     let name = '';
@@ -43,13 +49,19 @@ export async function renderProfile() {
     content.innerHTML = `
       <div class="profile stagger-children">
         <div class="page-header"><h1>Profile</h1></div>
-        <div class="card"><p style="color:var(--text-secondary);">Failed to load profile. ${error.message || 'Please refresh the page.'}</p></div>
+        <div class="empty-state" role="alert">
+          <h3>Couldn't load your profile</h3>
+          <p>${plainReason(error)}</p>
+          <button type="button" class="btn btn-sm" id="profile-retry">Try again</button>
+        </div>
       </div>`;
+    document.getElementById('profile-retry')?.addEventListener('click', () => renderProfile());
   }
 }
 
 // Maps the snake_case health_profile row (the DB's real columns) onto the
 // form's internal camelCase model. Height/weight are always stored in cm/kg.
+// Missing values stay 0/empty — nothing is invented for the user.
 function normalizeProfileData(profile) {
   return {
     name: profile.name || '',
@@ -68,7 +80,7 @@ function normalizeProfileData(profile) {
     proteinTarget: Number(profile.target_protein) || 0,
     carbsTarget: Number(profile.target_carbs) || 0,
     fatTarget: Number(profile.target_fat) || 0,
-    fiberTarget: Number(profile.target_fiber) || 30,
+    fiberTarget: Number(profile.target_fiber) || 0,
     conditions: Array.isArray(profile.conditions) ? profile.conditions : profile.conditions ? safeParseConditions(profile.conditions) : [],
     allergies: profile.allergies || '',
   };
@@ -88,7 +100,6 @@ function renderProfileForm(profile, user) {
   const weightKg = profile.weightUnit === 'kg' ? profile.weight : lbsToKg(profile.weight);
   const bmr = calculateBmr(weightKg, heightCm, profile.age, profile.sex);
   const tdee = calculateTdee(bmr, profile.activityLevel);
-  const displayedCalorieTarget = profile.calorieTarget || Math.round(tdee);
 
   const content = document.getElementById('page-content');
   content.innerHTML = `
@@ -97,51 +108,52 @@ function renderProfileForm(profile, user) {
       <div class="card" style="margin-bottom:var(--space-5);">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3);align-items:center;">
           <div>
-            <div style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-1);">Signed in as ${user.email || 'unknown'}</div>
-            <h2 style="margin:0;">${profile.name || 'Your Health Profile'}</h2>
+            <div style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:var(--space-1);">Signed in as ${esc(user.email || 'unknown')}</div>
+            <h2 style="margin:0;">${esc(profile.name || 'Your health profile')}</h2>
           </div>
-          <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;" aria-live="polite">
             <div style="text-align:right;min-width:140px;">
-              <div style="font-size:var(--text-xs);color:var(--text-secondary);">BMR</div>
-              <div id="profile-bmr-value" style="font-size:var(--text-xl);font-weight:700;">${Math.round(bmr)}</div>
+              <div style="font-size:var(--text-xs);color:var(--text-secondary);">Estimated BMR</div>
+              <div id="profile-bmr-value" style="font-size:var(--text-xl);font-weight:700;">${bmr ? Math.round(bmr) : '—'}</div>
             </div>
             <div style="text-align:right;min-width:140px;">
-              <div style="font-size:var(--text-xs);color:var(--text-secondary);">TDEE</div>
-              <div id="profile-tdee-value" style="font-size:var(--text-xl);font-weight:700;">${Math.round(tdee)}</div>
+              <div style="font-size:var(--text-xs);color:var(--text-secondary);">Estimated daily burn (TDEE)</div>
+              <div id="profile-tdee-value" style="font-size:var(--text-xl);font-weight:700;">${tdee ? Math.round(tdee) : '—'}</div>
             </div>
           </div>
         </div>
+        <p class="disclaimer" style="margin-top:var(--space-3);">Estimates from the Mifflin-St Jeor formula using the stats below. They update as you edit, and are only saved if you choose to use them as targets.</p>
       </div>
 
       <form id="profile-form" class="card" style="display:flex;flex-direction:column;gap:var(--space-5);">
         <div>
-          <h4 style="margin-bottom:var(--space-4);">BASIC STATS</h4>
+          <h4 style="margin-bottom:var(--space-4);">Basic stats</h4>
           <div class="grid-2" style="gap:var(--space-3);">
-            <div class="input-group"><label>Name</label><input class="input-field" type="text" id="p-name" value="${profile.name}" placeholder="Your name"></div>
-            <div class="input-group"><label>Age</label><input class="input-field" type="number" min="0" id="p-age" value="${profile.age || ''}" placeholder="Age"></div>
+            <div class="input-group"><label for="p-name">Name</label><input class="input-field" type="text" id="p-name" value="${esc(profile.name)}" placeholder="Your name" autocomplete="name"></div>
+            <div class="input-group"><label for="p-age">Age</label><input class="input-field" type="number" min="18" max="120" id="p-age" value="${profile.age || ''}" placeholder="Age"></div>
           </div>
 
           <div class="grid-3" style="gap:var(--space-3);margin-top:var(--space-3);">
-            <div class="input-group"><label>Sex</label>
+            <div class="input-group"><label for="p-sex">Sex</label>
               <select class="input-field" id="p-sex">
-                <option value="">Select...</option>
+                <option value="">Select…</option>
                 <option value="male" ${profile.sex === 'male' ? 'selected' : ''}>Male</option>
                 <option value="female" ${profile.sex === 'female' ? 'selected' : ''}>Female</option>
                 <option value="other" ${profile.sex === 'other' ? 'selected' : ''}>Other</option>
               </select>
             </div>
-            <div class="input-group"><label>Activity Level</label>
+            <div class="input-group"><label for="p-activity-level">Activity level</label>
               <select class="input-field" id="p-activity-level">
                 <option value="sedentary" ${profile.activityLevel === 'sedentary' ? 'selected' : ''}>Sedentary</option>
                 <option value="light" ${profile.activityLevel === 'light' ? 'selected' : ''}>Light</option>
                 <option value="moderate" ${profile.activityLevel === 'moderate' ? 'selected' : ''}>Moderate</option>
                 <option value="active" ${profile.activityLevel === 'active' ? 'selected' : ''}>Active</option>
-                <option value="very_active" ${profile.activityLevel === 'very_active' ? 'selected' : ''}>Very Active</option>
+                <option value="very_active" ${profile.activityLevel === 'very_active' ? 'selected' : ''}>Very active</option>
               </select>
             </div>
-            <div class="input-group"><label>Primary Goal</label>
+            <div class="input-group"><label for="p-primary-goal">Primary goal</label>
               <select class="input-field" id="p-primary-goal">
-                <option value="">Select...</option>
+                <option value="">Select…</option>
                 ${GOAL_OPTIONS.map(option => `<option value="${option}" ${profile.primaryGoal === option ? 'selected' : ''}>${option}</option>`).join('')}
               </select>
             </div>
@@ -149,27 +161,27 @@ function renderProfileForm(profile, user) {
 
           <div class="grid-3" style="gap:var(--space-3);margin-top:var(--space-3);">
             <div class="input-group">
-              <label>Height</label>
+              <label for="p-height">Height</label>
               <div style="display:flex;gap:var(--space-2);align-items:center;">
                 <input class="input-field" type="number" min="0" id="p-height" value="${profile.height || ''}" placeholder="Height">
-                <select class="input-field" id="p-height-unit" style="width:100px;">
+                <select class="input-field" id="p-height-unit" style="width:100px;" aria-label="Height unit">
                   <option value="cm" ${profile.heightUnit === 'cm' ? 'selected' : ''}>cm</option>
                   <option value="in" ${profile.heightUnit === 'in' ? 'selected' : ''}>in</option>
                 </select>
               </div>
             </div>
             <div class="input-group">
-              <label>Current Weight</label>
+              <label for="p-weight">Current weight</label>
               <div style="display:flex;gap:var(--space-2);align-items:center;">
                 <input class="input-field" type="number" min="0" id="p-weight" value="${profile.weight || ''}" placeholder="Weight">
-                <select class="input-field" id="p-weight-unit" style="width:100px;">
+                <select class="input-field" id="p-weight-unit" style="width:100px;" aria-label="Weight unit">
                   <option value="kg" ${profile.weightUnit === 'kg' ? 'selected' : ''}>kg</option>
                   <option value="lb" ${profile.weightUnit === 'lb' ? 'selected' : ''}>lb</option>
                 </select>
               </div>
             </div>
             <div class="input-group">
-              <label>Goal Weight</label>
+              <label for="p-goal-weight">Goal weight</label>
               <div style="display:flex;gap:var(--space-2);align-items:center;">
                 <input class="input-field" type="number" min="0" id="p-goal-weight" value="${profile.goalWeight || ''}" placeholder="Goal weight">
                 <span id="p-goal-weight-unit" style="font-size:var(--text-sm);color:var(--text-secondary);">${profile.weightUnit}</span>
@@ -178,72 +190,77 @@ function renderProfileForm(profile, user) {
           </div>
 
           <div style="margin-top:var(--space-4);">
-            <label style="display:block;margin-bottom:var(--space-2);">Lifting Sessions per Week: <strong id="p-lifting-count">${profile.liftingSessions}</strong></label>
+            <label for="p-lifting-sessions" style="display:block;margin-bottom:var(--space-2);">Lifting sessions per week: <strong id="p-lifting-count">${profile.liftingSessions}</strong></label>
             <input type="range" id="p-lifting-sessions" min="0" max="7" value="${profile.liftingSessions}" style="width:100%;">
           </div>
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">NUTRITION TARGETS</h4>
+          <h4 style="margin-bottom:var(--space-4);">Nutrition targets</h4>
           <div class="grid-2" style="gap:var(--space-3);margin-bottom:var(--space-3);">
-            <div class="input-group"><label>Calorie Target</label><input class="input-field" type="number" min="0" id="p-calorie-target" value="${displayedCalorieTarget}" placeholder="Calories per day"></div>
-            <div class="input-group"><label>Fiber Target (g)</label><input class="input-field" type="number" min="0" id="p-fiber-target" value="${profile.fiberTarget}" placeholder="30"></div>
+            <div class="input-group"><label for="p-calorie-target">Calorie target (kcal/day)</label><input class="input-field" type="number" min="0" id="p-calorie-target" value="${profile.calorieTarget || ''}" placeholder="e.g. 2200"></div>
+            <div class="input-group"><label for="p-fiber-target">Fiber target (g)</label><input class="input-field" type="number" min="0" id="p-fiber-target" value="${profile.fiberTarget || ''}" placeholder="e.g. 30"></div>
+          </div>
+          <div id="p-calorie-suggestion" class="disclaimer" aria-live="polite" style="margin-bottom:var(--space-3);${tdee ? '' : 'display:none;'}">
+            Suggested from your stats: about <strong id="p-suggested-calories">${tdee ? Math.round(tdee) : ''}</strong> kcal/day.
+            <button type="button" class="btn btn-sm" id="p-use-suggested-calories" style="margin-left:var(--space-2);">Use this</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);">
-            <div class="input-group"><label>Protein Target (g)</label><input class="input-field" type="number" min="0" id="p-protein-target" value="${profile.proteinTarget || ''}" placeholder="g"></div>
-            <div class="input-group"><label>Carbs Target (g)</label><input class="input-field" type="number" min="0" id="p-carbs-target" value="${profile.carbsTarget || ''}" placeholder="g"></div>
-            <div class="input-group"><label>Fat Target (g)</label><input class="input-field" type="number" min="0" id="p-fat-target" value="${profile.fatTarget || ''}" placeholder="g"></div>
+            <div class="input-group"><label for="p-protein-target">Protein target (g)</label><input class="input-field" type="number" min="0" id="p-protein-target" value="${profile.proteinTarget || ''}" placeholder="g"></div>
+            <div class="input-group"><label for="p-carbs-target">Carbs target (g)</label><input class="input-field" type="number" min="0" id="p-carbs-target" value="${profile.carbsTarget || ''}" placeholder="g"></div>
+            <div class="input-group"><label for="p-fat-target">Fat target (g)</label><input class="input-field" type="number" min="0" id="p-fat-target" value="${profile.fatTarget || ''}" placeholder="g"></div>
           </div>
-          <div style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--text-secondary);">
-            BMR is calculated from Mifflin-St Jeor and updated automatically when height, weight, age, or activity level changes.
-          </div>
+          <p class="disclaimer" style="margin-top:var(--space-3);">Leave a target blank if you don't want to track it. Only what you enter here is saved.</p>
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">PREEXISTING CONDITIONS</h4>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);">
-            ${CONDITIONS.map(condition => `
-              <label class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
-                <input class="input-checkbox condition-checkbox" type="checkbox" value="${condition}" ${profile.conditions.includes(condition) ? 'checked' : ''}>
-                <span style="font-size:var(--text-sm);">${condition}</span>
-              </label>
-            `).join('')}
-          </div>
+          <h4 style="margin-bottom:var(--space-4);">Pre-existing conditions</h4>
+          <fieldset style="border:0;padding:0;margin:0;min-width:0;">
+            <legend class="visually-hidden">Conditions you'd like noted</legend>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);">
+              ${CONDITIONS.map((condition, i) => `
+                <label for="p-cond-${i}" class="condition-toggle" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;">
+                  <input class="input-checkbox condition-checkbox" id="p-cond-${i}" type="checkbox" value="${condition}" ${profile.conditions.includes(condition) ? 'checked' : ''}>
+                  <span style="font-size:var(--text-sm);">${condition}</span>
+                </label>
+              `).join('')}
+            </div>
+          </fieldset>
         </div>
 
         <div>
-          <h4 style="margin-bottom:var(--space-4);">ALLERGIES</h4>
-          <div class="input-group"><label>Allergies</label><textarea class="input-field" id="p-allergies" rows="4" placeholder="List any allergies...">${profile.allergies}</textarea></div>
+          <h4 style="margin-bottom:var(--space-4);">Allergies</h4>
+          <div class="input-group"><label for="p-allergies">Allergies</label><textarea class="input-field" id="p-allergies" rows="4" placeholder="List any allergies…">${esc(profile.allergies)}</textarea></div>
         </div>
 
-        <button type="submit" id="save-profile-btn" class="btn btn-glass btn-block">Save Profile</button>
-        <button type="button" id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign Out</button>
+        <button type="submit" id="save-profile-btn" class="btn btn-glass btn-block">Save profile</button>
+        <button type="button" id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign out</button>
       </form>
 
       <div class="card" style="margin-top:var(--space-5);">
         <h4 style="margin-bottom:var(--space-3);">Subscription</h4>
-        <div id="billing-status" class="disclaimer">Checking your plan…</div>
+        <div id="billing-status" class="disclaimer" aria-live="polite">Checking your plan…</div>
         <div id="billing-actions" style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);"></div>
         <p class="disclaimer" style="margin-top:var(--space-3);">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
         <h4 style="margin-bottom:var(--space-3);">Wearables</h4>
-        <div id="oura-status" class="disclaimer">Checking…</div>
+        <div id="oura-status" class="disclaimer" aria-live="polite">Checking…</div>
         <div style="margin-top:var(--space-3);"><button type="button" class="btn btn-sm" id="oura-connect-btn">Connect Oura Ring</button></div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
         <h4 style="margin-bottom:var(--space-3);">Notifications</h4>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
-          <span id="notif-state" class="disclaimer"></span>
+          <span id="notif-state" class="disclaimer" aria-live="polite"></span>
           <button type="button" class="btn btn-sm" id="notif-toggle"></button>
         </div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
         <h4 style="margin-bottom:var(--space-3);">Security</h4>
-        <div id="mfa-section"><span class="disclaimer">Checking two-factor status…</span></div>
+        <div id="mfa-section" aria-live="polite"><span class="disclaimer">Checking two-factor status…</span></div>
       </div>
 
       <div class="card" style="margin-top:var(--space-5);">
@@ -251,7 +268,7 @@ function renderProfileForm(profile, user) {
         <p class="disclaimer">Download everything VitalLens holds about you as JSON, or permanently delete your account and all of its data.</p>
         <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);">
           <button type="button" class="btn btn-sm" id="export-data-btn">Export my data</button>
-          <button type="button" class="btn btn-sm" id="delete-account-btn" style="color:var(--error);border:1px solid var(--error);">Delete my account</button>
+          <button type="button" class="btn btn-sm" id="delete-account-btn" aria-expanded="false" aria-controls="delete-confirm" style="color:var(--error);border:1px solid var(--error);">Delete my account</button>
         </div>
         <div id="delete-confirm" hidden style="margin-top:var(--space-3);">
           <label for="delete-email" class="disclaimer">Type your account email to confirm. This cannot be undone.</label>
@@ -261,31 +278,30 @@ function renderProfileForm(profile, user) {
       </div>
     </div>`;
 
-  attachProfileHandlers(profile, user.id, bmr, tdee);
+  attachProfileHandlers(profile, user.id);
 }
 
-function attachProfileHandlers(profile, userId, initialBmr, initialTdee) {
-  let manualCalorieTarget = Boolean(profile.calorieTarget);
+function attachProfileHandlers(profile, userId) {
   const bmrValueEl = document.getElementById('profile-bmr-value');
   const tdeeValueEl = document.getElementById('profile-tdee-value');
   const calorieInput = document.getElementById('p-calorie-target');
+  const suggestionEl = document.getElementById('p-calorie-suggestion');
+  const suggestedEl = document.getElementById('p-suggested-calories');
+  let suggestedCalories = null;
 
   function getNumberValue(id) {
     return Number(document.getElementById(id)?.value || 0);
   }
 
-  function computeAgeFromDob(dob) {
-    if (!dob) return 0;
-    const birth = new Date(dob);
-    if (Number.isNaN(birth.getTime())) return 0;
-    const now = new Date();
-    let age = now.getFullYear() - birth.getFullYear();
-    const monthDiff = now.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1;
-    return age;
+  // Blank stays blank (null) — a 0 target is not the same as "no target".
+  function getOptionalNumber(id) {
+    const raw = document.getElementById(id)?.value;
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   }
 
-          function convertValue(value, fromUnit, toUnit, type) {
+  function convertValue(value, fromUnit, toUnit, type) {
     if (!value || fromUnit === toUnit) return value;
     if (type === 'weight') {
       return toUnit === 'kg' ? lbsToKg(value) : kgToLbs(value);
@@ -300,6 +316,8 @@ function attachProfileHandlers(profile, userId, initialBmr, initialTdee) {
     return Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
   }
 
+  // Recomputes the estimates shown in the header and the suggestion line.
+  // It never writes into the calorie input — the user decides what to keep.
   function updateCalculatedTargets() {
     const height = getNumberValue('p-height');
     const weight = getNumberValue('p-weight');
@@ -313,21 +331,24 @@ function attachProfileHandlers(profile, userId, initialBmr, initialTdee) {
     const weightKg = weightUnit === 'kg' ? weight : lbsToKg(weight);
     const bmr = calculateBmr(weightKg, heightCm, age, sex);
     const tdee = calculateTdee(bmr, activityLevel);
-    if (bmrValueEl) bmrValueEl.textContent = Math.round(bmr);
-    if (tdeeValueEl) tdeeValueEl.textContent = Math.round(tdee);
+    if (bmrValueEl) bmrValueEl.textContent = bmr ? Math.round(bmr) : '—';
+    if (tdeeValueEl) tdeeValueEl.textContent = tdee ? Math.round(tdee) : '—';
 
-    if (!manualCalorieTarget && calorieInput) {
-      calorieInput.value = Math.round(tdee);
-    }
+    suggestedCalories = tdee ? Math.round(tdee) : null;
+    if (suggestionEl) suggestionEl.style.display = suggestedCalories ? '' : 'none';
+    if (suggestedEl) suggestedEl.textContent = suggestedCalories ?? '';
   }
+  updateCalculatedTargets();
 
   ['p-height', 'p-weight', 'p-age', 'p-sex', 'p-activity-level'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateCalculatedTargets);
     document.getElementById(id)?.addEventListener('change', updateCalculatedTargets);
   });
 
-  calorieInput?.addEventListener('input', () => {
-    manualCalorieTarget = true;
+  document.getElementById('p-use-suggested-calories')?.addEventListener('click', () => {
+    if (!suggestedCalories || !calorieInput) return;
+    calorieInput.value = suggestedCalories;
+    calorieInput.focus();
   });
 
   const heightUnitInput = document.getElementById('p-height-unit');
@@ -374,13 +395,17 @@ function attachProfileHandlers(profile, userId, initialBmr, initialTdee) {
     const label = document.getElementById('p-lifting-count');
     if (label) label.textContent = value;
   });
-document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
+
+  document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
     const { signOut } = await import('./auth.js');
     await signOut();
-});
+  });
+
   attachAccountHandlers(userId);
+
   document.getElementById('profile-form')?.addEventListener('submit', async event => {
     event.preventDefault();
+    const saveBtn = document.getElementById('save-profile-btn');
 
     const name = document.getElementById('p-name')?.value.trim() || '';
     const age = getNumberValue('p-age');
@@ -399,10 +424,8 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
       ? roundValue(weightUnit === 'lb' ? lbsToKg(goalWeightRaw) : goalWeightRaw)
       : null;
 
-    const bmr = calculateBmr(weight_kg, height_cm, age, sex);
-    const tdee = calculateTdee(bmr, activityLevel);
-
-    // Payload uses the real snake_case health_profile columns.
+    // Payload uses the real snake_case health_profile columns. Only what is in
+    // the inputs is saved — the BMR/TDEE estimates are shown, never persisted.
     const payload = {
       userId,
       sex,
@@ -413,31 +436,31 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
       goal: document.getElementById('p-primary-goal')?.value || '',
       activity_level: activityLevel,
       lifting_frequency: String(getNumberValue('p-lifting-sessions')),
-      target_calories: getNumberValue('p-calorie-target'),
-      target_protein: getNumberValue('p-protein-target'),
-      target_carbs: getNumberValue('p-carbs-target'),
-      target_fat: getNumberValue('p-fat-target'),
-      target_fiber: getNumberValue('p-fiber-target'),
-      bmr: Math.round(bmr),
-      tdee: Math.round(tdee),
+      target_calories: getOptionalNumber('p-calorie-target'),
+      target_protein: getOptionalNumber('p-protein-target'),
+      target_carbs: getOptionalNumber('p-carbs-target'),
+      target_fat: getOptionalNumber('p-fat-target'),
+      target_fiber: getOptionalNumber('p-fiber-target'),
       conditions: Array.from(document.querySelectorAll('.condition-checkbox:checked')).map(input => input.value),
       allergies: document.getElementById('p-allergies')?.value.trim() || '',
       updated_at: new Date().toISOString(),
     };
 
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
     try {
       const response = await apiFetch(`/api/health-profile`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Save failed');
+      if (!response.ok) throw new Error(`Server responded ${response.status}`);
       // Name lives on profiles (RLS lets a user update their own row).
       try { await supabase.from('profiles').update({ name }).eq('id', userId); } catch { /* non-blocking */ }
       showToast('Profile saved');
       renderProfile();
     } catch (error) {
       console.error('[Profile] Save failed', error);
-      showToast('Failed to save profile');
+      showToast("Couldn't save your profile. " + plainReason(error));
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save profile'; }
     }
   });
 }
@@ -455,32 +478,6 @@ function calculateTdee(bmr, activityLevel = 'sedentary') {
   if (!bmr) return 0;
   return bmr * (ACTIVITY_FACTORS[activityLevel] || ACTIVITY_FACTORS.sedentary);
 }
-
-function getDefaultProfile() {
-  return {
-    name: '',
-    email: '',
-    age: 0,
-    sex: '',
-    height: 0,
-    heightUnit: 'cm',
-    weight: 0,
-    weightUnit: 'kg',
-    goalWeight: 0,
-    activityLevel: 'sedentary',
-    liftingSessions: 0,
-    primaryGoal: '',
-    calorieTarget: 0,
-    proteinTarget: 0,
-    carbsTarget: 0,
-    fatTarget: 0,
-    fiberTarget: 30,
-    conditions: [],
-    allergies: '',
-  };
-}
-
-
 
 // ── Account sections: billing, wearables, notifications, MFA, data ──────
 async function attachAccountHandlers(userId) {
@@ -520,7 +517,9 @@ async function attachAccountHandlers(userId) {
       }));
     }
   } catch (err) {
-    statusEl.textContent = 'Plan details unavailable right now.';
+    console.warn('[Profile] billing status unavailable', err?.message);
+    statusEl.innerHTML = '<span role="alert">Couldn\'t check your plan right now. </span><button type="button" class="btn btn-sm" id="billing-retry">Try again</button>';
+    document.getElementById('billing-retry')?.addEventListener('click', () => renderProfile());
   }
 
   // Wearables (Oura)
@@ -530,13 +529,16 @@ async function attachAccountHandlers(userId) {
     const { refreshOuraStatus, isOuraConnected, startOuraConnect } = await import('../utils/oura.js');
     await refreshOuraStatus(userId);
     ouraEl.textContent = isOuraConnected() ? 'Oura Ring connected — sleep and readiness sync nightly.' : 'Not connected. Connect a ring to sync sleep and readiness automatically.';
-    if (isOuraConnected()) ouraBtn.hidden = true;
+    if (isOuraConnected()) ouraBtn.style.display = 'none';
     ouraBtn?.addEventListener('click', async () => {
       ouraBtn.disabled = true;
       try { await startOuraConnect(); }
       catch (err) { showToast(err.message || 'Oura is not available right now'); ouraBtn.disabled = false; }
     });
-  } catch { ouraEl.textContent = 'Wearable status unavailable.'; }
+  } catch (err) {
+    console.warn('[Profile] wearable status unavailable', err?.message);
+    ouraEl.innerHTML = '<span role="alert">Couldn\'t check your wearable right now.</span>';
+  }
 
   // Notifications (preference lives in main.js; permission is the browser's)
   const notifState = document.getElementById('notif-state');
@@ -544,11 +546,13 @@ async function attachAccountHandlers(userId) {
   const renderNotif = () => {
     const enabled = localStorage.getItem('vitallens_notifications_enabled') !== 'false';
     const perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
-    if (perm === 'unsupported') { notifState.textContent = 'Not supported in this browser.'; notifBtn.hidden = true; return; }
-    if (perm === 'denied') { notifState.textContent = 'Blocked in your browser settings.'; notifBtn.hidden = true; return; }
+    if (perm === 'unsupported') { notifState.textContent = 'Not supported in this browser.'; notifBtn.style.display = 'none'; return; }
+    if (perm === 'denied') { notifState.textContent = 'Blocked in your browser settings.'; notifBtn.style.display = 'none'; return; }
+    notifBtn.style.display = '';
     const on = enabled && perm === 'granted';
     notifState.textContent = on ? 'Reminders are on.' : 'Reminders are off.';
-    notifBtn.textContent = on ? 'Turn off' : 'Turn on';
+    notifBtn.textContent = on ? 'Turn off reminders' : 'Turn on reminders';
+    notifBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
   };
   renderNotif();
   window.addEventListener('vitallens:notifications:state', renderNotif);
@@ -558,25 +562,26 @@ async function attachAccountHandlers(userId) {
   const mfaEl = document.getElementById('mfa-section');
   async function renderMfa() {
     try {
-      const { data } = await supabase.auth.mfa.listFactors();
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw error;
       const verified = (data?.totp || []).find(f => f.status === 'verified');
       if (verified) {
         mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Two-factor authentication is on.</span><button type="button" class="btn btn-sm" id="mfa-off">Turn off</button></div>`;
         document.getElementById('mfa-off')?.addEventListener('click', async () => {
           if (!confirm('Turn off two-factor authentication?')) return;
-          const { error } = await supabase.auth.mfa.unenroll({ factorId: verified.id });
-          if (error) return showToast(error.message);
+          const { error: offErr } = await supabase.auth.mfa.unenroll({ factorId: verified.id });
+          if (offErr) return showToast("Couldn't turn off two-factor. Please try again.");
           showToast('Two-factor turned off'); renderMfa();
         });
         return;
       }
       mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Add an authenticator app for a second sign-in step.</span><button type="button" class="btn btn-sm" id="mfa-enroll">Set up</button></div>`;
       document.getElementById('mfa-enroll')?.addEventListener('click', async () => {
-        const { data: enroll, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'VitalLens' });
-        if (error || !enroll) return showToast(error?.message || 'Could not start enrolment');
+        const { data: enroll, error: enrollErr } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'VitalLens' });
+        if (enrollErr || !enroll) return showToast("Couldn't start two-factor setup. Please try again.");
         mfaEl.innerHTML = `
           <p class="disclaimer">Scan this with Google Authenticator, Authy, or 1Password, then enter the 6-digit code.</p>
-          <img src="${enroll.totp.qr_code}" alt="QR code for your authenticator app" style="width:160px;height:160px;margin:var(--space-3) auto;display:block;">
+          <img src="${esc(enroll.totp.qr_code)}" alt="QR code for your authenticator app" style="width:160px;height:160px;margin:var(--space-3) auto;display:block;">
           <label for="mfa-code" class="visually-hidden">6-digit code</label>
           <input class="input-field" id="mfa-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6">
           <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
@@ -587,13 +592,23 @@ async function attachAccountHandlers(userId) {
         document.getElementById('mfa-verify')?.addEventListener('click', async () => {
           const code = document.getElementById('mfa-code')?.value.trim();
           if (!code) return;
-          const { data: ch } = await supabase.auth.mfa.challenge({ factorId: enroll.id });
-          const { error: vErr } = await supabase.auth.mfa.verify({ factorId: enroll.id, challengeId: ch?.id, code });
-          if (vErr) return showToast('That code didn\'t match — try again.');
-          showToast('Two-factor authentication is on'); renderMfa();
+          try {
+            const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId: enroll.id });
+            if (chErr || !ch?.id) throw chErr || new Error('No challenge');
+            const { error: vErr } = await supabase.auth.mfa.verify({ factorId: enroll.id, challengeId: ch.id, code });
+            if (vErr) return showToast('That code didn\'t match — try again.');
+            showToast('Two-factor authentication is on'); renderMfa();
+          } catch (err) {
+            console.warn('[Profile] MFA verify failed', err?.message);
+            showToast("Couldn't verify the code. Please try again.");
+          }
         });
       });
-    } catch { mfaEl.innerHTML = '<span class="disclaimer">Two-factor status unavailable.</span>'; }
+    } catch (err) {
+      console.warn('[Profile] MFA status unavailable', err?.message);
+      mfaEl.innerHTML = '<span class="disclaimer" role="alert">Couldn\'t check two-factor status right now. </span><button type="button" class="btn btn-sm" id="mfa-retry">Try again</button>';
+      document.getElementById('mfa-retry')?.addEventListener('click', () => renderMfa());
+    }
   }
   renderMfa();
 
@@ -602,7 +617,7 @@ async function attachAccountHandlers(userId) {
     const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Preparing…';
     try {
       const res = await apiFetch(`/api/user-data/export?userId=${encodeURIComponent(userId)}`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) throw new Error(`Server responded ${res.status}`);
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -610,13 +625,14 @@ async function attachAccountHandlers(userId) {
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(a.href);
       showToast('Your data export has downloaded');
-    } catch (err) { showToast(err.message || 'Export failed'); }
+    } catch (err) { console.warn('[Profile] export failed', err?.message); showToast("Couldn't prepare your export. " + plainReason(err)); }
     finally { btn.disabled = false; btn.textContent = 'Export my data'; }
   });
 
   // Delete
-  document.getElementById('delete-account-btn')?.addEventListener('click', () => {
+  document.getElementById('delete-account-btn')?.addEventListener('click', (e) => {
     const box = document.getElementById('delete-confirm'); box.hidden = !box.hidden;
+    e.currentTarget.setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
     if (!box.hidden) document.getElementById('delete-email')?.focus();
   });
   document.getElementById('delete-account-confirm')?.addEventListener('click', async (e) => {
@@ -630,6 +646,6 @@ async function attachAccountHandlers(userId) {
       showToast('Your account and data have been deleted');
       const { signOut } = await import('./auth.js');
       setTimeout(signOut, 800);
-    } catch (err) { showToast(err.message); btn.disabled = false; btn.textContent = 'Permanently delete'; }
+    } catch (err) { showToast(err.message || "Couldn't delete your account. Please try again."); btn.disabled = false; btn.textContent = 'Permanently delete'; }
   });
 }

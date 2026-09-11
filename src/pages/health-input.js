@@ -2,52 +2,100 @@
 import { icons } from '../icons.js';
 import { labResults, exerciseLog, sleepLog, habits, getUserId } from '../lib/db.js'; // Supabase
 import { apiFetch } from '../utils/api.js';
-
-
 import { showToast } from '../utils/toast.js';
 import { esc } from '../utils/esc.js';
+
 let activeTab = 'labs';
 let currentUserId = null;
 
-export async function renderHealthInput() {
-  // The old localStorage key was never written anywhere, so this was
-  // permanently the literal 'default-user' and every request 403'd silently.
-  currentUserId = await getUserId();
+const TABS = [
+  ['labs', 'Labs'],
+  ['exercise', 'Exercise'],
+  ['sleep', 'Sleep'],
+  ['habits', 'Habits'],
+  ['substances', 'Substances'],
+  ['background', 'Background'],
+  ['goals', 'Goals'],
+  ['env', 'Environment'],
+  ['medications', 'Meds'],
+  ['cycle', 'Cycle'],
+];
 
+// ── Shared UI helpers ───────────────────────────────────────────
+const spinner = () => '<div style="text-align:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner" style="margin:0 auto;"></div></div>';
+
+// Turns a thrown error into something a person can act on. Never leaks server text.
+function plainReason(err) {
+  const msg = String(err?.message || '');
+  if (/not authenticated|jwt|session|sign(ed)? in/i.test(msg)) return 'You need to be signed in to see this.';
+  if (/failed to fetch|networkerror|load failed|network|timeout/i.test(msg)) return 'Check your connection and try again.';
+  return 'Something went wrong on our side. Your data is safe — please try again.';
+}
+
+// ERROR state — distinct from an empty log. Always offers a working retry.
+function loadErrorState(what, err, retryId) {
+  return `<div class="empty-state" role="alert"><h3>Couldn't load ${what}</h3><p>${plainReason(err)}</p><button type="button" class="btn btn-sm" id="${retryId}" data-retry>Try again</button></div>`;
+}
+
+export async function renderHealthInput() {
   const content = document.getElementById('page-content');
+  content.innerHTML = `<div class="health-input stagger-children"><div class="page-header"><h1>Health Data</h1></div>${spinner()}</div>`;
+
+  try {
+    currentUserId = await getUserId();
+  } catch (err) {
+    console.error('[HealthInput] Could not resolve user:', err);
+    content.innerHTML = `<div class="health-input stagger-children"><div class="page-header"><h1>Health Data</h1></div>${loadErrorState('your health data', err, 'health-input-retry')}</div>`;
+    document.getElementById('health-input-retry')?.addEventListener('click', () => renderHealthInput());
+    return;
+  }
+
   content.innerHTML = `
     <div class="health-input stagger-children">
-      <div class="page-header"><h1>Health Data</h1><p>Log your health metrics, labs, habits & more</p></div>
-      <div class="tab-bar" id="health-tabs">
-        <div class="tab-item active" data-tab="labs">Labs</div>
-        <div class="tab-item" data-tab="exercise">Exercise</div>
-        <div class="tab-item" data-tab="sleep">Sleep</div>
-        <div class="tab-item" data-tab="habits">Habits</div>
-        <div class="tab-item" data-tab="substances">Substances</div>
-        <div class="tab-item" data-tab="background">Background</div>
-        <div class="tab-item" data-tab="goals">Goals</div>
-        <div class="tab-item" data-tab="env">Environ.</div>
-        <div class="tab-item" data-tab="medications">Meds</div>
-        <div class="tab-item" data-tab="cycle">Cycle</div>
+      <div class="page-header"><h1>Health Data</h1><p>Log your labs, exercise, sleep, habits and more</p></div>
+      <div class="tab-bar" id="health-tabs" role="tablist" aria-label="Health data sections">
+        ${TABS.map(([key, label]) => `<button type="button" role="tab" class="tab-item${key === activeTab ? ' active' : ''}" id="health-tab-${key}" data-tab="${key}" aria-selected="${key === activeTab ? 'true' : 'false'}" aria-controls="health-tab-content" tabindex="${key === activeTab ? '0' : '-1'}">${label}</button>`).join('')}
       </div>
-      <div id="health-tab-content"><div style="text-align:center;padding:var(--space-8);"><div class="spinner" style="margin:0 auto;"></div></div></div>
+      <div id="health-tab-content" role="tabpanel" aria-labelledby="health-tab-${activeTab}" aria-live="polite" tabindex="0">${spinner()}</div>
     </div>`;
 
-  document.querySelectorAll('#health-tabs .tab-item').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#health-tabs .tab-item').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      activeTab = tab.dataset.tab;
-      renderTabContent();
-    });
+  const tablist = document.getElementById('health-tabs');
+  tablist.querySelectorAll('.tab-item').forEach(tab => tab.addEventListener('click', () => selectTab(tab)));
+  // Arrow keys move between tabs (WAI-ARIA tabs pattern, roving tabindex).
+  tablist.addEventListener('keydown', (e) => {
+    const tabs = Array.from(tablist.querySelectorAll('.tab-item'));
+    const i = tabs.indexOf(document.activeElement);
+    if (i === -1) return;
+    let next = null;
+    if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+    else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+    else if (e.key === 'Home') next = tabs[0];
+    else if (e.key === 'End') next = tabs[tabs.length - 1];
+    if (next) { e.preventDefault(); next.focus(); selectTab(next); }
   });
+  // The 10-tab bar overflows on phones — make sure the selected tab is visible.
+  tablist.querySelector('.tab-item.active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
 
+  renderTabContent();
+}
+
+function selectTab(tab) {
+  document.querySelectorAll('#health-tabs .tab-item').forEach(t => {
+    const on = t === tab;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;
+  });
+  activeTab = tab.dataset.tab;
+  document.getElementById('health-tab-content')?.setAttribute('aria-labelledby', tab.id);
+  tab.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   renderTabContent();
 }
 
 async function renderTabContent() {
   const container = document.getElementById('health-tab-content');
-  container.innerHTML = '<div style="text-align:center;padding:var(--space-8);"><div class="spinner" style="margin:0 auto;"></div></div>';
+  if (!container) return;
+  container.innerHTML = spinner();
 
   const renderers = {
     labs: renderLabs,
@@ -62,8 +110,12 @@ async function renderTabContent() {
     cycle: renderCycle,
   };
 
-  const html = await (renderers[activeTab] || renderLabs)();
-  container.innerHTML = html;
+  try {
+    container.innerHTML = await (renderers[activeTab] || renderLabs)();
+  } catch (err) {
+    console.error('[HealthInput] Tab render failed:', err);
+    container.innerHTML = loadErrorState('this section', err, 'health-tab-retry');
+  }
   setupFormHandlers();
 }
 
@@ -71,36 +123,54 @@ async function renderTabContent() {
 //  Labs Tab
 // ═══════════════════════════════════════
 
+function labStatusText(status) {
+  if (status === 'high') return '↑ above range';
+  if (status === 'low') return '↓ below range';
+  if (status === 'critical') return '! well outside range';
+  return '';
+}
+
+function labStatusColor(status) {
+  if (status === 'high' || status === 'critical') return 'var(--error)';
+  if (status === 'low') return 'var(--viz-amber)';
+  if (status === 'normal') return 'var(--viz-green)';
+  return 'var(--text-primary)';
+}
+
 async function renderLabs() {
   let labs = [];
-  try { labs = await labResults.getAll(); } catch (e) { console.warn('Could not load labs:', e.message); }
+  let loadError = null;
+  try { labs = await labResults.getAll(); } catch (e) { loadError = e; }
+
+  const savedList = loadError
+    ? loadErrorState('your saved lab results', loadError, 'labs-retry')
+    : labs.length > 0
+      ? labs.slice(0, 10).map(renderLabCard).join('')
+      : '<div class="empty-state"><p>No lab results logged yet.</p></div>';
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
 
     <div class="card">
-      <h4 style="margin-bottom:var(--space-2);">Upload Lab Report</h4>
-      <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">
-        Upload a PDF or photo of your blood panel, hormone panel, or any lab report. AI will extract all markers automatically.
+      <h4 style="margin-bottom:var(--space-2);">Upload a lab report</h4>
+      <p class="disclaimer" style="margin-bottom:var(--space-3);">
+        Upload a PDF or photo of a blood panel, hormone panel, or other lab report. We'll read the markers from it for you to review before anything is saved.
       </p>
-      <div class="upload-zone" id="lab-pdf-zone" style="padding:var(--space-4);cursor:pointer;">
-        <input type="file" accept=".pdf,image/*" id="lab-pdf-input" style="display:none;">
-        <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
-        <p style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">Drop PDF or photo here</p>
-        <p style="font-size:var(--text-xs);color:var(--text-tertiary);">Supports PDF, JPG, PNG up to 20MB</p>
-        <button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" onclick="document.getElementById('lab-pdf-input').click();event.stopPropagation();">
-          Choose File
-        </button>
-      </div>
-      <div id="lab-parse-status" style="display:none;margin-top:var(--space-3);"></div>
-      <div id="lab-parse-results" style="display:none;margin-top:var(--space-3);"></div>
+      <input type="file" accept=".pdf,image/*" id="lab-pdf-input" class="visually-hidden" tabindex="-1" aria-hidden="true">
+      <button type="button" class="upload-zone" id="lab-pdf-zone" style="width:100%;padding:var(--space-4);min-height:0;" aria-describedby="lab-pdf-help">
+        <span style="color:var(--text-tertiary);display:flex;justify-content:center;" aria-hidden="true">${icons.droplet}</span>
+        <span style="display:block;font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);">Drop a PDF or photo here, or tap to choose a file</span>
+        <span id="lab-pdf-help" style="display:block;font-size:var(--text-xs);color:var(--text-tertiary);">PDF, JPG or PNG up to 20MB</span>
+      </button>
+      <div id="lab-parse-status" aria-live="polite" style="display:none;margin-top:var(--space-3);"></div>
+      <div id="lab-parse-results" aria-live="polite" style="display:none;margin-top:var(--space-3);"></div>
     </div>
 
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Add Single Result</h4>
+      <h4 style="margin-bottom:var(--space-4);">Add a single result</h4>
       <form id="lab-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Test Name</label>
+        <div class="input-group"><label for="lab-name">Test name</label>
           <select class="input-field" id="lab-name">
-            <option value="">Select test...</option>
+            <option value="">Select a test…</option>
             <option>Complete Blood Count (CBC)</option>
             <option>Vitamin D</option><option>Vitamin B12</option>
             <option>Iron / Ferritin</option><option>Thyroid Panel (TSH)</option>
@@ -113,56 +183,59 @@ async function renderLabs() {
           </select>
         </div>
         <div class="grid-2">
-          <div class="input-group"><label>Value</label><input class="input-field" type="number" step="any" id="lab-value" placeholder="e.g. 45"></div>
-          <div class="input-group"><label>Unit</label><input class="input-field" type="text" id="lab-unit" placeholder="ng/mL"></div>
+          <div class="input-group"><label for="lab-value">Value</label><input class="input-field" type="number" step="any" id="lab-value" placeholder="e.g. 45"></div>
+          <div class="input-group"><label for="lab-unit">Unit</label><input class="input-field" type="text" id="lab-unit" placeholder="e.g. ng/mL"></div>
         </div>
-        <div class="input-group"><label>Date</label><input class="input-field" type="date" id="lab-date"></div>
-        <button type="submit" class="btn btn-primary btn-block">Save Result</button>
+        <div class="input-group"><label for="lab-date">Date</label><input class="input-field" type="date" id="lab-date"></div>
+        <button type="submit" class="btn btn-primary btn-block">Save result</button>
       </form>
     </div>
 
-    <div class="section-heading"><h3>Saved Results</h3><span class="badge badge-teal">${labs.length}</span></div>
-    ${labs.length > 0 ? labs.slice(0, 10).map(l => {
-    const markers = l.markers || {};
-    const markerKeys = Object.keys(markers);
-    const firstName = markerKeys[0];
-    const firstMarker = markers[firstName] || {};
-    const displayValue = firstMarker.value ?? l.value ?? '—';
-    const displayUnit = firstMarker.unit ?? l.unit ?? '';
-    const displayName = firstName ?? l.panel_type ?? 'Lab Result';
-    const date = l.collected_at || l.uploaded_at?.split('T')[0] || '';
-    const markerCount = markerKeys.length;
-    const hasAbnormal = markerKeys.some(k => markers[k]?.status === 'high' || markers[k]?.status === 'low' || markers[k]?.status === 'critical');
+    <div class="section-heading"><h3>Saved results</h3>${loadError ? '' : `<span class="badge badge-teal">${labs.length}</span>`}</div>
+    ${savedList}
+  </div>`;
+}
 
-    return `<div class="card card-sm">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${l.panel_type || displayName}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
-              ${date}${markerCount > 1 ? ` • ${markerCount} markers` : ''}
-              ${hasAbnormal ? ' • <span style="color:var(--accent-amber);">Outside the report\'s reference range</span>' : ''}
-            </div>
-          </div>
-          <div style="text-align:right;">
-            ${markerCount === 1 ? `
-              <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${firstMarker.status === 'high' || firstMarker.status === 'low' ? 'var(--accent-coral)' : 'var(--accent-teal)'};">${displayValue}</div>
-              <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${displayUnit}</div>
-            ` : `
-              <div class="badge badge-teal">${markerCount} markers</div>
-            `}
-          </div>
+function renderLabCard(l) {
+  const markers = l.markers || {};
+  const markerKeys = Object.keys(markers);
+  const firstName = markerKeys[0];
+  const firstMarker = markers[firstName] || {};
+  const displayValue = firstMarker.value ?? l.value ?? '—';
+  const displayUnit = firstMarker.unit ?? l.unit ?? '';
+  const displayName = firstName ?? l.panel_type ?? 'Lab result';
+  const date = l.collected_at || l.uploaded_at?.split('T')[0] || '';
+  const markerCount = markerKeys.length;
+  const hasAbnormal = markerKeys.some(k => ['high', 'low', 'critical'].includes(markers[k]?.status));
+  const singleStatus = markerCount === 1 ? labStatusText(firstMarker.status) : '';
+
+  return `<div class="card card-sm">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+      <div>
+        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(l.panel_type || displayName)}</div>
+        <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
+          ${esc(date)}${markerCount > 1 ? ` • ${markerCount} markers` : ''}
+          ${hasAbnormal ? ' • <span style="color:var(--viz-amber);">Outside the report\'s reference range</span>' : ''}
         </div>
-        ${markerCount > 1 ? `
-        <div style="margin-top:var(--space-2);display:flex;flex-wrap:wrap;gap:var(--space-1);">
-          ${markerKeys.slice(0, 6).map(k => {
-      const m = markers[k];
-      const statusColor = m.status === 'high' || m.status === 'critical' ? 'var(--accent-coral)' : m.status === 'low' ? 'var(--accent-amber)' : 'var(--text-tertiary)';
-      return `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--surface-2);color:${statusColor};">${k}: ${m.value}${m.unit || ''}</span>`;
-    }).join('')}
-          ${markerKeys.length > 6 ? `<span style="font-size:10px;padding:2px 6px;color:var(--text-tertiary);">+${markerKeys.length - 6} more</span>` : ''}
-        </div>` : ''}
-      </div>`;
-  }).join('') : '<div class="card" style="text-align:center;padding:var(--space-6);"><p style="font-size:var(--text-sm);">No lab results logged yet</p></div>'}
+      </div>
+      <div style="text-align:right;">
+        ${markerCount === 1 ? `
+          <div style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${labStatusColor(firstMarker.status)};">${esc(displayValue)}</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(displayUnit)}${singleStatus ? ` · ${singleStatus}` : ''}</div>
+        ` : `
+          <div class="badge badge-teal">${markerCount} markers</div>
+        `}
+      </div>
+    </div>
+    ${markerCount > 1 ? `
+    <div style="margin-top:var(--space-2);display:flex;flex-wrap:wrap;gap:var(--space-1);">
+      ${markerKeys.slice(0, 6).map(k => {
+        const m = markers[k] || {};
+        const status = labStatusText(m.status);
+        return `<span style="font-size:var(--text-xs);padding:2px 6px;border-radius:4px;background:var(--surface-2);color:${labStatusColor(m.status)};">${esc(k)}: ${esc(m.value)}${esc(m.unit || '')}${status ? ` ${status.charAt(0)}` : ''}</span>`;
+      }).join('')}
+      ${markerKeys.length > 6 ? `<span style="font-size:var(--text-xs);padding:2px 6px;color:var(--text-tertiary);">+${markerKeys.length - 6} more</span>` : ''}
+    </div>` : ''}
   </div>`;
 }
 
@@ -172,55 +245,56 @@ async function renderLabs() {
 
 async function renderExercise() {
   let log = [];
-  try { log = await exerciseLog.getRecent(8); } catch (e) { console.warn('Could not load exercise:', e.message); }
+  let loadError = null;
+  try { log = await exerciseLog.getRecent(8); } catch (e) { loadError = e; }
 
   const stravaSection = await renderStravaSection();
+
+  const logList = loadError
+    ? loadErrorState('your exercise log', loadError, 'exercise-retry')
+    : log.length > 0
+      ? log.map(renderExerciseCard).join('')
+      : '<div class="empty-state"><p>No exercise logged yet.</p></div>';
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     ${stravaSection}
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Manual Resistance Training Logger</h4>
+      <h4 style="margin-bottom:var(--space-4);">Log resistance training</h4>
       <form id="resistance-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Exercise Name</label>
-          <input class="input-field" type="text" id="res-ex-name" placeholder="e.g. Bench Press, Deadlift, Pull-Up">
+        <div class="input-group"><label for="res-ex-name">Exercise name</label>
+          <input class="input-field" type="text" id="res-ex-name" placeholder="e.g. Bench press, deadlift, pull-up">
         </div>
         <div class="grid-3">
-          <div class="input-group"><label>Sets</label><input class="input-field" type="number" min="1" id="res-sets" placeholder="4"></div>
-          <div class="input-group"><label>Reps</label><input class="input-field" type="number" min="1" id="res-reps" placeholder="8"></div>
-          <div class="input-group"><label>Weight (kg)</label><input class="input-field" type="number" min="0" step="0.5" id="res-weight" placeholder="90"></div>
+          <div class="input-group"><label for="res-sets">Sets</label><input class="input-field" type="number" min="1" id="res-sets" placeholder="e.g. 4"></div>
+          <div class="input-group"><label for="res-reps">Reps</label><input class="input-field" type="number" min="1" id="res-reps" placeholder="e.g. 8"></div>
+          <div class="input-group"><label for="res-weight">Weight (kg)</label><input class="input-field" type="number" min="0" step="0.5" id="res-weight" placeholder="e.g. 90"></div>
         </div>
         <div class="input-group">
-          <label>Rate of Perceived Exertion</label>
+          <label for="res-rpe">Effort (rate of perceived exertion, 1–10)</label>
           <div style="display:flex;align-items:center;gap:var(--space-3);">
             <input class="input-field" type="range" min="1" max="10" id="res-rpe" value="5" style="flex:1;">
-            <span id="res-rpe-display" style="min-width:28px;text-align:center;">5</span>
+            <output for="res-rpe" id="res-rpe-display" style="min-width:28px;text-align:center;">5</output>
           </div>
         </div>
-        <div class="input-group"><label>Muscle Groups</label>
+        <fieldset class="input-group" style="border:0;padding:0;margin:0;min-width:0;">
+          <legend style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-secondary);padding:0;margin-bottom:var(--space-2);">Muscle groups</legend>
           <div id="res-muscle-groups" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
-            <button type="button" class="btn btn-sm" data-group="Chest">Chest</button>
-            <button type="button" class="btn btn-sm" data-group="Back">Back</button>
-            <button type="button" class="btn btn-sm" data-group="Shoulders">Shoulders</button>
-            <button type="button" class="btn btn-sm" data-group="Arms">Arms</button>
-            <button type="button" class="btn btn-sm" data-group="Core">Core</button>
-            <button type="button" class="btn btn-sm" data-group="Legs">Legs</button>
-            <button type="button" class="btn btn-sm" data-group="Glutes">Glutes</button>
-            <button type="button" class="btn btn-sm" data-group="Full Body">Full Body</button>
+            ${['Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Legs', 'Glutes', 'Full Body'].map(g => `<button type="button" class="btn btn-sm" data-group="${g}" aria-pressed="false">${g}</button>`).join('')}
           </div>
-        </div>
-        <div class="input-group"><label>Notes</label>
+        </fieldset>
+        <div class="input-group"><label for="res-notes">Notes</label>
           <textarea class="input-field" id="res-notes" placeholder="Optional notes about the set, tempo, or form" rows="3"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Log Resistance Workout</button>
+        <button type="submit" class="btn btn-primary btn-block">Log resistance workout</button>
       </form>
     </div>
 
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Manual Cardio Logger</h4>
+      <h4 style="margin-bottom:var(--space-4);">Log cardio</h4>
       <form id="cardio-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Activity Type</label>
+        <div class="input-group"><label for="cardio-type">Activity type</label>
           <select class="input-field" id="cardio-type">
-            <option value="">Select cardio type...</option>
+            <option value="">Select a cardio type…</option>
             <option>Run</option>
             <option>Bike</option>
             <option>Swim</option>
@@ -230,36 +304,42 @@ async function renderExercise() {
           </select>
         </div>
         <div class="grid-2">
-          <div class="input-group"><label>Duration (minutes)</label><input class="input-field" type="number" min="1" id="cardio-duration" placeholder="30"></div>
-          <div class="input-group"><label>Distance (km)</label><input class="input-field" type="number" min="0" step="0.1" id="cardio-distance" placeholder="5.0"></div>
+          <div class="input-group"><label for="cardio-duration">Duration (minutes)</label><input class="input-field" type="number" min="1" id="cardio-duration" placeholder="e.g. 30"></div>
+          <div class="input-group"><label for="cardio-distance">Distance (km)</label><input class="input-field" type="number" min="0" step="0.1" id="cardio-distance" placeholder="e.g. 5.0"></div>
         </div>
-        <div class="input-group"><label>Calories Burned (optional)</label><input class="input-field" type="number" min="0" id="cardio-calories" placeholder="250"></div>
-        <div class="input-group"><label>Notes</label>
+        <div class="input-group"><label for="cardio-calories">Calories burned (optional)</label><input class="input-field" type="number" min="0" id="cardio-calories" placeholder="e.g. 250"></div>
+        <div class="input-group"><label for="cardio-notes">Notes</label>
           <textarea class="input-field" id="cardio-notes" placeholder="Optional cardio notes" rows="3"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Log Cardio</button>
+        <button type="submit" class="btn btn-primary btn-block">Log cardio</button>
       </form>
     </div>
 
-    <div class="section-heading"><h3>Exercise Log</h3><span class="badge badge-teal">${log.length}</span></div>
-    ${log.length > 0 ? log.map(renderExerciseCard).join('') : '<div class="card" style="text-align:center;padding:var(--space-6);"><p style="font-size:var(--text-sm);">No exercises logged</p></div>'}
+    <div class="section-heading"><h3>Exercise log</h3>${loadError ? '' : `<span class="badge badge-teal">${log.length}</span>`}</div>
+    ${logList}
   </div>`;
 }
 
 function renderExerciseCard(e) {
   const isStrava = e.source === 'strava';
+  const details = [
+    e.duration != null ? `${esc(e.duration)} min` : null,
+    e.intensity ? esc(e.intensity) : null,
+    e.distance ? esc(e.distance) : null,
+    e.heart_rate ? `${Math.round(e.heart_rate)} bpm` : null,
+  ].filter(Boolean).join(' • ');
   return `<div class="card card-sm">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
       <div style="display:flex;align-items:center;gap:var(--space-3);">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isStrava ? 'rgba(252,82,0,0.15)' : 'var(--accent-blue-dim)'};display:flex;align-items:center;justify-content:center;">
-          ${isStrava ? `<span style="color:#FC5200;width:20px;height:20px;">${icons.strava}</span>` : `<span style="color:var(--text-secondary);width:20px;height:20px;">${icons.activity}</span>`}
+        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isStrava ? 'var(--viz-amber-dim)' : 'var(--accent-dim)'};display:flex;align-items:center;justify-content:center;" aria-hidden="true">
+          <span style="color:${isStrava ? 'var(--viz-amber)' : 'var(--text-secondary)'};width:20px;height:20px;">${isStrava ? icons.strava : icons.activity}</span>
         </div>
         <div>
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${e.name || e.type}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${e.duration}min • ${e.intensity}${e.distance ? ' • ' + e.distance : ''}${e.heart_rate ? ' • ' + Math.round(e.heart_rate) + 'bpm' : ''}</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(e.name || e.type || 'Workout')}${isStrava ? ' <span class="badge" style="font-size:var(--text-xs);">Strava</span>' : ''}</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${details || 'No details logged'}</div>
         </div>
       </div>
-      <span style="font-weight:var(--weight-semibold);color:${isStrava ? '#FC5200' : 'var(--accent-blue)'};">${e.calories || '—'} kcal</span>
+      <span style="font-weight:var(--weight-semibold);color:var(--text-secondary);white-space:nowrap;">${e.calories != null ? `${esc(e.calories)} kcal` : '—'}</span>
     </div>
   </div>`;
 }
@@ -270,41 +350,48 @@ function renderExerciseCard(e) {
 
 async function renderSleep() {
   let log = [];
-  try { log = await sleepLog.getRecent(7); } catch (e) { console.warn('Could not load sleep:', e.message); }
+  let loadError = null;
+  try { log = await sleepLog.getRecent(7); } catch (e) { loadError = e; }
+
+  const logList = loadError
+    ? loadErrorState('your sleep log', loadError, 'sleep-retry')
+    : log.length > 0
+      ? log.map(s => `<div class="card card-sm">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+        <div style="display:flex;align-items:center;gap:var(--space-3);">
+          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);" aria-hidden="true">${icons.moon}</div>
+          <div>
+            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${s.hours != null ? `${esc(s.hours)}h` : 'Sleep'}${s.quality ? ` — ${esc(s.quality)}` : ''}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(s.bedtime || '')} ${esc(s.wake_time || s.wake || '')}</div>
+          </div>
+        </div>
+        <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(s.date || '')}</div>
+      </div>
+    </div>`).join('')
+      : '<div class="empty-state"><p>No sleep logged yet.</p></div>';
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Log Sleep</h4>
+      <h4 style="margin-bottom:var(--space-4);">Log sleep</h4>
       <form id="sleep-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
         <div class="grid-2">
-          <div class="input-group"><label>Hours Slept</label><input class="input-field" type="number" step="0.5" id="sleep-hours" placeholder="7.5"></div>
-          <div class="input-group"><label>Quality</label>
+          <div class="input-group"><label for="sleep-hours">Hours slept</label><input class="input-field" type="number" step="0.5" min="0" max="24" id="sleep-hours" placeholder="e.g. 7.5"></div>
+          <div class="input-group"><label for="sleep-quality">Quality</label>
             <select class="input-field" id="sleep-quality">
               <option value="" selected disabled>Select…</option><option>Poor</option><option>Fair</option><option>Good</option><option>Excellent</option>
             </select>
           </div>
         </div>
         <div class="grid-2">
-          <div class="input-group"><label>Bedtime</label><input class="input-field" type="time" id="sleep-bedtime"></div>
-          <div class="input-group"><label>Wake Time</label><input class="input-field" type="time" id="sleep-wake"></div>
+          <div class="input-group"><label for="sleep-bedtime">Bedtime</label><input class="input-field" type="time" id="sleep-bedtime"></div>
+          <div class="input-group"><label for="sleep-wake">Wake time</label><input class="input-field" type="time" id="sleep-wake"></div>
         </div>
-        <div class="input-group"><label>Notes</label><input class="input-field" type="text" id="sleep-notes" placeholder="Any notes..."></div>
-        <button type="submit" class="btn btn-primary btn-block">Log Sleep</button>
+        <div class="input-group"><label for="sleep-notes">Notes</label><input class="input-field" type="text" id="sleep-notes" placeholder="Any notes…"></div>
+        <button type="submit" class="btn btn-primary btn-block">Log sleep</button>
       </form>
     </div>
-    <div class="section-heading"><h3>Sleep Log</h3></div>
-    ${log.length > 0 ? log.map(s => `<div class="card card-sm">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">${icons.moon}</div>
-          <div>
-            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${s.hours}h — ${s.quality}</div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.bedtime || ''} ${s.wake_time || s.wake || ''}</div>
-          </div>
-        </div>
-        <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${s.date || ''}</div>
-      </div>
-    </div>`).join('') : '<div class="card" style="text-align:center;padding:var(--space-6);"><p style="font-size:var(--text-sm);">No sleep data logged</p></div>'}
+    <div class="section-heading"><h3>Sleep log</h3></div>
+    ${logList}
   </div>`;
 }
 
@@ -313,54 +400,58 @@ async function renderSleep() {
 // ═══════════════════════════════════════
 
 async function renderHabits() {
-  let h = {};
-  try { h = await habits.getToday() || {}; } catch (e) { console.warn('Could not load habits:', e.message); }
+  let h = null;
+  let loadError = null;
+  try { h = await habits.getToday(); } catch (e) { loadError = e; }
+
+  // A failed load must not render a blank form — saving it would overwrite today's real entry.
+  if (loadError) {
+    return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+      <div class="card"><h4 style="margin-bottom:var(--space-2);">Lifestyle habits</h4>${loadErrorState("today's habits", loadError, 'habits-retry')}</div>
+    </div>`;
+  }
+  h = h || {};
+
+  const levelOptions = (current) => ['none', 'light', 'moderate', 'heavy']
+    .map(v => `<option value="${v}" ${current === v ? 'selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`).join('');
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Lifestyle Habits</h4>
+      <h4 style="margin-bottom:var(--space-4);">Lifestyle habits</h4>
       <div style="display:flex;flex-direction:column;gap:var(--space-4);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="display:flex;align-items:center;gap:var(--space-3);"><span style="color:var(--text-secondary);display:flex;">${icons.wind}</span><span style="font-size:var(--text-sm);">Smoking</span></div>
-          <div class="toggle ${h.smoking ? 'active' : ''}" id="toggle-smoking"></div>
+          <div style="display:flex;align-items:center;gap:var(--space-3);"><span style="color:var(--text-secondary);display:flex;" aria-hidden="true">${icons.wind}</span><span id="smoking-label" style="font-size:var(--text-sm);">Smoked today</span></div>
+          <button type="button" role="switch" aria-checked="${h.smoking ? 'true' : 'false'}" aria-labelledby="smoking-label" class="toggle ${h.smoking ? 'active' : ''}" id="toggle-smoking" style="padding:0;"></button>
         </div>
         <div class="divider" style="margin:0;"></div>
-        <div class="input-group"><label>Alcohol Consumption</label>
+        <div class="input-group"><label for="habit-alcohol">Alcohol today</label>
           <select class="input-field" id="habit-alcohol">
-            <option ${h.alcohol === 'none' ? 'selected' : ''}>none</option>
-            <option ${h.alcohol === 'light' ? 'selected' : ''}>light</option>
-            <option ${h.alcohol === 'moderate' ? 'selected' : ''}>moderate</option>
-            <option ${h.alcohol === 'heavy' ? 'selected' : ''}>heavy</option>
+            <option value="" ${!h.alcohol ? 'selected' : ''}>Select…</option>
+            ${levelOptions(h.alcohol)}
           </select>
         </div>
-        <div class="input-group"><label>Caffeine Intake</label>
+        <div class="input-group"><label for="habit-caffeine">Caffeine today</label>
           <select class="input-field" id="habit-caffeine">
-            <option ${h.caffeine === 'none' ? 'selected' : ''}>none</option>
-            <option ${h.caffeine === 'light' ? 'selected' : ''}>light</option>
-            <option ${h.caffeine === 'moderate' ? 'selected' : ''}>moderate</option>
-            <option ${h.caffeine === 'heavy' ? 'selected' : ''}>heavy</option>
+            <option value="" ${!h.caffeine ? 'selected' : ''}>Select…</option>
+            ${levelOptions(h.caffeine)}
           </select>
         </div>
-        <div class="input-group"><label>Daily Water (glasses)</label>
+        <div class="input-group"><label for="habit-water">Water (glasses)</label>
           <input class="input-field" type="number" id="habit-water" value="${h.water_glasses ?? ''}" min="0" max="20" placeholder="e.g. 8">
         </div>
-        <div class="input-group"><label>Stress Level (1-10)</label>
-          <input class="input-field" type="number" id="habit-stress" value="${h.stress_level || ''}" min="1" max="10" placeholder="5">
+        <div class="input-group"><label for="habit-stress">Stress level (1–10)</label>
+          <input class="input-field" type="number" id="habit-stress" value="${h.stress_level || ''}" min="1" max="10" placeholder="1–10">
         </div>
-        <div class="input-group"><label>Steps Today</label>
+        <div class="input-group"><label for="habit-steps">Steps today</label>
           <input class="input-field" type="number" id="habit-steps" value="${h.steps ?? ''}" min="0" max="100000" placeholder="e.g. 8500">
         </div>
-        <div class="input-group"><label>Mood</label>
+        <div class="input-group"><label for="habit-mood">Mood</label>
           <select class="input-field" id="habit-mood">
-            <option value="">Select...</option>
-            <option ${h.mood === 'great' ? 'selected' : ''}>great</option>
-            <option ${h.mood === 'good' ? 'selected' : ''}>good</option>
-            <option ${h.mood === 'neutral' ? 'selected' : ''}>neutral</option>
-            <option ${h.mood === 'low' ? 'selected' : ''}>low</option>
-            <option ${h.mood === 'bad' ? 'selected' : ''}>bad</option>
+            <option value="">Select…</option>
+            ${['great', 'good', 'neutral', 'low', 'bad'].map(v => `<option value="${v}" ${h.mood === v ? 'selected' : ''}>${v.charAt(0).toUpperCase() + v.slice(1)}</option>`).join('')}
           </select>
         </div>
-        <button class="btn btn-primary btn-block" id="save-habits">Save Today's Habits</button>
+        <button type="button" class="btn btn-primary btn-block" id="save-habits">Save today's habits</button>
       </div>
     </div>
   </div>`;
@@ -370,44 +461,67 @@ async function renderHabits() {
 //  Substances Tab
 // ═══════════════════════════════════════
 
+const SUBSTANCE_CATEGORIES = {
+  supplement: { bg: 'var(--viz-green-dim)', text: 'var(--viz-green)', label: 'Supplement' },
+  prescription: { bg: 'var(--accent-dim)', text: 'var(--accent)', label: 'Prescription' },
+  recreational: { bg: 'var(--viz-neutral-dim)', text: 'var(--viz-neutral)', label: 'Recreational' },
+};
+
 async function renderSubstances() {
   let supplements = [];
+  let loadError = null;
   try {
     const res = await apiFetch(`/api/supplements?userId=${encodeURIComponent(currentUserId)}`);
-    if (res.ok) {
-      const data = await res.json();
-      supplements = data.supplements || [];
-    }
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const data = await res.json();
+    supplements = data.supplements || [];
   } catch (e) {
-    console.warn('Could not load supplements:', e.message);
+    loadError = e;
   }
 
-  const categoryColors = {
-    supplement: { bg: 'rgba(34, 197, 94, 0.15)', text: 'var(--accent-green)' },
-    prescription: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3B82F6' },
-    recreational: { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7' },
-  };
+  const list = loadError
+    ? loadErrorState('your substances', loadError, 'substances-retry')
+    : supplements.length > 0
+      ? supplements.map(s => {
+        const cat = SUBSTANCE_CATEGORIES[s.category] || SUBSTANCE_CATEGORIES.supplement;
+        return `<div class="card card-sm">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);flex-wrap:wrap;">
+              <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(s.name)}</div>
+              <span class="badge" style="background:${cat.bg};color:${cat.text};font-size:var(--text-xs);">${cat.label}</span>
+            </div>
+            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
+              ${s.dose ? esc(s.dose) + ' • ' : ''}${esc(s.frequency || 'Frequency not set')}
+              ${s.notes ? '<br>' + esc(s.notes) : ''}
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost substance-delete" data-id="${esc(s.id)}" aria-label="Remove ${esc(s.name)}" style="color:var(--text-tertiary);font-size:var(--text-xs);">✕</button>
+        </div>
+      </div>`;
+      }).join('')
+      : '<div class="empty-state"><p>No substances logged yet.</p></div>';
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Log Substance</h4>
+      <h4 style="margin-bottom:var(--space-4);">Log a substance</h4>
       <form id="substance-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Name</label>
-          <input class="input-field" type="text" id="substance-name" placeholder="e.g. Magnesium, Metformin, etc.">
+        <div class="input-group"><label for="substance-name">Name</label>
+          <input class="input-field" type="text" id="substance-name" placeholder="e.g. Magnesium, Metformin">
         </div>
-        <div class="input-group"><label>Category</label>
+        <div class="input-group"><label for="substance-category">Category</label>
           <select class="input-field" id="substance-category">
-            <option value="">Select category...</option>
+            <option value="">Select a category…</option>
             <option value="supplement">Supplement</option>
             <option value="prescription">Prescription</option>
             <option value="recreational">Recreational</option>
           </select>
         </div>
         <div class="grid-2">
-          <div class="input-group"><label>Dose</label><input class="input-field" type="text" id="substance-dose" placeholder="e.g. 500mg"></div>
-          <div class="input-group"><label>Frequency</label>
+          <div class="input-group"><label for="substance-dose">Dose</label><input class="input-field" type="text" id="substance-dose" placeholder="e.g. 500mg"></div>
+          <div class="input-group"><label for="substance-frequency">Frequency</label>
             <select class="input-field" id="substance-frequency">
-              <option value="">Select...</option>
+              <option value="">Select…</option>
               <option>Once daily</option>
               <option>Twice daily</option>
               <option>Three times daily</option>
@@ -417,33 +531,15 @@ async function renderSubstances() {
             </select>
           </div>
         </div>
-        <div class="input-group"><label>Notes (optional)</label>
-          <input class="input-field" type="text" id="substance-notes" placeholder="Any notes about this substance...">
+        <div class="input-group"><label for="substance-notes">Notes (optional)</label>
+          <input class="input-field" type="text" id="substance-notes" placeholder="Any notes about this substance…">
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Add Substance</button>
+        <button type="submit" class="btn btn-primary btn-block">Add substance</button>
       </form>
     </div>
 
-    <div class="section-heading"><h3>Active Substances</h3><span class="badge badge-teal">${supplements.length}</span></div>
-    ${supplements.length > 0 ? supplements.map(s => {
-      const categoryStyle = categoryColors[s.category] || categoryColors.supplement;
-      const label = s.category === 'prescription' ? 'Rx' : s.category === 'recreational' ? 'Rec' : 'SUPP';
-      return `<div class="card card-sm">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-1);">
-              <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${s.name}</div>
-              <span class="badge" style="background:${categoryStyle.bg};color:${categoryStyle.text};font-size:10px;">${label}</span>
-            </div>
-            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
-              ${s.dose ? s.dose + ' • ' : ''}${s.frequency || 'Frequency not set'}
-              ${s.notes ? '<br>' + s.notes : ''}
-            </div>
-          </div>
-          <button class="btn btn-sm btn-ghost substance-delete" data-id="${s.id}" style="color:var(--text-tertiary);font-size:var(--text-xs);">✕</button>
-        </div>
-      </div>`;
-    }).join('') : '<div class="card" style="text-align:center;padding:var(--space-6);"><p style="font-size:var(--text-sm);">No substances logged yet</p></div>'}
+    <div class="section-heading"><h3>Active substances</h3>${loadError ? '' : `<span class="badge badge-teal">${supplements.length}</span>`}</div>
+    ${list}
   </div>`;
 }
 
@@ -451,46 +547,65 @@ async function renderSubstances() {
 //  Background Tab
 // ═══════════════════════════════════════
 
+const BACKGROUND_CONDITIONS = [
+  'IBS', 'Diabetes', 'Hypertension', 'Anxiety', 'Depression',
+  'ADHD', 'Hypothyroid', 'PCOS', 'Acne', 'Eczema',
+  'Asthma', 'Arthritis', 'Migraines', 'GERD', 'Celiac',
+  'Crohns', 'Sleep Apnea', 'Endometriosis', 'High Cholesterol', 'Chronic Fatigue',
+];
+
+function parseConditions(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 async function renderBackground() {
-  let profile = null;
+  let profile = {};
+  let loadError = null;
   try {
     const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(currentUserId)}`);
-    if (res.ok) {
-      const data = await res.json();
-      profile = data.profile || {};
-    }
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const data = await res.json();
+    profile = data.profile || {};
   } catch (e) {
-    console.warn('Could not load profile:', e.message);
+    loadError = e;
   }
 
-  const conditions = [
-    'IBS', 'Diabetes', 'Hypertension', 'Anxiety', 'Depression',
-    'ADHD', 'Hypothyroid', 'PCOS', 'Acne', 'Eczema',
-    'Asthma', 'Arthritis', 'Migraines', 'GERD', 'Celiac',
-    'Crohns', 'Sleep Apnea', 'Endometriosis', 'High Cholesterol', 'Chronic Fatigue'
-  ];
+  // Never show a blank form after a failed load — saving it would wipe the saved background.
+  if (loadError) {
+    return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+      <div class="card"><h4 style="margin-bottom:var(--space-2);">Medical history</h4>${loadErrorState('your health background', loadError, 'background-retry')}</div>
+    </div>`;
+  }
 
-  const selectedConditions = profile?.conditions ? (typeof profile.conditions === 'string' ? JSON.parse(profile.conditions) : profile.conditions) : [];
+  const selectedConditions = parseConditions(profile.conditions);
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Medical History</h4>
+      <h4 style="margin-bottom:var(--space-2);">Medical history</h4>
+      <p class="disclaimer" style="margin-bottom:var(--space-3);">Anything you note here is kept private and only used to add context to your own patterns.</p>
       <form id="background-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div>
-          <label style="display:block;margin-bottom:var(--space-2);font-weight:var(--weight-semibold);font-size:var(--text-sm);">Health Conditions</label>
+        <fieldset style="border:0;padding:0;margin:0;min-width:0;">
+          <legend style="display:block;margin-bottom:var(--space-2);font-weight:var(--weight-semibold);font-size:var(--text-sm);padding:0;">Health conditions</legend>
           <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:var(--space-2);">
-            ${conditions.map(condition => `
-              <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);border:1px solid var(--border);transition:all 0.2s;">
-                <input type="checkbox" class="condition-check" value="${condition}" ${selectedConditions.includes(condition) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+            ${BACKGROUND_CONDITIONS.map((condition, i) => `
+              <label for="bg-cond-${i}" style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);border:1px solid var(--border);transition:all 0.2s;">
+                <input type="checkbox" class="condition-check" id="bg-cond-${i}" value="${condition}" ${selectedConditions.includes(condition) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
                 <span style="font-size:var(--text-sm);">${condition}</span>
               </label>
             `).join('')}
           </div>
+        </fieldset>
+        <div class="input-group"><label for="bg-allergies">Allergies</label>
+          <textarea class="input-field" id="bg-allergies" placeholder="List any allergies (medication, food, environmental, etc.)" style="min-height:100px;resize:vertical;">${esc(profile.allergies || '')}</textarea>
         </div>
-        <div class="input-group"><label>Allergies</label>
-          <textarea class="input-field" id="bg-allergies" placeholder="List any allergies (medication, food, environmental, etc.)..." style="min-height:100px;resize:vertical;">${profile?.allergies || ''}</textarea>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block">Save Health Background</button>
+        <button type="submit" class="btn btn-primary btn-block">Save health background</button>
       </form>
     </div>
   </div>`;
@@ -501,31 +616,37 @@ async function renderBackground() {
 // ═══════════════════════════════════════
 
 async function renderGoals() {
-  let goals = null;
+  let goals = {};
+  let loadError = null;
   try {
     const res = await apiFetch(`/api/user-goals?userId=${encodeURIComponent(currentUserId)}`);
-    if (res.ok) {
-      const data = await res.json();
-      goals = data.goals || {};
-    }
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const data = await res.json();
+    goals = data.goals || {};
   } catch (e) {
-    console.warn('Could not load goals:', e.message);
+    loadError = e;
+  }
+
+  if (loadError) {
+    return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+      <div class="card"><h4 style="margin-bottom:var(--space-2);">Health goals &amp; preferences</h4>${loadErrorState('your goals', loadError, 'goals-retry')}</div>
+    </div>`;
   }
 
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Health Goals & Preferences</h4>
+      <h4 style="margin-bottom:var(--space-4);">Health goals &amp; preferences</h4>
       <form id="goals-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Goals & Objectives</label>
-          <textarea class="input-field" id="goals-text" placeholder="What are your health goals? (e.g., lose weight, improve energy, manage stress, etc.)" style="min-height:120px;resize:vertical;">${goals?.goals_text || ''}</textarea>
+        <div class="input-group"><label for="goals-text">Goals</label>
+          <textarea class="input-field" id="goals-text" placeholder="What are you working toward? (e.g. more energy, better sleep, less stress)" style="min-height:120px;resize:vertical;">${esc(goals.goals_text || '')}</textarea>
         </div>
-        <div class="input-group"><label>Dietary Restrictions</label>
-          <textarea class="input-field" id="goals-dietary" placeholder="Any dietary restrictions, preferences, or requirements (e.g., vegetarian, gluten-free, keto, etc.)" style="min-height:100px;resize:vertical;">${goals?.dietary_restrictions || ''}</textarea>
+        <div class="input-group"><label for="goals-dietary">Dietary restrictions</label>
+          <textarea class="input-field" id="goals-dietary" placeholder="Anything you avoid or follow (e.g. vegetarian, gluten-free, keto)" style="min-height:100px;resize:vertical;">${esc(goals.dietary_restrictions || '')}</textarea>
         </div>
-        <div class="input-group"><label>Health Concerns</label>
-          <textarea class="input-field" id="goals-concerns" placeholder="Current health concerns or challenges you'd like to address..." style="min-height:100px;resize:vertical;">${goals?.health_concerns || ''}</textarea>
+        <div class="input-group"><label for="goals-concerns">Health concerns</label>
+          <textarea class="input-field" id="goals-concerns" placeholder="Anything you'd like to keep an eye on" style="min-height:100px;resize:vertical;">${esc(goals.health_concerns || '')}</textarea>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">Save Goals</button>
+        <button type="submit" class="btn btn-primary btn-block">Save goals</button>
       </form>
     </div>
   </div>`;
@@ -536,81 +657,100 @@ async function renderGoals() {
 // ═══════════════════════════════════════
 
 async function renderEnvironment() {
-  const env = await loadLatestEnvironment(); console.log('[ENV DEBUG]', JSON.stringify(env));
+  const { environment: env, error: loadError } = await loadLatestEnvironment();
+
   const air = env?.air || { aqi: env?.aqi, aqiCategory: env?.aqi_category, pm2_5: env?.pm2_5, uv_index: env?.uv_index ?? env?.raw?.air?.uv_index };
   const waterRisk = env?.water_risk ?? env?.raw?.water?.risk_level ?? null;
-  const aqi = (air?.aqi != null) ? air.aqi : '--';
-  const aqiCategory = air?.aqiCategory || 'Unknown';
-  const pm25 = (air?.pm2_5 != null) ? air.pm2_5 : '--';
-  const uvIndex = (air?.uv_index != null && air?.uv_index !== undefined) ? air.uv_index : (env?.raw?.air?.uv_index != null ? env.raw.air.uv_index : '--');
+  const aqi = air?.aqi ?? null;
+  const aqiCategory = air?.aqiCategory || '';
+  const pm25 = air?.pm2_5 ?? null;
+  const uvIndex = air?.uv_index ?? env?.raw?.air?.uv_index ?? null;
   const locationValue = env?.location || '';
   const fetchedAt = env?.fetched_at ? new Date(env.fetched_at).toLocaleString() : null;
-  const aqiColor = (typeof aqi === 'number') ? (aqi <= 50 ? 'var(--accent-green)' : aqi <= 100 ? 'var(--accent-amber)' : 'var(--accent-coral)') : 'var(--text-secondary)';
+  const aqiNum = Number(aqi);
+  const aqiColor = Number.isFinite(aqiNum) && aqi !== null
+    ? (aqiNum <= 50 ? 'var(--viz-green)' : aqiNum <= 100 ? 'var(--viz-amber)' : 'var(--error)')
+    : 'var(--text-secondary)';
+  const show = (v) => (v === null || v === undefined || v === '') ? '<span aria-label="No data">—</span>' : esc(v);
 
-  return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
-    <div class="card">
-      <h4 style="margin-bottom:var(--space-4);">Environmental Factors</h4>
-      ${locationValue ? `<div style="font-size:var(--text-xl);font-weight:700;color:var(--accent-teal);margin-bottom:var(--space-3);">${locationValue}</div>` : ''}
+  let readings;
+  if (loadError) {
+    readings = loadErrorState('your environment data', loadError, 'env-retry');
+  } else if (env) {
+    readings = `
+      ${locationValue ? `<div style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);">${esc(locationValue)}</div>` : ''}
       <div class="card card-sm" style="margin-bottom:var(--space-4);">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
           <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
-            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">AQI</div>
-            <div style="font-size:var(--text-3xl);font-weight:var(--weight-bold);color:${aqiColor};">${aqi}</div>
-            <div style="font-size:var(--text-sm);color:var(--text-secondary);">${aqiCategory}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">Air quality index (AQI)</div>
+            <div style="font-size:var(--text-3xl);font-weight:var(--weight-bold);color:${aqiColor};">${show(aqi)}</div>
+            <div style="font-size:var(--text-sm);color:var(--text-secondary);">${aqiCategory ? esc(aqiCategory) : 'No category reported'}</div>
           </div>
           <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
             <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">PM2.5</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${pm25}</div>
+            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${show(pm25)}</div>
             <div style="font-size:var(--text-sm);color:var(--text-secondary);">μg/m³</div>
           </div>
           <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
-            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">UV Index</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${uvIndex}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">UV index</div>
+            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);">${show(uvIndex)}</div>
           </div>
           <div style="padding:var(--space-3);border-radius:var(--radius-sm);background:var(--surface-2);">
-            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">Water Risk</div>
-            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);text-transform:capitalize;">${waterRisk ?? 'No data'}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-2);">Water risk</div>
+            <div style="font-size:var(--text-2xl);font-weight:var(--weight-bold);text-transform:capitalize;">${show(waterRisk)}</div>
           </div>
         </div>
-        ${fetchedAt ? `<div style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--text-secondary);">Last updated: ${fetchedAt}</div>` : ''}
-      </div>
+        ${fetchedAt ? `<div style="margin-top:var(--space-3);font-size:var(--text-xs);color:var(--text-secondary);">Last updated ${esc(fetchedAt)}</div>` : ''}
+      </div>`;
+  } else {
+    readings = `<div class="empty-state"><p>No environment data yet. Enter your city or zip code below to fetch air quality, UV index and water safety for your area.</p></div>`;
+  }
+
+  return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+    <div class="card">
+      <h4 style="margin-bottom:var(--space-4);">Environmental factors</h4>
+      ${readings}
       <form id="env-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Location / City</label>
-          <input class="input-field" type="text" id="env-location" value="" placeholder="e.g. Los Angeles, CA">
+        <div class="input-group"><label for="env-location">Location / city</label>
+          <input class="input-field" type="text" id="env-location" value="" placeholder="e.g. Los Angeles, CA" autocomplete="off">
         </div>
-        ${!locationValue ? `<div style="font-size:var(--text-sm);color:var(--text-tertiary);">Enter your city or zip code to fetch live air quality,<br>UV index, and water safety data for your area.</div>` : ''}
-        <button type="button" id="env-refresh" class="btn btn-primary btn-block">Get Environment Data</button>
+        <button type="submit" id="env-refresh" class="btn btn-primary btn-block">Get environment data</button>
       </form>
     </div>
   </div>`;
 }
 
+// Resolves to { environment, error } so callers can tell "nothing saved yet" from "couldn't load".
 async function loadLatestEnvironment() {
   try {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id;
-    if (!userId) return null;
+    if (!userId) return { environment: null, error: new Error('Not authenticated') };
 
     const res = await apiFetch(`/api/environment/latest?userId=${encodeURIComponent(userId)}`);
-    if (!res.ok) return null;
+    if (res.status === 404) return { environment: null, error: null };
+    if (!res.ok) return { environment: null, error: new Error(`Server responded ${res.status}`) };
 
     const json = await res.json();
-    return json.environment || null;
+    return { environment: json.environment || null, error: null };
   } catch (err) {
     console.warn('[HealthInput] Failed to load environment data', err);
-    return null;
+    return { environment: null, error: err };
   }
 }
 
 async function refreshEnvironmentData() {
   const locationInput = document.getElementById('env-location');
+  const btn = document.getElementById('env-refresh');
   const location = locationInput?.value?.trim();
   if (!location) {
-    showToast('Enter a location before refreshing');
+    showToast('Enter a city or zip code first');
+    locationInput?.focus();
     return;
   }
 
+  if (btn) { btn.disabled = true; btn.textContent = 'Getting data…'; }
   try {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
@@ -618,16 +758,16 @@ async function refreshEnvironmentData() {
     const res = await apiFetch(`/api/environment?userId=${encodeURIComponent(userId || '')}&location=${encodeURIComponent(location)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to refresh environment');
+      throw new Error(err.error || `Server responded ${res.status}`);
     }
-
-    const json = await res.json();
+    await res.json();
     // The server persists a snapshot when userId is provided
     showToast('Environment data saved');
     renderTabContent();
   } catch (err) {
     console.error('[HealthInput] Refresh failed', err);
-    showToast(`${err.message}`);
+    showToast(/not found|unknown location|could not find/i.test(err.message) ? "Couldn't find that location — try a city name or zip code." : "Couldn't get environment data. " + plainReason(err));
+    if (btn) { btn.disabled = false; btn.textContent = 'Get environment data'; }
   }
 }
 
@@ -651,25 +791,26 @@ async function renderStravaSection() {
 
 function renderStravaSetup() {
   return `
-    <div class="card" style="border:1px solid rgba(252,82,0,0.3);background:linear-gradient(145deg, rgba(252,82,0,0.08), rgba(252,82,0,0.02));">
+    <div class="card" style="border:1px solid var(--viz-amber);">
       <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);">
-        <div style="width:44px;height:44px;border-radius:var(--radius-md);background:rgba(252,82,0,0.15);display:flex;align-items:center;justify-content:center;">
-          <span style="color:#FC5200;width:24px;height:24px;">${icons.strava}</span>
+        <div style="width:44px;height:44px;border-radius:var(--radius-md);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;" aria-hidden="true">
+          <span style="color:var(--viz-amber);width:24px;height:24px;">${icons.strava}</span>
         </div>
         <div>
-          <h4 style="color:#FC5200;margin-bottom:2px;">Connect Strava</h4>
-          <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin:0;">Import workouts automatically</p>
+          <h4 style="margin-bottom:2px;">Connect Strava</h4>
+          <p class="disclaimer" style="margin:0;">Import workouts automatically</p>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:var(--space-3);">
-        <div class="input-group"><label>Client ID</label>
-          <input class="input-field" type="text" id="strava-client-id" placeholder="Your Strava Client ID">
+        <p class="disclaimer">You'll need a Client ID and Client Secret from your own Strava API settings.</p>
+        <div class="input-group"><label for="strava-client-id">Client ID</label>
+          <input class="input-field" type="text" id="strava-client-id" placeholder="Your Strava Client ID" autocomplete="off">
         </div>
-        <div class="input-group"><label>Client Secret</label>
-          <input class="input-field" type="password" id="strava-client-secret" placeholder="Your Strava Client Secret">
+        <div class="input-group"><label for="strava-client-secret">Client Secret</label>
+          <input class="input-field" type="password" id="strava-client-secret" placeholder="Your Strava Client Secret" autocomplete="off">
         </div>
-        <button class="btn btn-block" id="strava-save-connect" style="background:linear-gradient(135deg, #FC5200, #FF7A33);color:white;">
-          ${icons.link} Save & Connect to Strava
+        <button type="button" class="btn btn-block" id="strava-save-connect" style="background:var(--viz-amber);color:var(--text-inverse);">
+          ${icons.link} Save &amp; connect to Strava
         </button>
       </div>
     </div>`;
@@ -677,44 +818,44 @@ function renderStravaSetup() {
 
 function renderStravaReady() {
   return `
-    <div class="card" style="border:1px solid rgba(252,82,0,0.3);">
-      <h4 style="color:#FC5200;margin-bottom:var(--space-3);">Strava Ready</h4>
-      <button class="btn btn-block" id="strava-authorize" style="background:linear-gradient(135deg, #FC5200, #FF7A33);color:white;margin-bottom:var(--space-2);">
+    <div class="card" style="border:1px solid var(--viz-amber);">
+      <h4 style="margin-bottom:var(--space-3);">Strava is ready to authorize</h4>
+      <button type="button" class="btn btn-block" id="strava-authorize" style="background:var(--viz-amber);color:var(--text-inverse);margin-bottom:var(--space-2);">
         Authorize with Strava
       </button>
-      <button class="btn btn-ghost btn-block" id="strava-reset" style="font-size:var(--text-xs);">Reset Credentials</button>
+      <button type="button" class="btn btn-ghost btn-block" id="strava-reset" style="font-size:var(--text-xs);">Reset credentials</button>
     </div>`;
 }
 
 function renderStravaConnected(cfg) {
-  const lastSync = cfg.lastSync ? timeAgo(cfg.lastSync) : 'Never';
+  const lastSync = cfg.lastSync ? timeAgo(cfg.lastSync) : 'never';
   const activities = cfg.activities || [];
   const unimported = activities.filter(a => !a.imported);
 
   return `
-    <div class="card" style="border:1px solid rgba(252,82,0,0.3);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+    <div class="card" style="border:1px solid var(--viz-amber);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);gap:var(--space-3);">
         <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div style="width:44px;height:44px;border-radius:var(--radius-full);background:rgba(252,82,0,0.15);display:flex;align-items:center;justify-content:center;">
-            <span style="color:#FC5200;width:24px;height:24px;">${icons.strava}</span>
+          <div style="width:44px;height:44px;border-radius:var(--radius-full);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;" aria-hidden="true">
+            <span style="color:var(--viz-amber);width:24px;height:24px;">${icons.strava}</span>
           </div>
           <div>
-            <h4 style="color:#FC5200;margin-bottom:2px;">Strava Connected</h4>
-            <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin:0;">${cfg.athleteName || 'Athlete'} • Synced ${lastSync}</p>
+            <h4 style="margin-bottom:2px;">Strava connected</h4>
+            <p class="disclaimer" style="margin:0;">${esc(cfg.athleteName || 'Athlete')} • Synced ${esc(lastSync)}</p>
           </div>
         </div>
-        <span class="badge" style="background:rgba(52,211,153,0.15);color:var(--accent-green);">● Live</span>
+        <span class="badge" style="background:var(--viz-green-dim);color:var(--viz-green);">Connected</span>
       </div>
       <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
-        <button class="btn btn-block" id="strava-sync" style="background:linear-gradient(135deg, #FC5200, #FF7A33);color:white;flex:2;">
-          ${icons.refresh} Sync Now
+        <button type="button" class="btn btn-block" id="strava-sync" style="background:var(--viz-amber);color:var(--text-inverse);flex:2;">
+          ${icons.refresh} Sync now
         </button>
-        <button class="btn btn-secondary" id="strava-disconnect" style="flex:1;">${icons.unlink}</button>
+        <button type="button" class="btn btn-secondary" id="strava-disconnect" style="flex:1;" aria-label="Disconnect Strava">${icons.unlink}</button>
       </div>
       ${unimported.length > 0 ? `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${unimported.length} ready to import</span>
-          <button class="btn btn-sm" id="strava-import-all" style="background:rgba(252,82,0,0.15);color:#FC5200;font-size:var(--text-xs);">Import All</button>
+          <button type="button" class="btn btn-sm" id="strava-import-all" style="background:var(--viz-amber-dim);color:var(--viz-amber);font-size:var(--text-xs);">Import all</button>
         </div>` : ''}
     </div>
     ${activities.length > 0 ? renderStravaActivities(activities) : ''}`;
@@ -722,36 +863,32 @@ function renderStravaConnected(cfg) {
 
 function renderStravaActivities(activities) {
   return `
-    <div class="section-heading"><h3>Strava Activities</h3><span class="badge" style="background:rgba(252,82,0,0.15);color:#FC5200;">${activities.length}</span></div>
+    <div class="section-heading"><h3>Strava activities</h3><span class="badge" style="background:var(--viz-amber-dim);color:var(--viz-amber);">${activities.length}</span></div>
     ${activities.slice(0, 10).map(a => {
-    const dateStr = new Date(a.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
-    return `<div class="card card-sm" style="margin-bottom:var(--space-2);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+      const dateStr = new Date(a.date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `<div class="card card-sm" style="margin-bottom:var(--space-2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
           <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0;">
-            <div style="width:36px;height:36px;border-radius:var(--radius-md);background:rgba(252,82,0,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              ${getActivityEmoji(a.type)}
+            <div style="width:36px;height:36px;border-radius:var(--radius-md);background:var(--viz-amber-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">
+              ${icons.activity}
             </div>
             <div style="min-width:0;">
-              <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+              <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
               <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
-                ${dateStr} • ${a.duration}min${a.distanceKm ? ' • ' + a.distanceKm + 'km' : ''}
+                ${esc(dateStr)} • ${esc(a.duration)} min${a.distanceKm ? ' • ' + esc(a.distanceKm) + ' km' : ''}
               </div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:var(--space-2);flex-shrink:0;">
-            <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:#FC5200;">${a.calories || '—'}</span>
+            <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-secondary);">${a.calories != null ? esc(a.calories) + ' kcal' : '—'}</span>
             ${a.imported
-        ? '<span class="badge badge-green" style="font-size:9px;">Imported</span>'
-        : `<button class="btn btn-sm strava-import-btn" data-strava-id="${a.stravaId}" style="background:rgba(252,82,0,0.15);color:#FC5200;font-size:10px;padding:4px 10px;">Import</button>`
-      }
+          ? '<span class="badge badge-green" style="font-size:var(--text-xs);">Imported</span>'
+          : `<button type="button" class="btn btn-sm strava-import-btn" data-strava-id="${esc(a.stravaId)}" aria-label="Import ${esc(a.name)}" style="background:var(--viz-amber-dim);color:var(--viz-amber);font-size:var(--text-xs);padding:4px 10px;">Import</button>`
+        }
           </div>
         </div>
       </div>`;
-  }).join('')}`;
-}
-
-function getActivityEmoji(type) {
-  return icons.activity;
+    }).join('')}`;
 }
 
 function timeAgo(timestamp) {
@@ -769,13 +906,21 @@ function timeAgo(timestamp) {
 // ═══════════════════════════════════════
 
 function setupFormHandlers() {
+  // Every error state's "Try again" re-runs the current tab's load.
+  document.querySelectorAll('#health-tab-content [data-retry]').forEach(btn => {
+    btn.addEventListener('click', () => renderTabContent());
+  });
+
   document.getElementById('lab-form')?.addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('lab-name').value;
     const value = document.getElementById('lab-value').value;
     const unit = document.getElementById('lab-unit').value;
     const date = document.getElementById('lab-date').value;
-    if (!name || !value) return;
+    if (!name || !value) {
+      showToast('Choose a test and enter its value');
+      return;
+    }
 
     try {
       await labResults.log({
@@ -787,18 +932,19 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Lab save failed:', err);
-      showToast('Failed to save lab result');
+      showToast("Couldn't save the lab result. Please try again.");
     }
   });
 
   document.getElementById('res-rpe')?.addEventListener('input', event => {
     const display = document.getElementById('res-rpe-display');
-    if (display) display.innerText = event.target.value;
+    if (display) display.textContent = event.target.value;
   });
 
   document.querySelectorAll('#res-muscle-groups button').forEach(btn => {
     btn.addEventListener('click', () => {
-      btn.classList.toggle('active');
+      const on = btn.classList.toggle('active');
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   });
 
@@ -813,7 +959,8 @@ function setupFormHandlers() {
     const notes = document.getElementById('res-notes')?.value.trim();
 
     if (!name) {
-      showToast('Please enter the exercise name');
+      showToast('Enter the exercise name');
+      document.getElementById('res-ex-name')?.focus();
       return;
     }
 
@@ -843,7 +990,7 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Resistance save failed:', err);
-      showToast('Failed to log resistance workout');
+      showToast("Couldn't log the workout. Please try again.");
     }
   });
 
@@ -856,7 +1003,7 @@ function setupFormHandlers() {
     const notes = document.getElementById('cardio-notes')?.value.trim();
 
     if (!type || !duration) {
-      showToast('Please select cardio type and duration');
+      showToast('Choose a cardio type and enter the duration');
       return;
     }
 
@@ -875,7 +1022,7 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Cardio save failed:', err);
-      showToast('Failed to log cardio');
+      showToast("Couldn't log the cardio session. Please try again.");
     }
   });
 
@@ -886,7 +1033,11 @@ function setupFormHandlers() {
     const bedtime = document.getElementById('sleep-bedtime').value;
     const wake = document.getElementById('sleep-wake').value;
     const notes = document.getElementById('sleep-notes').value;
-    if (!hours) return;
+    if (!hours) {
+      showToast('Enter how many hours you slept');
+      document.getElementById('sleep-hours')?.focus();
+      return;
+    }
 
     try {
       await sleepLog.log({ hours, quality, bedtime, wakeTime: wake, notes });
@@ -894,12 +1045,13 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Sleep save failed:', err);
-      showToast('Failed to log sleep');
+      showToast("Couldn't log sleep. Please try again.");
     }
   });
 
   document.getElementById('toggle-smoking')?.addEventListener('click', function () {
-    this.classList.toggle('active');
+    const on = this.classList.toggle('active');
+    this.setAttribute('aria-checked', on ? 'true' : 'false');
   });
 
   // ── Medications (logging only — no interaction or dosage logic, by design) ──
@@ -915,15 +1067,15 @@ function setupFormHandlers() {
         notes: document.getElementById('med-notes')?.value.trim() || null,
       }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed');
-      showToast('Medication logged'); renderTab();
-    } catch (err) { showToast(err.message || 'Could not save medication'); }
+      showToast('Medication logged'); renderTabContent();
+    } catch (err) { console.error('Medication save failed:', err); showToast("Couldn't save the medication. Please try again."); }
   });
   document.querySelectorAll('.med-stop').forEach(btn => btn.addEventListener('click', async () => {
     try {
-      const res = await apiFetch(`/api/medications/${btn.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ userId: currentUserId, active: false }) });
+      const res = await apiFetch(`/api/medications/${encodeURIComponent(btn.dataset.id)}`, { method: 'PATCH', body: JSON.stringify({ userId: currentUserId, active: false }) });
       if (!res.ok) throw new Error('Update failed');
-      showToast('Marked as stopped'); renderTab();
-    } catch (err) { showToast(err.message); }
+      showToast('Marked as stopped'); renderTabContent();
+    } catch (err) { console.error('Medication update failed:', err); showToast("Couldn't update the medication. Please try again."); }
   }));
 
   // ── Cycle ──
@@ -938,17 +1090,18 @@ function setupFormHandlers() {
         date: document.getElementById('cycle-date')?.value || undefined,
       }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed');
-      showToast('Cycle entry logged'); renderTab();
-    } catch (err) { showToast(err.message || 'Could not save entry'); }
+      showToast('Cycle entry logged'); renderTabContent();
+    } catch (err) { console.error('Cycle save failed:', err); showToast("Couldn't save the entry. Please try again."); }
   });
 
   document.getElementById('save-habits')?.addEventListener('click', async () => {
     try {
+      const waterRaw = document.getElementById('habit-water')?.value ?? '';
       await habits.logToday({
-        smoking: document.getElementById('toggle-smoking')?.classList.contains('active') || false,
-        alcohol: document.getElementById('habit-alcohol')?.value || 'none',
+        smoking: document.getElementById('toggle-smoking')?.getAttribute('aria-checked') === 'true',
+        alcohol: document.getElementById('habit-alcohol')?.value || null,
         caffeine: document.getElementById('habit-caffeine')?.value || null,
-        waterGlasses: document.getElementById('habit-water')?.value === '' ? null : parseInt(document.getElementById('habit-water')?.value, 10),
+        waterGlasses: waterRaw === '' ? null : parseInt(waterRaw, 10),
         stressLevel: parseInt(document.getElementById('habit-stress')?.value || '0') || null,
         steps: parseInt(document.getElementById('habit-steps')?.value || '') || null,
         mood: document.getElementById('habit-mood')?.value || null,
@@ -956,20 +1109,20 @@ function setupFormHandlers() {
       showToast('Habits saved');
     } catch (err) {
       console.error('Habits save failed:', err);
-      showToast('Failed to save habits');
+      showToast("Couldn't save today's habits. Please try again.");
     }
   });
 
   document.getElementById('substance-form')?.addEventListener('submit', async e => {
     e.preventDefault();
-    const name = document.getElementById('substance-name').value;
+    const name = document.getElementById('substance-name').value.trim();
     const category = document.getElementById('substance-category').value;
-    const dose = document.getElementById('substance-dose').value;
+    const dose = document.getElementById('substance-dose').value.trim();
     const frequency = document.getElementById('substance-frequency').value;
-    const notes = document.getElementById('substance-notes').value;
+    const notes = document.getElementById('substance-notes').value.trim();
 
     if (!name || !category) {
-      showToast('Please fill in name and category');
+      showToast('Enter a name and choose a category');
       return;
     }
 
@@ -985,16 +1138,16 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Substance save failed:', err);
-      showToast('Failed to add substance');
+      showToast("Couldn't add the substance. Please try again.");
     }
   });
 
   document.querySelectorAll('.substance-delete').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Remove this substance?')) return;
+      if (!confirm('Remove this substance from your log?')) return;
       const id = btn.dataset.id;
       try {
-        const res = await apiFetch(`/api/supplements/${id}?userId=${encodeURIComponent(currentUserId)}`, {
+        const res = await apiFetch(`/api/supplements/${encodeURIComponent(id)}?userId=${encodeURIComponent(currentUserId)}`, {
           method: 'DELETE',
         });
         if (!res.ok) throw new Error('Failed to delete');
@@ -1002,7 +1155,7 @@ function setupFormHandlers() {
         renderTabContent();
       } catch (err) {
         console.error('Delete failed:', err);
-        showToast('Failed to remove substance');
+        showToast("Couldn't remove the substance. Please try again.");
       }
     });
   });
@@ -1010,7 +1163,7 @@ function setupFormHandlers() {
   document.getElementById('background-form')?.addEventListener('submit', async e => {
     e.preventDefault();
     const selectedConditions = Array.from(document.querySelectorAll('.condition-check:checked')).map(c => c.value);
-    const allergies = document.getElementById('bg-allergies').value;
+    const allergies = document.getElementById('bg-allergies').value.trim();
 
     try {
       const res = await apiFetch(`/api/health-profile`, {
@@ -1024,15 +1177,15 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Background save failed:', err);
-      showToast('Failed to save health background');
+      showToast("Couldn't save your health background. Please try again.");
     }
   });
 
   document.getElementById('goals-form')?.addEventListener('submit', async e => {
     e.preventDefault();
-    const goals_text = document.getElementById('goals-text').value;
-    const dietary_restrictions = document.getElementById('goals-dietary').value;
-    const health_concerns = document.getElementById('goals-concerns').value;
+    const goals_text = document.getElementById('goals-text').value.trim();
+    const dietary_restrictions = document.getElementById('goals-dietary').value.trim();
+    const health_concerns = document.getElementById('goals-concerns').value.trim();
 
     try {
       const res = await apiFetch(`/api/user-goals`, {
@@ -1046,11 +1199,12 @@ function setupFormHandlers() {
       renderTabContent();
     } catch (err) {
       console.error('Goals save failed:', err);
-      showToast('Failed to save goals');
+      showToast("Couldn't save your goals. Please try again.");
     }
   });
 
-  document.getElementById('env-refresh')?.addEventListener('click', async () => {
+  document.getElementById('env-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
     await refreshEnvironmentData();
   });
 
@@ -1070,6 +1224,7 @@ function setupFormHandlers() {
     labPdfInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (file) parseLabFile(file);
+      e.target.value = '';
     });
   }
 
@@ -1078,11 +1233,25 @@ function setupFormHandlers() {
     const resultsEl = document.getElementById('lab-parse-results');
     if (!statusEl || !resultsEl) return;
 
+    const showParseError = (message) => {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `
+        <div role="alert" style="padding:var(--space-3);background:var(--error-dim);border-radius:var(--radius-md);color:var(--error);font-size:var(--text-sm);">
+          ${esc(message)}
+        </div>`;
+      resultsEl.style.display = 'none';
+    };
+
+    if (file.size > 20 * 1024 * 1024) {
+      showParseError('That file is over 20MB. Try a smaller file or a photo of the report.');
+      return;
+    }
+
     statusEl.style.display = 'block';
     statusEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-md);">
+      <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3);background:var(--surface-2);border-radius:var(--radius-md);" role="status">
         <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>
-        <span style="font-size:var(--text-sm);">Analyzing lab report with AI...</span>
+        <span style="font-size:var(--text-sm);">Reading your lab report…</span>
       </div>`;
     resultsEl.style.display = 'none';
 
@@ -1097,38 +1266,34 @@ function setupFormHandlers() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Parse failed (${res.status})`);
+        throw new Error(err.error || `Server responded ${res.status}`);
       }
 
       const parsed = await res.json();
       const markerCount = Object.keys(parsed.markers || {}).length;
 
       if (markerCount === 0) {
-        statusEl.innerHTML = `
-          <div style="padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);color:var(--accent-coral);font-size:var(--text-sm);">
-            No lab markers found. Try a clearer image or different file.
-          </div>`;
+        showParseError("We couldn't find any lab markers in that file. Try a clearer image or a different file.");
         return;
       }
 
       statusEl.innerHTML = `
-        <div style="padding:var(--space-3);background:var(--accent-teal-dim);border-radius:var(--radius-md);color:var(--accent-teal);font-size:var(--text-sm);">
-          Found ${markerCount} markers from ${esc(parsed.panel_type || 'lab report')}${parsed.lab_name ? ` (${esc(parsed.lab_name)})` : ''}
+        <div style="padding:var(--space-3);background:var(--viz-green-dim);border-radius:var(--radius-md);color:var(--viz-green);font-size:var(--text-sm);">
+          Found ${markerCount} markers from ${esc(parsed.panel_type || 'lab report')}${parsed.lab_name ? ` (${esc(parsed.lab_name)})` : ''}. Check them before saving.
         </div>`;
 
       const markerRows = Object.entries(parsed.markers || {}).map(([name, data]) => {
-        const statusColor = data.status === 'high' || data.status === 'critical'
-          ? 'var(--accent-coral)' : data.status === 'low'
-            ? 'var(--accent-amber)' : 'var(--accent-green)';
+        const statusColor = labStatusColor(data.status);
         const statusIcon = data.status === 'high' ? '↑' : data.status === 'low' ? '↓' : data.status === 'critical' ? '!' : '✓';
+        const statusLabel = data.status === 'high' ? 'above range' : data.status === 'low' ? 'below range' : data.status === 'critical' ? 'well outside range' : 'in range';
         return `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);gap:var(--space-2);">
             <span style="font-size:var(--text-sm);">${esc(name)}</span>
             <div style="display:flex;align-items:center;gap:var(--space-2);">
               ${data.reference_range ? `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">ref: ${esc(data.reference_range)}</span>` : ''}
               <span style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${statusColor};">${esc(data.value)}</span>
               <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(data.unit || '')}</span>
-              <span style="font-size:12px;color:${statusColor};">${statusIcon}</span>
+              <span style="font-size:var(--text-xs);color:${statusColor};" aria-label="${statusLabel}" title="${statusLabel}">${statusIcon}</span>
             </div>
           </div>`;
       }).join('');
@@ -1136,21 +1301,22 @@ function setupFormHandlers() {
       resultsEl.style.display = 'block';
       resultsEl.innerHTML = `
         <div class="card" style="padding:var(--space-3);">
-          <h4 style="margin-bottom:var(--space-1);">Extracted Markers</h4>
+          <h4 style="margin-bottom:var(--space-1);">Markers we found</h4>
+          <p class="disclaimer" style="margin-bottom:var(--space-2);">Read automatically from your file — please check the values against the original before saving.</p>
           ${parsed.collected_at ? `<p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-3);">Collected: ${esc(parsed.collected_at)}</p>` : ''}
           <div style="max-height:300px;overflow-y:auto;margin-bottom:var(--space-3);">
             ${markerRows}
           </div>
           ${parsed.notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Notes: ${esc(parsed.notes)}</p>` : ''}
-          <button id="confirm-save-labs" class="btn btn-primary btn-block">
-            Save ${markerCount} Markers to Health Log
+          <button type="button" id="confirm-save-labs" class="btn btn-primary btn-block">
+            Save ${markerCount} markers to my health log
           </button>
         </div>`;
 
       document.getElementById('confirm-save-labs')?.addEventListener('click', async () => {
         const btn = document.getElementById('confirm-save-labs');
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;margin-right:8px;"></div>Saving...';
+        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;margin-right:8px;"></div>Saving…';
 
         try {
           await labResults.log({
@@ -1161,23 +1327,20 @@ function setupFormHandlers() {
             collectedAt: parsed.collected_at || null,
           });
 
-          btn.innerHTML = 'Saved to Health Log!';
-          btn.style.background = 'var(--accent-green)';
-          showToast(`${markerCount} lab markers saved!`);
+          btn.textContent = 'Saved to your health log';
+          btn.style.background = 'var(--viz-green)';
+          showToast(`${markerCount} lab markers saved`);
           setTimeout(() => renderTabContent(), 1500);
         } catch (err) {
           console.error('[Labs] Save failed:', err);
           btn.disabled = false;
-          btn.innerHTML = `Save ${markerCount} Markers to Health Log`;
-          showToast('Save failed — check connection.');
+          btn.textContent = `Save ${markerCount} markers to my health log`;
+          showToast("Couldn't save the markers. " + plainReason(err));
         }
       });
     } catch (err) {
       console.error('[Labs] Parse failed:', err);
-      statusEl.innerHTML = `
-        <div style="padding:var(--space-3);background:var(--accent-coral-dim);border-radius:var(--radius-md);color:var(--accent-coral);font-size:var(--text-sm);">
-          ${err.message}
-        </div>`;
+      showParseError("Couldn't read that lab report. " + plainReason(err));
     }
   }
 
@@ -1188,19 +1351,19 @@ function setupStravaHandlers() {
   document.getElementById('strava-save-connect')?.addEventListener('click', async () => {
     const clientId = document.getElementById('strava-client-id')?.value?.trim();
     const clientSecret = document.getElementById('strava-client-secret')?.value?.trim();
-    if (!clientId || !clientSecret) { showToast('Please enter both Client ID and Secret'); return; }
+    if (!clientId || !clientSecret) { showToast('Enter both the Client ID and Client Secret'); return; }
     try {
       const { saveStravaConfig, getAuthorizationUrl } = await import('../utils/strava.js');
       saveStravaConfig({ clientId, clientSecret });
       window.location.href = getAuthorizationUrl();
-    } catch (err) { showToast(err.message); }
+    } catch (err) { console.error('[Strava] connect failed:', err); showToast("Couldn't start the Strava connection. Please try again."); }
   });
 
   document.getElementById('strava-authorize')?.addEventListener('click', async () => {
     try {
       const { getAuthorizationUrl } = await import('../utils/strava.js');
       window.location.href = getAuthorizationUrl();
-    } catch (err) { showToast(err.message); }
+    } catch (err) { console.error('[Strava] authorize failed:', err); showToast("Couldn't open Strava authorization. Please try again."); }
   });
 
   document.getElementById('strava-reset')?.addEventListener('click', async () => {
@@ -1210,21 +1373,23 @@ function setupStravaHandlers() {
       saveStravaConfig({ clientId: null, clientSecret: null });
       renderTabContent();
       showToast('Strava credentials cleared');
-    } catch (err) { showToast(err.message); }
+    } catch (err) { console.error('[Strava] reset failed:', err); showToast("Couldn't clear the Strava credentials."); }
   });
 
   document.getElementById('strava-sync')?.addEventListener('click', async () => {
     const btn = document.getElementById('strava-sync');
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Syncing...';
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Syncing…';
     try {
       const { syncActivities } = await import('../utils/strava.js');
       const activities = await syncActivities();
       showToast(`Synced ${activities.length} activities from Strava`);
       renderTabContent();
     } catch (err) {
-      showToast('Sync failed: ' + err.message);
+      console.error('[Strava] sync failed:', err);
+      showToast("Strava sync didn't complete. " + plainReason(err));
       btn.disabled = false;
+      btn.innerHTML = `${icons.refresh} Sync now`;
     }
   });
 
@@ -1235,7 +1400,7 @@ function setupStravaHandlers() {
         disconnectStrava();
         renderTabContent();
         showToast('Strava disconnected');
-      } catch (err) { showToast(err.message); }
+      } catch (err) { console.error('[Strava] disconnect failed:', err); showToast("Couldn't disconnect Strava."); }
     }
   });
 
@@ -1245,7 +1410,7 @@ function setupStravaHandlers() {
       const count = importAllActivities();
       showToast(`Imported ${count} activities`);
       renderTabContent();
-    } catch (err) { showToast(err.message); }
+    } catch (err) { console.error('[Strava] import failed:', err); showToast("Couldn't import the activities."); }
   });
 
   document.querySelectorAll('.strava-import-btn').forEach(btn => {
@@ -1256,12 +1421,10 @@ function setupStravaHandlers() {
         const cfg = getStravaConfig();
         const activity = cfg.activities?.find(a => a.stravaId === stravaId);
         if (activity) { importActivity(activity); showToast(`Imported "${activity.name}"`); renderTabContent(); }
-      } catch (err) { showToast(err.message); }
+      } catch (err) { console.error('[Strava] import failed:', err); showToast("Couldn't import that activity."); }
     });
   });
 }
-
-
 
 // ═══════════════════════════════════════
 // MEDICATIONS — a log, nothing more. No interaction checks, no dosage advice.
@@ -1290,8 +1453,8 @@ async function renderMedications() {
         <button type="submit" class="btn btn-primary btn-block">Add to log</button>
       </form>
     </div>
-    <div class="section-heading"><h3>Current medications</h3><span class="badge badge-teal">${meds.filter(m => m.active !== false).length}</span></div>
-    ${loadError ? `<div class="card" role="alert"><p style="color:var(--error);margin:0;">Couldn't load your medication log. ${esc(loadError.message)}</p></div>`
+    <div class="section-heading"><h3>Current medications</h3>${loadError ? '' : `<span class="badge badge-teal">${meds.filter(m => m.active !== false).length}</span>`}</div>
+    ${loadError ? loadErrorState('your medication log', loadError, 'medications-retry')
       : meds.length ? meds.map(m => `<div class="card card-sm">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
           <div style="flex:1;">
@@ -1338,7 +1501,7 @@ async function renderCycle() {
       </form>
     </div>
     <div class="section-heading"><h3>Recent entries</h3></div>
-    ${loadError ? `<div class="card" role="alert"><p style="color:var(--error);margin:0;">Couldn't load your cycle history. ${esc(loadError.message)}</p></div>`
+    ${loadError ? loadErrorState('your cycle history', loadError, 'cycle-retry')
       : history.length ? history.slice(0, 30).map(h => `<div class="card card-sm" style="display:flex;justify-content:space-between;gap:var(--space-3);">
           <span style="font-size:var(--text-sm);">${esc((h.event_type || '').replace(/_/g, ' '))}${h.symptom ? ' — ' + esc(h.symptom) : ''}${h.flow ? ' (' + esc(h.flow) + ')' : ''}</span>
           <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(h.date || '')}</span>

@@ -6,16 +6,24 @@ import { isOuraConnected, refreshOuraStatus } from '../utils/oura.js';
 import { profile, dailyNutrition, meals, bodyScans, sleepLog, exerciseLog, habits, getUserId } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { apiFetch } from '../utils/api.js';
+import { esc } from '../utils/esc.js';
+
+function plainReason(err) {
+  const msg = String(err?.message || '');
+  if (/not authenticated|jwt|session|sign(ed)? in/i.test(msg)) return 'You need to be signed in to see your dashboard.';
+  if (/failed to fetch|networkerror|load failed|network|timeout/i.test(msg)) return 'Check your connection and try again.';
+  return 'Something went wrong on our side. Your data is safe — please try again.';
+}
 
 export async function renderDashboard() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="dashboard stagger-children">
-      <div class="card" style="text-align:center;padding:var(--space-8);"><div class="spinner"></div></div>
+      <div class="card" style="text-align:center;padding:var(--space-8);" role="status" aria-label="Loading"><div class="spinner"></div></div>
     </div>`;
 
   try {
-    const [profileData, nutrition, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weeklyScoreRecords, mealsForStreak, exerciseForStreak, sleepForStreak, targets] = await Promise.all([
+    const [profileData, nutritionToday, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weekly, mealsForStreak, exerciseForStreak, sleepForStreak, targetsResult] = await Promise.all([
       profile.get(),
       dailyNutrition.get(),
       meals.getRecent(5),
@@ -31,9 +39,16 @@ export async function renderDashboard() {
       getUserId().then(refreshOuraStatus).catch(() => false),
     ]);
 
-    const weeklyScores = Array.isArray(weeklyScoreRecords)
-      ? weeklyScoreRecords.map((row) => Number(row.score)).filter((value) => !Number.isNaN(value))
-      : [];
+    const nutrition = nutritionToday || {};
+    const weeklyScoreRecords = Array.isArray(weekly.records) ? weekly.records : [];
+    const weeklyScores = weeklyScoreRecords
+      .map((row) => Number(row.score))
+      .filter((value) => !Number.isNaN(value));
+    const weeklyLabels = weeklyScoreRecords.map((row) => {
+      const d = new Date(row.date);
+      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString([], { weekday: 'short' });
+    });
+    const targets = targetsResult.profile;
 
     const healthPayload = {
       dailyNutrition: nutrition,
@@ -47,8 +62,8 @@ export async function renderDashboard() {
     const health = computeHealthScore(healthPayload);
     const insights = getHealthInsights(healthPayload);
     const greeting = getGreeting();
-    const name = profileData?.name || 'Explorer';
-    const latestSleepScore = recentSleep?.[0]?.quality || null;
+    const name = profileData?.name || 'there';
+    const latestSleepQuality = recentSleep?.[0]?.quality || null;
     // Targets come from health_profile (set in onboarding/Profile). No target = no fake goal.
     const calorieGoal = Number(targets?.target_calories) || null;
     const proteinGoal = Number(targets?.target_protein) || null;
@@ -62,20 +77,30 @@ export async function renderDashboard() {
     const latestBodyScan = recentBodyScans[0] || null;
     const latestSleep = recentSleep[0] || null;
     const activityItems = buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBodyScan, weeklyScores);
+    const stepsToday = habitsToday?.steps != null ? Number(habitsToday.steps) : null;
+
+    const quickActions = [
+      { route: '/food-scanner', icon: icons.scan, label: 'Scan food' },
+      { route: '/body-scanner', icon: icons.body, label: 'Body scan' },
+      { route: '/health-input', icon: icons.clipboard, label: 'Log data' },
+      { route: '/eastern-medicine', icon: icons.lotus, label: 'Ayurveda' },
+      { route: '/analytics', icon: icons.chart, label: 'Analytics' },
+      { route: '/hygiene-scanner', icon: icons.shield, label: 'Hygiene scan' },
+    ];
 
     content.innerHTML = `
       <div class="dashboard stagger-children">
         <!-- Header -->
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
           <div>
             <p style="font-size:var(--text-sm);color:var(--text-tertiary);margin-bottom:var(--space-1);">${greeting}</p>
             <h1 style="font-size:var(--text-2xl);">
-              <span class="text-gradient">${name}</span>
+              <span class="text-gradient">${esc(name)}</span>
             </h1>
           </div>
-          <div onclick="location.hash='#/profile'" style="cursor:pointer;width:42px;height:42px;border-radius:var(--radius-full);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border:1px solid var(--border);">
+          <button type="button" data-route="/profile" aria-label="Open your profile" style="cursor:pointer;padding:0;width:42px;height:42px;flex-shrink:0;border-radius:var(--radius-full);background:var(--bg-chip);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);border:1px solid var(--border);">
             ${icons.user}
-          </div>
+          </button>
         </div>
 
         <!-- Wellness Score Ring — only rendered from logged data -->
@@ -85,13 +110,13 @@ export async function renderDashboard() {
             ${createRingProgress(health.overall, 100, 160, 10)}
             <div class="ring-label">
               <div class="ring-score text-gradient">${health.overall}</div>
-              <div class="ring-text">Wellness Score</div>
+              <div class="ring-text">Wellness score</div>
             </div>
           </div>
           <div style="display:flex;justify-content:center;gap:var(--space-4);flex-wrap:wrap;">
             <div class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}">
               ${health.trend >= 0 ? icons.trending : icons.trendingDown}
-              <span>${health.trend >= 0 ? '+' : ''}${health.trend} this week</span>
+              <span>${health.trend >= 0 ? 'Up' : 'Down'} ${Math.abs(health.trend)} this week</span>
             </div>
             <div class="badge badge-purple"><span>Grade: ${health.grade}</span></div>
           </div>
@@ -106,27 +131,27 @@ export async function renderDashboard() {
         <!-- Quick Stats Row -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-6);">
           <!-- Daily Steps Card — reads today's logged habits (manual or wearable sync) -->
-          <div class="card card-sm step-card" onclick="location.hash='#/health-input'" style="margin-bottom:0;">
-            <div class="step-ring-container">
-              ${createRingProgress(habitsToday?.steps || 0, 10000, 60, 6, 'var(--viz-green)')}
-              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);">${icons.steps}</div>
-            </div>
-            <div class="step-card-info">
-              <h4>Steps</h4>
-              <div class="step-card-value">${habitsToday?.steps != null ? habitsToday.steps.toLocaleString() : '<span style="font-size:var(--text-xs);color:var(--text-tertiary);font-weight:400;">Tap to log</span>'}</div>
-            </div>
-          </div>
+          <button type="button" class="card card-sm step-card" data-route="/health-input" style="margin-bottom:0;width:100%;text-align:left;cursor:pointer;">
+            <span class="step-ring-container" style="display:block;" aria-hidden="true">
+              ${createRingProgress(stepsToday || 0, 10000, 60, 6, 'var(--viz-green)')}
+              <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-secondary);display:flex;">${icons.steps}</span>
+            </span>
+            <span class="step-card-info" style="display:block;">
+              <span style="display:block;font-size:var(--text-sm);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Steps</span>
+              <span class="step-card-value" style="display:block;">${stepsToday != null ? stepsToday.toLocaleString() : '<span style="font-size:var(--text-xs);color:var(--text-tertiary);font-weight:400;">Tap to log</span>'}</span>
+            </span>
+          </button>
 
           <!-- Sleep / wearable card — shows logged sleep quality; wearable sync lives in Profile -->
           <div class="card card-sm oura-card" style="margin-bottom:0;">
             <div class="oura-hub-header">
-              <div class="oura-ring-icon">${icons.moon}</div>
+              <div class="oura-ring-icon" aria-hidden="true">${icons.moon}</div>
               <div class="oura-sync-status">${isOuraConnected() ? 'Wearable synced' : 'Last night'}</div>
             </div>
-            ${latestSleepScore ? `
+            ${latestSleepQuality ? `
               <div class="oura-scores-grid">
                 <div class="oura-score-item">
-                  <div class="oura-score-value">${latestSleepScore}</div>
+                  <div class="oura-score-value">${esc(latestSleepQuality)}</div>
                   <div class="oura-score-label">Sleep quality</div>
                 </div>
               </div>
@@ -138,39 +163,20 @@ export async function renderDashboard() {
 
         <!-- Quick Actions Grid -->
         <div class="section-heading">
-          <h3>Quick Actions</h3>
+          <h3>Quick actions</h3>
         </div>
         <div class="grid-3" style="margin-bottom:var(--space-6);">
-          <div class="quick-action" onclick="location.hash='#/food-scanner'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.scan}</div>
-            <span class="action-label">Scan Food</span>
-          </div>
-          <div class="quick-action" onclick="location.hash='#/body-scanner'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.body}</div>
-            <span class="action-label">Body Scan</span>
-          </div>
-          <div class="quick-action" onclick="location.hash='#/health-input'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.clipboard}</div>
-            <span class="action-label">Log Data</span>
-          </div>
-          <div class="quick-action" onclick="location.hash='#/eastern-medicine'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.lotus}</div>
-            <span class="action-label">Ayurveda</span>
-          </div>
-          <div class="quick-action" onclick="location.hash='#/analytics'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.chart}</div>
-            <span class="action-label">Analytics</span>
-          </div>
-          <div class="quick-action" onclick="location.hash='#/hygiene-scanner'">
-            <div class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);">${icons.shield}</div>
-            <span class="action-label">Hygiene Scan</span>
-          </div>
+          ${quickActions.map((a) => `
+          <button type="button" class="quick-action" data-route="${a.route}" style="width:100%;">
+            <span class="action-icon" style="background:var(--bg-chip);color:var(--text-secondary);" aria-hidden="true">${a.icon}</span>
+            <span class="action-label">${a.label}</span>
+          </button>`).join('')}
         </div>
 
         <!-- Daily Nutrition Summary -->
         <div class="section-heading">
-          <h3>Today's Nutrition</h3>
-          <span class="see-all" onclick="location.hash='#/food-scanner'">View All</span>
+          <h3>Today's nutrition</h3>
+          <button type="button" class="see-all" data-route="/food-scanner">View all</button>
         </div>
         <div class="card" style="margin-bottom:var(--space-6);">
           <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-4);">
@@ -184,7 +190,10 @@ export async function renderDashboard() {
             <div class="progress-fill" style="width:${Math.min(100, Math.round(((nutrition.calories || 0) / calorieGoal) * 100))}%"></div>
           </div>
           <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
-            ${Math.max(0, calorieGoal - (nutrition.calories || 0))} kcal remaining of your ${calorieGoal} target
+            ${Math.max(0, Math.round(calorieGoal - (nutrition.calories || 0)))} kcal remaining of your ${calorieGoal} target
+          </p>` : targetsResult.error ? `
+          <p role="alert" style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+            Couldn't load your targets. <button type="button" class="btn btn-sm" id="dashboard-retry-targets">Try again</button>
           </p>` : `
           <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
             <a href="#/profile" style="color:var(--accent);">Set your targets in Profile</a> to see progress toward them.
@@ -193,38 +202,43 @@ export async function renderDashboard() {
 
         <!-- Health Trend -->
         <div class="section-heading">
-          <h3>Weekly Trend</h3>
-          <span class="see-all" onclick="location.hash='#/analytics'">Details</span>
+          <h3>Weekly trend</h3>
+          <button type="button" class="see-all" data-route="/analytics">Details</button>
         </div>
         <div class="card" style="margin-bottom:var(--space-6);">
           <div style="margin-bottom:var(--space-2);display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:var(--text-sm);color:var(--text-secondary);">Health Score</span>
-            <span class="badge badge-green" style="font-size:var(--text-xs);">
-              ${icons.trending} ${health.trend >= 0 ? '+' : ''}${health.trend} pts
-            </span>
+            <span style="font-size:var(--text-sm);color:var(--text-secondary);">Wellness score</span>
+            ${health.state === 'ok' ? `
+            <span class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}" style="font-size:var(--text-xs);">
+              ${health.trend >= 0 ? icons.trending : icons.trendingDown} ${health.trend >= 0 ? 'up' : 'down'} ${Math.abs(health.trend)} pts
+            </span>` : ''}
           </div>
-          ${weeklyScores.length >= 2
-            ? createLineChart(weeklyScores, 340, 80)
-            : `<div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);color:var(--text-secondary);">Your trend appears after a few days of logging.</div>`}
-          <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);">
-            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${d}</span>`).join('')}
-          </div>
+          ${weekly.error ? `
+            <div role="alert" style="height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary);text-align:center;">
+              Couldn't load your weekly trend.
+              <button type="button" class="btn btn-sm" id="dashboard-retry-trend">Try again</button>
+            </div>` : weeklyScores.length >= 2 ? `
+            ${createLineChart(weeklyScores, 340, 80)}
+            <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);" aria-hidden="true">
+              ${weeklyLabels.map((d) => `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(d)}</span>`).join('')}
+            </div>` : `
+            <div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);color:var(--text-secondary);">Your trend appears after a few days of logging.</div>`}
         </div>
 
         <!-- Insights -->
         <div class="section-heading">
-          <h3>Insights & Tips</h3>
+          <h3>Observations from your logs</h3>
         </div>
         <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-6);">
           ${insights.slice(0, 3).map((insight) => `
             <div class="card card-sm">
               <div class="insight-card">
-                <div class="insight-icon" style="background:var(--bg-chip);color:var(--text-secondary);">
+                <div class="insight-icon" style="background:var(--bg-chip);color:var(--text-secondary);" aria-hidden="true">
                   <span>${icons.sparkle}</span>
                 </div>
                 <div class="insight-content">
-                  <h4>${insight.title}</h4>
-                  <p>${insight.text}</p>
+                  <h4>${esc(insight.title)}</h4>
+                  <p>${esc(insight.text)}</p>
                 </div>
               </div>
             </div>
@@ -233,15 +247,15 @@ export async function renderDashboard() {
 
         <!-- Recent Activity -->
         <div class="section-heading">
-          <h3>Recent Activity</h3>
+          <h3>Recent activity</h3>
         </div>
         <div class="card" style="margin-bottom:var(--space-6);">
-          ${activityItems.length > 0 ? activityItems.join('<div class="divider" style="margin:0;"></div>') : '<div style="padding:var(--space-6);text-align:center;color:var(--text-secondary);">No recent activity available.</div>'}
+          ${activityItems.length > 0 ? activityItems.join('<div class="divider" style="margin:0;"></div>') : '<div class="empty-state" style="padding:var(--space-6);"><p>Nothing logged yet. Your meals, workouts, sleep and scans will show up here.</p></div>'}
         </div>
 
         <!-- Streaks -->
         <div class="section-heading">
-          <h3>Your Streaks</h3>
+          <h3>Your streaks</h3>
         </div>
         <div class="grid-3" style="margin-bottom:var(--space-8);">
           ${renderStreak(icons.zap, 'Logging', streaks.logging, 'var(--text-primary)')}
@@ -250,30 +264,43 @@ export async function renderDashboard() {
         </div>
       </div>
     `;
+
+    // main.js only wires the bottom nav; the dashboard's own shortcuts route here.
+    content.querySelectorAll('[data-route]').forEach((el) => {
+      el.addEventListener('click', () => { location.hash = '#' + el.dataset.route; });
+    });
+    document.getElementById('dashboard-retry-targets')?.addEventListener('click', () => renderDashboard());
+    document.getElementById('dashboard-retry-trend')?.addEventListener('click', () => renderDashboard());
   } catch (error) {
     console.error('[Dashboard] Failed to load dashboard', error);
     content.innerHTML = `
       <div class="dashboard stagger-children">
-        <div class="card" style="text-align:center;padding:var(--space-8);">
-          <h3>Unable to load dashboard</h3>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">${error.message || 'Please refresh the page.'}</p>
+        <div class="empty-state" role="alert">
+          <h3>Couldn't load your dashboard</h3>
+          <p>${plainReason(error)}</p>
+          <button type="button" class="btn btn-sm" id="dashboard-retry">Try again</button>
         </div>
       </div>`;
+    document.getElementById('dashboard-retry')?.addEventListener('click', () => renderDashboard());
   }
 }
 
+// Resolves to { profile, error } so the page can tell "no targets set" from "couldn't load".
 async function fetchTargets() {
   try {
     const userId = await getUserId();
     const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
-    if (!res.ok) return null;
+    if (res.status === 404) return { profile: null, error: null };
+    if (!res.ok) return { profile: null, error: new Error(`Server responded ${res.status}`) };
     const json = await res.json();
-    return json.profile || null;
-  } catch {
-    return null;
+    return { profile: json.profile || null, error: null };
+  } catch (error) {
+    console.warn('[Dashboard] targets load failed', error?.message);
+    return { profile: null, error };
   }
 }
 
+// Resolves to { records, error } — an empty week and a failed query look different.
 async function getWeeklyScores() {
   try {
     const userId = await getUserId();
@@ -286,12 +313,12 @@ async function getWeeklyScores() {
 
     if (error) {
       console.warn('[Dashboard] weekly_scores query failed', error.message);
-      return [];
+      return { records: [], error };
     }
-    return (data || []).reverse();
+    return { records: (data || []).reverse(), error: null };
   } catch (error) {
     console.warn('[Dashboard] weekly_scores fallback', error.message);
-    return [];
+    return { records: [], error };
   }
 }
 
@@ -337,6 +364,9 @@ function getTodayString() {
   return new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
 }
 
+// Unknown values render as a dash — never as a made-up zero.
+const numOr = (value, suffix) => (value != null && value !== '' && Number.isFinite(Number(value))) ? `${Number(value)}${suffix}` : '—';
+
 function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBodyScan, weeklyScores) {
   const items = [];
 
@@ -346,8 +376,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
       icon: icons.leaf,
       bg: 'var(--bg-chip)',
       title: meal.name || 'Meal logged',
-      detail: `${meal.calories || 0} kcal • ${formatRelativeTime(meal.logged_at || meal.date || meal.created_at)}`,
-      value: `${meal.protein || 0}g protein`, 
+      detail: `${numOr(meal.calories, ' kcal')} • ${formatRelativeTime(meal.logged_at || meal.date || meal.created_at)}`,
+      value: meal.protein != null ? `${numOr(meal.protein, 'g')} protein` : '—',
     });
   }
 
@@ -357,8 +387,8 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
       icon: icons.activity,
       bg: 'var(--bg-chip)',
       title: ex.name || ex.type || 'Exercise logged',
-      detail: `${ex.duration || 0} min • ${formatRelativeTime(ex.date || ex.logged_at)}`,
-      value: `${ex.calories || 0} kcal`, 
+      detail: `${numOr(ex.duration, ' min')} • ${formatRelativeTime(ex.date || ex.logged_at)}`,
+      value: numOr(ex.calories, ' kcal'),
     });
   }
 
@@ -366,9 +396,9 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
     items.push({
       icon: icons.moon,
       bg: 'var(--bg-chip)',
-      title: 'Sleep Tracked',
-      detail: `${latestSleep.hours || 0}h • ${latestSleep.quality || 'Quality'} • ${formatRelativeTime(latestSleep.date)}`,
-      value: `${latestSleep.quality || '--'}%`, 
+      title: 'Sleep logged',
+      detail: `${numOr(latestSleep.hours, 'h')}${latestSleep.quality ? ` • ${latestSleep.quality}` : ''} • ${formatRelativeTime(latestSleep.date)}`,
+      value: latestSleep.quality || '—',
     });
   }
 
@@ -376,9 +406,9 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
     items.push({
       icon: icons.body,
       bg: 'var(--bg-chip)',
-      title: 'Body Scan',
-      detail: `Score ${latestBodyScan.overall_score || '--'} • ${formatRelativeTime(latestBodyScan.scanned_at || latestBodyScan.created_at)}`,
-      value: latestBodyScan.risk_tier ? `${capitalize(latestBodyScan.risk_tier)}` : '--',
+      title: 'Body scan',
+      detail: `Score ${numOr(latestBodyScan.overall_score, '')} • ${formatRelativeTime(latestBodyScan.scanned_at || latestBodyScan.created_at)}`,
+      value: latestBodyScan.risk_tier ? capitalize(latestBodyScan.risk_tier) : '—',
     });
   }
 
@@ -386,30 +416,30 @@ function buildRecentActivity(recentMeals, recentExercise, latestSleep, latestBod
     items.push({
       icon: icons.trending,
       bg: 'var(--bg-chip)',
-      title: 'Weekly score data',
-      detail: 'Tracked from recent health summaries',
+      title: 'Weekly score',
+      detail: 'From your recent weekly summaries',
       value: `${weeklyScores[weeklyScores.length - 1]} pts`,
     });
   }
 
   return items.map((a) => `
     <div class="activity-item">
-      <div class="activity-icon" style="background:${a.bg};color:var(--text-secondary);">${a.icon}</div>
+      <div class="activity-icon" style="background:${a.bg};color:var(--text-secondary);" aria-hidden="true">${a.icon}</div>
       <div class="activity-text">
-        <div class="title">${a.title}</div>
-        <div class="time">${a.detail}</div>
+        <div class="title">${esc(a.title)}</div>
+        <div class="time">${esc(a.detail)}</div>
       </div>
-      <div class="activity-value" style="color:var(--text-secondary);">${a.value}</div>
+      <div class="activity-value" style="color:var(--text-secondary);">${esc(a.value)}</div>
     </div>
   `);
 }
 
 function formatRelativeTime(dateValue) {
   const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return 'Unknown time';
+  if (Number.isNaN(date.getTime())) return 'time unknown';
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${Math.max(0, minutes)}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -421,21 +451,21 @@ function capitalize(value) {
 
 function renderMacro(label, value, target, unit, color) {
   const rounded = Number.isFinite(value) ? Math.round(value * 10) / 10 : 0;
-  const pct = target > 0 ? Math.min(100, Math.round((rounded / target) * 100)) : 0;
+  const pct = target > 0 ? Math.min(100, Math.round((rounded / target) * 100)) : null;
   return `
     <div style="text-align:center;flex:1;">
       <div style="font-family:var(--font-heading);font-size:var(--text-md);font-weight:var(--weight-bold);color:${color};">${rounded}${unit}</div>
       <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${pct}%</div>
+      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${pct !== null ? `${pct}% of target` : 'no target'}</div>
     </div>`;
 }
 
 function renderStreak(icon, label, count, color) {
   return `
     <div class="card card-sm" style="text-align:center;">
-      <div style="margin-bottom:var(--space-1);color:var(--text-secondary);display:flex;justify-content:center;">${icon}</div>
+      <div style="margin-bottom:var(--space-1);color:var(--text-secondary);display:flex;justify-content:center;" aria-hidden="true">${icon}</div>
       <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:var(--weight-bold);color:${color};">${count}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label} days</div>
+      <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${label} day${count === 1 ? '' : 's'}</div>
     </div>`;
 }
 
