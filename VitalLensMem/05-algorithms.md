@@ -37,15 +37,15 @@ the domains present. With fewer than 2 logged domains the result is
 
 | Domain | Weight | Score formula (only when data exists) |
 |---|---|---|
-| nutrition | 0.25 | `clamp(85 − |cal−2000|/30, 40, 100)` |
+| nutrition | 0.25 | `clamp(85 − |cal − target_calories|/30, 40, 100)` — only when the profile has a calorie target; there is no 2,000 kcal default, so without a target nutrition is simply not scored |
 | exercise | 0.20 | `min(100, 50 + 10·sessions)` |
 | sleep | 0.20 | `max(30, 100 − |avgHours − 7.5|·15)` |
 | habits | 0.15 | 80; smoking −30; heavy alcohol −20 (moderate −5); water ≥8 +10; clamp 20–100 |
-| bodyMarkers | 0.10 | latest body-scan `overall_score` |
+| bodyMarkers | 0.10 | latest body scan with a numeric `overall_score` (pulse check-ins store `null` and are skipped) |
 | environment | 0.10 | AQI good→85, moderate→65, else 45 |
 
 `overall = round(Σ scoreᵢ · weightᵢ / Σ weightᵢ)` over present domains.
-Grade: ≥90 A+, ≥80 A, ≥70 B, ≥60 C, else D. Trend = last − previous weekly score.
+Grade: ≥90 A+, ≥80 A, ≥70 B, ≥60 C, else D. Trend = last − previous weekly score, `null` (rendered "No trend yet") until two weekly scores exist.
 Insights are rule-based per logged domain; tips are neutral prompts with no
 quantified physiological claims.
 
@@ -61,7 +61,7 @@ quantified physiological claims.
    values × grams.
 4. **Index-preserving batch lookup** (`batchNutritionLookupWithRestaurant`):
    unmatched items are NOT dropped — they get a generic ~1.5 kcal/g estimate so
-   item indexes stay aligned with the model output (fixes a misalignment bug).
+   item indexes stay aligned with the model output (fixes a misalignment bug); their health rating is `null` ("Rating unavailable") and excluded from the meal average.
 5. **Correction loop**: user relabels/re-portions → `food_corrections` /
    `portion_corrections` → informs meal memory.
 6. **Meal memory**: repeat meals recognized (`meal_memory`), quick-log with
@@ -109,6 +109,10 @@ Order of checks before ANY model call:
 | weekly_report | 1 | week (Mon-start) |
 | narrative | 1 | month (checked AFTER the cache, so a cached read is free) |
 
+Gates are consumed only *after* request validation (`custom-correlation`,
+`biomarker-scan`), so a 400 never burns quota; caps are read with `envNumber`,
+so an explicit `0` stops spend.
+
 `trackCost` prices every model call **and every embedding** and appends to
 `api_cost_log` — the same table the guard reads (closed loop).
 
@@ -127,6 +131,9 @@ Order of checks before ANY model call:
 - Both use `WELLNESS_SYSTEM_PROMPT`: observational language only, no condition
   names; 14-day persistent patterns get a "worth discussing with a healthcare
   provider" note.
+- Both read a `buildFullContext` snapshot whose "today" is the user's calendar
+  day in `profiles.timezone` (server-local when unset); model calls use a fresh
+  per-attempt timeout inside the 45 s retry budget.
 
 ## 7. Guardrail micro-algorithms
 

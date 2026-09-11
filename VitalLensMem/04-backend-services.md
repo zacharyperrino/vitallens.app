@@ -3,31 +3,33 @@
 | Module | Responsibility |
 |---|---|
 | `env.js` | Loads `.env` once; MUST be the first import of every entrypoint (ESM hoists imports). |
-| `db/supabase.js` | The one shared service-role Supabase client (was constructed 36× across routes). Bypasses RLS — every consumer must take the user from `req.user`, never from the client. |
+| `db/supabase.js` | The one shared service-role Supabase client (was constructed 36× across routes). Bypasses RLS — every consumer must take the user from `req.user`, never from the client. Every PostgREST call is bounded by a 15 s timeout (`AbortSignal.timeout`, combined with any caller signal via `AbortSignal.any`). |
 | `middleware/auth.js` | `requireAuth`: verifies the Supabase JWT **locally** against the project JWKS with `jose` (issuer + audience checked, keys cached); falls back to a remote `getUser` only for legacy HS256 tokens; returns 503 (never hangs) if auth is unreachable. Sets `req.user {id,email,role}` and an RLS-scoped `req.supabase`. `requireSelf(param)` for explicit per-route checks. |
 | `utils/errors.js` | `sendError(res, err, status)` — Sentry capture + log + JSON response. Used by every route catch (65 sites). The production sanitizer in `server.js` still generifies 5xx bodies. |
+| `utils/dates.js` | `todayISO(tz)`, `daysAgoISO(n, tz)`, `isoDate`, `daysAgo` — one place for `YYYY-MM-DD` strings. `tz` is `'utc'` (default), `'local'`, or an IANA zone name (`profiles.timezone`, rendered with `Intl.DateTimeFormat`; an invalid name falls back to local). |
 | `prompts.js` | Canonical `WELLNESS_SYSTEM_PROMPT` — observational, non-clinical framing for every Claude call. |
-| `context-builder.js` | `buildFullContext(userId, {window})` assembles the 7/30-day snapshot (15 queries) and caches it in Upstash Redis (REST, 5-min TTL). **Single-flight lock** (`SET NX`) prevents a thundering herd on a cold key; `invalidateContextCache(userId)` deletes both window keys and is called by `/api/ingest` after every write. |
+| `context-builder.js` | `buildFullContext(userId, {window})` assembles the 7/30-day snapshot (15 queries) and caches it in Upstash Redis (REST, 5-min TTL). **Single-flight lock** (`SET NX`, 20 s TTL) prevents a thundering herd on a cold key and is released in `finally` — whether the build threw, the cache write failed, or it succeeded. "Today" is the user's calendar day in `profiles.timezone` (via `utils/dates.js`), server-local when unset. `invalidateContextCache(userId)` deletes both window keys and is called by `/api/ingest` after every write. |
 | `rag.js` | `retrieveRelevantHistory(userId, query, count=8)` — embeds the query (billed to the user) and calls the `match_health_events` pgvector RPC. |
 | `embeddingService.js` | `embed(text, {userId, route})` — `text-embedding-3-small`; every call is priced via `trackCost` when a user is known. |
 | `eventIngestion.js` | `ingestEvent(userId, type, data, sourceId)` inserts into `health_events` and embeds asynchronously. **Now actually invoked** by `/api/ingest` (it was a stub). |
-| `spend-guard.js` | Hard monthly USD ceilings checked before every model call, summed in Postgres via `sum_ai_spend()` (never a row scan — PostgREST caps at 1,000 rows). **Global cap fails CLOSED** on error; per-user check fails open. Caps: $5 free / $50 premium / $250 global. |
+| `spend-guard.js` | Hard monthly USD ceilings checked before every model call, summed in Postgres via `sum_ai_spend()` (never a row scan — PostgREST caps at 1,000 rows). **Global cap fails CLOSED** on error; per-user check fails open. Caps: $5 free / $50 premium / $250 global, read with `envNumber` so an explicit `0` is honoured as a kill switch. |
 | `usage-gates.js` | Free-tier windowed counters via the atomic `increment_usage()` RPC (increment-if-under-limit in one statement — no race). Premium bypasses counts, never the spend guard. Limits table in `05-algorithms.md`. |
 | `cost-tracker.js` | `trackCost({...})` → USD by per-model pricing → `api_cost_log`. Pricing for GPT-4o, Haiku 4.5, `text-embedding-3-small`; no double-counted image fee. |
-| `ai-fetch.js` | `fetchWithRetry` — retries 429/5xx with full-jitter backoff inside a **total time budget** (45 s default) so a flaky provider can't hold a request for minutes. |
+| `ai-fetch.js` | `fetchWithRetry` — retries 429/5xx with full-jitter backoff (a draw of 0 ms is a legitimate immediate retry) inside a **total time budget** (45 s default). Each attempt gets a **fresh per-attempt timeout** (`options.timeoutMs`, default 30 s — a new `AbortSignal.timeout` per try, combined with any caller `signal` via `AbortSignal.any`) so one slow attempt can't poison the retries. |
 | `ai-limiters.js` | Per-endpoint `express-rate-limit`s keyed on **`req.user.id`** (client-supplied ids are never a rate-limit key). |
 | `ai-validators.js` | Zod schemas (`CorrelationSchema`, `PredictionSchema`, …) + `validateOrThrow` — model JSON is validated before storage; failures → 422. |
-| `oauth-state.js` | `signState(userId, provider)` / `verifyState(state, provider)` — HMAC-signed, 10-minute, provider-bound OAuth `state`. The raw user id is never in the round-trip. |
+| `oauth-state.js` | `signState(userId, provider)` / `verifyState(state, provider)` — HMAC-signed, 10-minute, provider-bound OAuth `state`. The raw user id is never in the round-trip. `verifyState` **never throws**: signature buffers are compared by byte length before `timingSafeEqual` (a multi-byte signature used to crash the public Oura callback) and the whole parse sits in a `try`/`catch` that returns `null`. |
 | `sanitize.js`, `healthScorer.js`, `additiveAnalyzer.js`, `openFoodFacts.js`, `openBeautyFacts.js` | Input sanitation, server-side scoring, ingredient concern classification, product-DB clients. |
 
-**Removed:** `queue.js`/`worker.js` (BullMQ; nothing ever enqueued) and `routes/correlate.js` (two stubs and a committed heredoc terminator).
+**Removed:** `queue.js`/`worker.js` (BullMQ; nothing ever enqueued) and `routes/correlate.js` (two stubs and a committed heredoc terminator); `routes/water.js` (2026-09-10 — a second, never-used write path; `habits.water_glasses` is the source).
 
 ## AI call pattern (every engine follows it)
 
 ```
-checkAndIncrementUsage(userId, feature)      // spend guard (fail-closed global) → premium → atomic counter
+validate the request                         // a 400 must never consume a gate
+  → checkAndIncrementUsage(userId, feature)  // spend guard (fail-closed global) → premium → atomic counter
   → buildFullContext (Redis-cached, single-flight)
-  → fetchWithRetry(model, WELLNESS_SYSTEM_PROMPT + task prompt, timeout, time budget)
+  → fetchWithRetry(model, WELLNESS_SYSTEM_PROMPT + task prompt, { timeoutMs }, 45 s budget)
   → trackCost(usage tokens)
   → strip ```json fences → JSON.parse → validateOrThrow(schema)
   → persist → (correlation only: Haiku language-safety second pass)

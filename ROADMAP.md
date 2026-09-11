@@ -47,6 +47,19 @@ pinch-zoom enabled, reduced-motion respected, web manifest + icons.
 **Quality** — unit tests (frontend jsdom + server mocked) and 20 integration
 tests; ESLint 9 + Prettier; CI runs lint → test → build in both repos.
 
+**Post-review fixes** (second adversarial pass on the hardening diff; fe
+`fbbcb67`, srv `d6794a3`) — orphan backends wired to UI: Analytics "Early
+patterns" + "Explore a correlation" cards, Profile "AI usage" card, web-push
+subscribe/unsubscribe; the never-used `water` route + `water_log` table removed
+(`habits.water_glasses` is the one source); API contracts fixed (barcode lookup
+sends the real user id, NutritionTracker reads `json.data`, dosha saves to
+`profiles`, "Log to Food Diary" writes `meals` then ingests, Cycle renders
+`events` + Ovulation, supplements `category` persists); no invented defaults
+left (calorie target, step goal, trend, RPE, activity level, Strava calories,
+food ratings, product score); OAuth state never throws; Sentry preloaded via
+`--import`; per-attempt AI timeouts; validation before the daily gate; `0`
+spend cap honoured; no health text in logs; PostHog bundled (CSP unchanged).
+
 ---
 
 ## Part B — Owner steps (cannot be done from the codebase)
@@ -58,15 +71,15 @@ tests; ESLint 9 + Prettier; CI runs lint → test → build in both repos.
 | 3 | **Create the private GitHub repo** `vitallens-app` and push: `git remote add origin https://github.com/zacharyperrino/vitallens-app.git && git push -u origin main` | github.com/new | 2 min |
 | 4 | **Add CI secrets** to the server repo (`SUPABASE_URL`, anon + service keys, `TEST_USER_A/B_EMAIL/PASSWORD`) so the integration suite runs in CI. | GitHub → Settings → Secrets | 5 min |
 | 5 | Leaked-password protection toggle. | Supabase → Auth → Attack protection | 30 s |
-| 6 | *Optional:* Oura developer credentials, PostHog key, Stripe live keys, a Pro Supabase plan (stops the weekly free-tier auto-pause). | — | — |
+| 6 | *Optional:* Oura developer credentials, Stripe live keys, a Pro Supabase plan (stops the weekly free-tier auto-pause). | — | — |
+| 7 | *Optional:* VAPID keys (server `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_EMAIL` + frontend `VITE_VAPID_PUBLIC_KEY`) to turn on web push; a PostHog key (`VITE_POSTHOG_KEY`) for product analytics. Both are off until set. | server `.env` + frontend build env | 5 min |
 
 ---
 
 ## Part C — Nice-to-have polish
 
-- Migrate the remaining inline `style=` attributes to utility classes.
-- Split `food-scanner.js`, `body-scanner.js`, `health-input.js` along their
-  existing seams.
+- Migrate the remaining inline `style=` attributes (795 at last count, down
+  from ~1,500) to utility classes.
 - Screenshots or a short demo clip in `README.md`.
 - Populate `server/evals/meals/` with weighed-meal photos and run
   `npm run eval:food` to publish a measured scan-accuracy number.

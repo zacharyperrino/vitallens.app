@@ -12,7 +12,7 @@
    `/genomics/upload`) take the user from `req.user.id` — the body isn't
    parsed until after the guard, so it is never trusted.
 4. Public-by-design routes each authenticate themselves or verify a
-   signature: Stripe webhook (signature), Oura callback (HMAC-signed state),
+   signature: Stripe webhook (signature; exempt from the per-IP limiter), Oura callback (HMAC-signed state, verified inside its `try` — `verifyState` never throws),
    billing status/checkout (`requireAuth` inline; user from the token).
 
 Proven by `server/tests/security.test.js` — **20 integration tests** with real
@@ -26,22 +26,30 @@ signatures (see `08-operations.md`).
 | Layer | Mechanism |
 |---|---|
 | DB | RLS owner policies on every table; `uuid` user ids with cascade FKs; hardened RPCs (service_role-only where they read `auth.users` or write counters) |
-| API | local JWT verify, ownership guard, `trust proxy`, per-user rate limits on AI routes, helmet, CORS allow-list, 5xx sanitizer, Sentry with body/header/cookie scrubbing, graceful shutdown, `/api/ready` |
-| Cost | spend guard (Postgres aggregate, global cap fails closed) → premium → atomic usage counters; every model AND embedding call priced |
-| Web | CSP (`script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`), HSTS, nosniff, referrer + permissions policies; auth library bundled (no CDN); `esc()` at every user/AI string sink; session tokens never in URLs |
+| API | local JWT verify, ownership guard, `trust proxy`, per-user rate limits on AI routes, helmet, CORS allow-list, 5xx sanitizer, Sentry preloaded via `--import` with body/query/cookie/auth-header scrubbing, `unhandledRejection`/`uncaughtException` captured, graceful shutdown (60 s grace), one-row `/api/ready`; timeouts on every outbound call (per-attempt AI, 15 s DB, 10 s Oura) |
+| Cost | spend guard (Postgres aggregate, global cap fails closed) → premium → atomic usage counters; every model AND embedding call priced; caps read with `envNumber` (`0` = kill switch); validation precedes the gate so a 400 never burns quota |
+| Web | CSP (`script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`), HSTS, nosniff, referrer + permissions policies; auth library and `posthog-js` bundled (no CDN; PostHog dynamic-imported only when keyed, no session recording); `connect-src` allow-lists Supabase, the API, `*.posthog.com`, `www.strava.com`; `esc()` at every user/AI string sink; session tokens never in URLs |
 | OAuth | HMAC-signed, 10-minute, provider-bound `state`; callback resolves the user only from it |
-| Secrets | none in tracked files; `.env.example` / `.env.test.example` are placeholder templates |
+| Logs | copilot logs carry message lengths and tool names/input keys only — never question text or tool inputs (console breadcrumbs reach Sentry) |
+| Secrets | none in tracked files; `.env.example` / `.env.test.example` are placeholder templates; `server/.env.test` is git-ignored and holds placeholders |
 
 ## Honesty guarantees (product-level security)
 
 - No fabricated data anywhere: the stool analyzer, mock step counts, mock
   product/OCR fallbacks, hardcoded trend lines, and the invented empty-account
   score were all removed. The wellness score reports `insufficient_data`
-  until two domains are logged.
+  until two domains are logged; nutrition is scored only against the
+  profile's calorie target (no 2,000 kcal default); there is no 10,000-step
+  goal; the trend is `null` until two weekly scores; Strava calories,
+  untouched RPE, unmatched food ratings, and failed product scores stay
+  `null` rather than estimated.
 - Body-scan output is observational: no "suggested lab tests", syndromes,
-  risk tiers, or triage chips.
+  risk tiers, or triage chips; face results carry no Collagen / Skin-barrier /
+  hydration tiles and the prompt no longer asks for those fields; pulse
+  check-ins store no overall score.
 - A CI lint (`scripts/check-regulatory-language.mjs`) fails the build on
-  disease/diagnostic terms in user-facing copy or prompts; the correlation
+  disease/diagnostic terms in user-facing copy or prompts (and bans the retired
+  `pallor_present` / `drooping_present` / `fungal_pattern` identifiers); the correlation
   engine runs a Haiku second pass on its own output.
 - Medications is logging only. Practitioner sharing and genomics ship OFF
   behind `ENABLE_EXPERIMENTAL_ROUTES`.

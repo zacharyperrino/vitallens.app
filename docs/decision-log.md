@@ -38,6 +38,26 @@ Entries below are reconstructed from the code, migrations, and commit history.
 - **Decision:** the service worker returns 503 + `{queued:true}`; the page shows "saved offline, pending sync"; replays re-mint the token and are capped.
 - **Reasoning:** a synthetic 200 was a data-loss lie.
 
+### 2026-09-10 — Remove the `water` route and table; one source of truth per fact
+- **Decision:** delete `routes/water.js` and drop `water_log` (0 rows); `habits.water_glasses` is the only water record, and custom correlation reads it.
+- **Alternatives rejected:** wiring a UI to the second path; keeping the table "in case".
+- **Reasoning:** two write paths for one fact is a reconciliation bug waiting to happen; the habits form already captured water per day.
+
+### 2026-09-10 — Bundle PostHog instead of loading it from a CDN
+- **Decision:** `posthog-js` as a dependency, dynamically imported only when `VITE_POSTHOG_KEY` is set, with external-dependency loading, session recording, and surveys disabled; `connect-src` allow-lists `*.posthog.com`.
+- **Alternatives rejected:** the PostHog snippet (`<script src>` from a CDN — would widen `script-src` on a health app); no analytics at all.
+- **Reasoning:** CSP `script-src 'self'` stays intact; nothing runs and no host is contacted until the key exists.
+
+### 2026-09-10 — No fabricated defaults, anywhere
+- **Decision:** when the source has no value, the value is `null` and the UI says so: nutrition is scored only against the profile's calorie target (no 2,000 kcal), no 10,000-step goal, trend `null` until two weekly scores, missing days charted as "No entry", Strava calories `null` (no MET estimate), RPE `null` until touched, activity level must be chosen, unmatched foods "Rating unavailable" and excluded from averages, product score "Score unavailable", pulse check-ins store no `overall_score`.
+- **Alternatives rejected:** "reasonable" placeholders (2,000 kcal, 10,000 steps, a 70 kg MET estimate, a local score of 60).
+- **Reasoning:** on screen a placeholder is indistinguishable from a measurement; in a wellness app that is a lie the user acts on. Extends the portfolio-framing decision above.
+
+### 2026-09-10 — Per-attempt AI timeouts inside a total retry budget
+- **Decision:** `fetchWithRetry` takes `timeoutMs` (default 30 s) and creates a fresh `AbortSignal.timeout` for every attempt, combined with any caller signal via `AbortSignal.any`; the 45 s total budget stays; a 0 ms jitter draw is a legitimate immediate retry. Same shape for the database client (15 s) and Oura (10 s).
+- **Alternatives rejected:** one `AbortSignal.timeout` passed in by the caller (already fired by the time a retry ran, so retries could never succeed); no timeout on the Supabase client.
+- **Reasoning:** one slow attempt must not poison the retries, and no outbound call may hang a request indefinitely.
+
 
 Items marked **[INFERRED]** predate the recorded history — verify.
 
@@ -91,3 +111,7 @@ Items marked **[INFERRED]** predate the recorded history — verify.
 ### 2026-07-09 — Service worker registers in prod builds only
 - **Decision:** `if (import.meta.env.PROD)` around SW registration.
 - **Reasoning:** dev SW caching served stale HTML/CSS and swallowed logins (see [[gotchas]]).
+
+## 2026-09-10 — Sentry tracing off, error capture only
+
+**Decision:** `tracesSampleRate: 0` plus a `beforeSendTransaction` scrubber. **Why:** with `instrument.js` preloaded, Express tracing would export sampled transactions carrying request URLs and query strings (user ids, nutrition search text) that `beforeSend` never sees. Error events are enough for a portfolio deployment. [[architecture]] · [[gotchas]]

@@ -73,7 +73,35 @@ status: living
 
 ### Sentry captured nothing — RESOLVED 2026-09-10
 - **Cause:** custom error handler registered before Sentry's and never called `next(err)`; 65 route catches responded inline.
-- **Fix:** Sentry handler first; `sendError()` captures from every catch.
+- **Fix:** Sentry handler first; `sendError()` captures from every catch. Second half (same day): under ESM, importing `instrument.js` from `server.js` ran *after* Express was imported, so Express was never instrumented — the start command is now `node --import ./instrument.js server.js` (`npm start`, `Procfile`, `railway.json`).
 
 ### Fabricated health data (stool analyzer, mock steps, mock products, hardcoded trend, invented 66/C) — RESOLVED 2026-09-10
-- **Fix:** modules deleted; score reports `insufficient_data`; every number on screen now comes from logged data.
+- **Fix:** modules deleted; score reports `insufficient_data`; every number on screen now comes from logged data. Second pass (same day): the remaining "reasonable" defaults went too — 2,000 kcal, 10,000 steps, MET calories, pre-filled RPE/activity, local product score of 60 — see [[decision-log]].
+
+### Public Oura callback crashed on a crafted `state` — RESOLVED 2026-09-10
+- **Cause:** `verifyState` compared JS string lengths, then `crypto.timingSafeEqual` threw on buffers of different *byte* length (multi-byte characters); the callback verified outside its `try`.
+- **Fix:** byte-length compare + `try`/`catch` returning `null`; the callback verifies inside `try` and redirects.
+
+### Every barcode scan returned 403 — RESOLVED 2026-09-10
+- **Cause:** the client sent a random device id as `userId`; the global ownership guard correctly rejected it.
+- **Fix:** send the real session user id (`getUserId()`), or omit it.
+
+### A 400 consumed the user's daily AI quota — RESOLVED 2026-09-10
+- **Cause:** `custom-correlation` and `biomarker-scan` called `checkAndIncrementUsage` before validating the request.
+- **Fix:** validate first; the gate is consumed only when the request will actually reach the model.
+
+### Retries could never succeed after the first timeout — RESOLVED 2026-09-10
+- **Cause:** callers passed one `AbortSignal.timeout(...)` to `fetchWithRetry`; once it fired, every retry started already aborted.
+- **Fix:** `timeoutMs` option — a fresh per-attempt signal, combined with any caller signal via `AbortSignal.any`.
+
+### Context-cache lock leaked when the build threw — RESOLVED 2026-09-10
+- **Cause:** the single-flight `SET NX` lock was deleted only on the success path, so a failed build blocked rebuilds until the 20 s TTL expired.
+- **Fix:** release in `finally`.
+
+### A spend cap of `0` silently became the default — RESOLVED 2026-09-10
+- **Cause:** `Number(process.env.X) || 5` coerces `0` back to `5`.
+- **Fix:** `envNumber()` — only unset / non-numeric values fall back; `0` is a kill switch (unit-tested).
+
+### Two write paths for water — RESOLVED 2026-09-10
+- **Cause:** `routes/water.js` + `water_log` (0 rows) existed beside `habits.water_glasses`, which the form actually wrote; custom correlation read the empty one.
+- **Fix:** route and table removed; `habits.water_glasses` is the single source.

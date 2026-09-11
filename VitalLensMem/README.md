@@ -1,7 +1,7 @@
 # VitalLensMem — Project Knowledge Base
 
 Documentation of the VitalLens codebase: every module, route, service, and
-algorithm, written from the code as it exists (last verified 2026-07-15).
+algorithm, written from the code as it exists (last verified 2026-09-10).
 
 | File | Covers |
 |---|---|

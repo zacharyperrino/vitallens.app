@@ -36,6 +36,9 @@ If this vault is opened at the repo root, those resolve as:
 
 - Portfolio-ready hardening complete: no fabricated data, security holes
   closed, cost controls real, schema reproducible, tests + CI in place.
+- Post-review fixes landed (fe `fbbcb67`, srv `d6794a3`): orphan backends
+  wired, `water` removed, contracts fixed, no invented defaults — see
+  [[decision-log]] and [[gotchas]].
 - Owner steps remaining: Supabase email template, key rotation, GitHub
   remote for the frontend (see [[roadmap]]).
 - Practitioner sharing + genomics ship OFF behind `ENABLE_EXPERIMENTAL_ROUTES`.

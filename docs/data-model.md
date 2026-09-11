@@ -1,6 +1,6 @@
 ---
 tags: [database, schema, supabase]
-status: verified-2026-07-18
+status: verified-2026-09-10
 ---
 
 # Data model
@@ -15,7 +15,7 @@ client bypasses RLS; its safety is the Express ownership guard
 
 | Table | Fields (key ones) | Represents |
 |---|---|---|
-| `profiles` | `id` (= auth uid), `subscription_status`, `trial_end`, `onboarding_completed` | One row per account; premium = `active` (or unexpired `trialing`) |
+| `profiles` | `id` (= auth uid), `subscription_status`, `trial_end`, `onboarding_completed`, `timezone` (IANA; written by the app at boot, read by the context builder for the user's "today") | One row per account; premium = `active` (or unexpired `trialing`) |
 | `user_consents` | `user_id`, `document`, `version`, `accepted`, `accepted_at`, `user_agent`; unique `(user_id, document, version)` | Append-only versioned consent history for 4 documents (ToS, privacy, health-data, AI-processing) |
 | `usage_tracking` | `user_id`, `feature`, `count`, `window_start`, `window_type` | Free-tier feature counters per day/week/month window |
 | `api_cost_log` | `user_id`, `route`, `model`, tokens, `cost_usd`, `logged_at` | Every AI call's cost — the spend guard sums this |
@@ -30,13 +30,15 @@ client bypasses RLS; its safety is the Express ownership guard
 ## Logging (one row per event/day)
 
 `meals`, `daily_nutrition` (day rollup via `increment_daily_nutrition` RPC),
-`water_log`, `habits` (unique `user_id,date`; `water_glasses`, `smoking`,
+`habits` (unique `user_id,date`; `water_glasses`, `smoking`,
 `alcohol`, `caffeine`, `stress_level`, `mood`, **`steps`**, `notes`),
-`sleep_log`, `exercise_log`, `supplement_logs`, `lab_results`,
+`sleep_log`, `exercise_log`, `supplement_logs` (`category`), `lab_results`,
 `medication_log` (logging only — no clinical fields by design),
-`cycle_log`, `environment_logs`, `hr_readings`, `hygiene_scans`,
+`cycle_log` (`event_type`: `period_start` / `period_end` / `symptom` /
+`ovulation`), `environment_logs`, `hr_readings`, `hygiene_scans`,
 `product_scans`, `scan_history` (barcode-indexed), `stool_scans`,
-`body_scans`, `biomarker_scans`.
+`body_scans`, `biomarker_scans`. `water_log` was dropped 2026-09-10 —
+`habits.water_glasses` is the only water record.
 
 ## AI / derived
 
@@ -69,4 +71,8 @@ client bypasses RLS; its safety is the Express ownership guard
 - `increment_daily_nutrition(uuid, …)` — SECURITY INVOKER (RLS enforces ownership); DEFINER text overload dropped (IDOR — see [[gotchas]]).
 
 Schema: `server/supabase/schema-baseline.sql` reproduces the whole database;
-`server/supabase/migrations/` is the history (12 files, 2026-07-04→09-10).
+`server/supabase/migrations/` is the history (15 files, 2026-07-04→09-10; the
+last three drop duplicate indexes, move `user_consents` policies to
+`(select auth.uid())`, add `ovulation` and drop `water_log`). Rebuild =
+baseline + `server/supabase/seed/additive_classifications.sql` (28 reference
+rows; without it every additive scores `unknown`).

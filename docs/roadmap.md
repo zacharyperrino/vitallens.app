@@ -17,7 +17,10 @@ in `AUDIT-2026-09.md`.
 2. **Rotate** the API keys that lived in `server/.env.test` (never committed).
 3. **GitHub**: create the private `vitallens-app` repo and push the frontend;
    add the CI secrets to the server repo so the integration suite runs.
-4. Optional: Oura developer credentials, PostHog key, Stripe live keys.
+4. Optional: Oura developer credentials, Stripe live keys; VAPID keys (server
+   `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_EMAIL` + frontend
+   `VITE_VAPID_PUBLIC_KEY`) to turn on web push; a PostHog key
+   (`VITE_POSTHOG_KEY`) for product analytics.
 
 ## Done (2026-09-10 hardening)
 
@@ -33,12 +36,18 @@ in `AUDIT-2026-09.md`.
   controls (billing, wearables, notifications, MFA, export, delete),
   analytics components mounted, honest offline writes, 404/error/offline
   states, accessibility foundations (buttons, labels, focus, contrast, 44px).
-- Quality: unit + integration tests, ESLint/Prettier, CI in both repos.
+- Quality: unit + integration tests (60 frontend; 74 unit + 20 integration on
+  the server), ESLint/Prettier, CI in both repos.
+- Post-review fixes: orphan backends wired (Early patterns, Explore a
+  correlation, AI usage card, web push); `water` route + table removed; API
+  contracts fixed (barcode user id, NutritionTracker, dosha, Log to Food
+  Diary, Cycle events, supplement category); no invented defaults left; OAuth
+  state never throws; Sentry preloaded; per-attempt AI timeouts; PostHog
+  bundled.
 
 ## Later (nice-to-have for the portfolio)
 
-- Migrate the remaining inline styles to utility classes.
-- Split the three largest page files along their existing seams.
+- Migrate the remaining inline styles (795 at last count) to utility classes.
 - Screenshots / short demo video in the README.
 
 Related: [[_home]] · [[features]] · [[decision-log]]

@@ -1,9 +1,14 @@
 # Database (Supabase project `vitallens`, id `nlxptctihrotizvaywdo`)
 
 **Reproducible from the repo:** `server/supabase/schema-baseline.sql` is the full
-schema (extensions, 40 tables, constraints, indexes, RLS, policies, functions)
-introspected from the live project on 2026-09-10. `server/supabase/migrations/`
-is the incremental history.
+schema (extensions, 39 tables, constraints, indexes, RLS, policies, functions,
+sequences `OWNED BY` their columns) introspected from the live project on
+2026-09-10 and refreshed after that day's last migrations (duplicate indexes
+gone, `user_consents` policies in `(select auth.uid())` form, `water_log`
+dropped). **Rebuild = baseline + `server/supabase/seed/additive_classifications.sql`**
+(28 reference rows — the only non-user table with content; without it every
+additive scores `unknown`). `server/supabase/migrations/` is the incremental
+history (see its `README.md`).
 
 ## Access model
 
@@ -26,12 +31,15 @@ unique per user/document/version), `usage_tracking` (unique per
 user/feature/window), `api_cost_log`.
 
 **Logging** — `meals`, `daily_nutrition` (rollup via `increment_daily_nutrition`),
-`water_log`, `habits` (unique per user/date; `steps`, `mood`, `stress_level`,
-`water_glasses`), `sleep_log`, `exercise_log`, `supplement_logs`, `lab_results`,
-`medication_log`, `cycle_log`, `environment_logs`, `hr_readings`,
+`habits` (unique per user/date; `steps`, `mood`, `stress_level`,
+`water_glasses`), `sleep_log`, `exercise_log`, `supplement_logs` (with `category`),
+`lab_results`, `medication_log`, `cycle_log` (`event_type` ∈ `period_start` /
+`period_end` / `symptom` / `ovulation` — check constraint widened 2026-09-10),
+`environment_logs`, `hr_readings`,
 `hygiene_scans`, `product_scans`, `scan_history`, `body_scans`,
 `biomarker_scans`. (`stool_scans` remains in the schema but the feature was
-removed — it generated fabricated results.)
+removed — it generated fabricated results. `water_log` was dropped 2026-09-10:
+0 rows, and `habits.water_glasses` is the single water source.)
 
 **Derived / AI** — `health_events` (RAG store, 1536-dim pgvector `embedding`,
 ivfflat index), `health_correlations`, `health_predictions`, `health_insights`,
@@ -60,11 +68,23 @@ ivfflat index), `health_correlations`, `health_predictions`, `health_insights`,
 `supplement_logs(user_id,active)`, `lab_results(user_id,collected_at desc)`,
 `health_correlations/health_predictions(user_id,generated_at desc)`,
 `weekly_reports(user_id,week_of desc)`, `api_cost_log(user_id,logged_at)`,
-unique `usage_tracking(user_id,feature,window_start)`.
+unique `usage_tracking(user_id,feature,window_start)`. Five exact duplicates
+were dropped 2026-09-10 (`20260910120000_drop_duplicate_indexes.sql`); the kept
+index is always the unique/constraint or pre-existing one, so the read path is
+unchanged.
+
+## Migrations applied 2026-09-10
+
+| File | Effect |
+|---|---|
+| `20260910100000_unify_user_id_fks_indexes_rpcs.sql` | nine `text` `user_id` columns → `uuid`, cascade FKs, hot-path indexes, `sum_ai_spend` / `increment_usage` RPCs |
+| `20260910120000_drop_duplicate_indexes.sql` | five duplicate indexes dropped |
+| `20260910120500_user_consents_policies_initplan.sql` | `user_consents` select/insert policies use `(select auth.uid())` |
+| `20260910121000_cycle_ovulation_and_drop_water_log.sql` | `cycle_log` check constraint adds `ovulation`; `water_log` dropped |
 
 ## Ops facts
 
 - ivfflat index builds need `SET LOCAL maintenance_work_mem='128MB'`.
 - Free-tier project auto-pauses after ~1 week idle (DNS disappears); restore
   via dashboard/MCP takes 2–5 minutes. Pro removes this.
-- Test users A/B exist for the integration suite (`server/.env.test`).
+- Test users A/B exist for the integration suite (`server/.env.test` — git-ignored; the repo copy holds placeholders only).
