@@ -16,6 +16,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
       # Regulatory guard — fails the build if disease/diagnostic language
       # creeps into user-facing copy. Keeps the wellness framing airtight.
       - name: Regulatory-language check

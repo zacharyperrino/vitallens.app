@@ -61,7 +61,7 @@ export async function initCamera(videoElement) {
         return stream;
     } catch (err) {
         console.error('[Camera] Access denied:', err);
-        throw new Error('Camera permission denied. Please allow camera access to scan barcodes.');
+        throw new Error('Camera permission denied. Please allow camera access to scan barcodes.', { cause: err });
     }
 }
 

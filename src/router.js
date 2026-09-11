@@ -127,7 +127,7 @@ export class Router {
           </div>`;
     }
 
-    renderRouteError(err) {
+    renderRouteError(_err) {
         const content = document.getElementById('page-content');
         content.innerHTML = `
           <div class="empty-state" style="min-height:60vh;">

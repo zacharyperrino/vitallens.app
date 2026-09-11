@@ -14,17 +14,14 @@ let _consentComplete = null; // cache so the router guard isn't a DB hit per nav
 
 export async function isConsentComplete() {
     if (_consentComplete === true) return true;
-    try {
-        const res = await apiFetch('/api/consents/status');
-        if (!res.ok) throw new Error(`Consent status unavailable (${res.status})`);
-        const data = await res.json();
-        _consentComplete = !!data.complete;
-        return _consentComplete;
-    } catch (err) {
-        // Fail closed: the router renders a retry screen. A transient error must
-        // never admit a user to a health app without a recorded consent.
-        throw err;
-    }
+    // Fail closed: any network/server error propagates and the router renders
+    // a retry screen. A transient error must never admit a user to a health
+    // app without a recorded consent.
+    const res = await apiFetch('/api/consents/status');
+    if (!res.ok) throw new Error(`Consent status unavailable (${res.status})`);
+    const data = await res.json();
+    _consentComplete = !!data.complete;
+    return _consentComplete;
 }
 
 export async function recordConsents() {
