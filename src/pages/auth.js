@@ -184,10 +184,12 @@ export function renderAuth() {
                     await migrateFromLocalStorage();
                 }
 
-                // Check if MFA is enrolled — prompt if not
+                // Offer MFA enrolment once. "Skip for now" is remembered so the
+                // prompt does not reappear on every sign-in; it stays available in Profile.
                 const { data: mfaData } = await supabase.auth.mfa.listFactors();
                 const hasTotp = mfaData?.totp?.length > 0;
-                if (!hasTotp) {
+                const skipped = localStorage.getItem(`vitallens_mfa_skipped_${user?.id}`) === '1';
+                if (!hasTotp && !skipped) {
                     const enroll = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'VitalLens' });
                     if (enroll.data) {
                         const qrCode = enroll.data.totp.qr_code;
@@ -211,7 +213,7 @@ export function renderAuth() {
             <div style="text-align:center;">
                 <div style="font-size:var(--text-sm);font-weight:600;margin-bottom:var(--space-3);">Secure your account</div>
                 <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">Scan this QR code with an authenticator app like Google Authenticator or Authy.</p>
-                <img src="${qrCode}" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
+                <img src="${qrCode}" alt="QR code to add VitalLens to your authenticator app" style="width:180px;height:180px;margin:0 auto var(--space-4);display:block;border-radius:var(--radius-md);">
                 <input type="text" id="mfa-code" placeholder="Enter 6-digit code"
                     style="width:100%;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);box-sizing:border-box;text-align:center;letter-spacing:0.2em;margin-bottom:var(--space-3);">
                 <button id="mfa-verify-btn" class="btn btn-primary btn-block">Verify & Continue</button>
@@ -231,7 +233,13 @@ export function renderAuth() {
             window.location.reload();
         });
 
-        document.getElementById('mfa-skip-btn').addEventListener('click', () => {
+        document.getElementById('mfa-skip-btn').addEventListener('click', async () => {
+            try {
+                const { data } = await supabase.auth.getUser();
+                if (data?.user?.id) localStorage.setItem(`vitallens_mfa_skipped_${data.user.id}`, '1');
+                // Remove the half-enrolled factor so it doesn't linger unverified.
+                await supabase.auth.mfa.unenroll({ factorId }).catch(() => {});
+            } catch { /* non-blocking */ }
             window.location.reload();
         });
     }
@@ -258,8 +266,9 @@ export function renderAuth() {
 
 // ─── Auth state helper — call this on app boot ───────────────
 export async function getSession() {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data?.session ?? null;
 }
 
 // ─── Onboarding gate ─────────────────────────────────────────
@@ -279,11 +288,10 @@ export async function isOnboardingComplete() {
             .single();
         _onboardingComplete = !!data?.onboarding_completed;
         return _onboardingComplete;
-    } catch {
-        // On a transient read failure, don't trap the user in a redirect
-        // loop — allow this navigation but leave the cache unset so the
-        // next navigation re-checks.
-        return true;
+    } catch (err) {
+        // Unknown — the router shows a retry screen rather than guessing.
+        console.warn('[Auth] onboarding status unavailable:', err?.message);
+        return null;
     }
 }
 
@@ -293,6 +301,8 @@ export function markOnboardingComplete() {
 }
 
 export async function signOut() {
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); }
+    catch (err) { console.warn('[Auth] signOut failed:', err?.message); }
+    window.location.hash = '#/';
     window.location.reload();
 }

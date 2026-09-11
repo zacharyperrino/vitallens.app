@@ -16,11 +16,12 @@ export async function renderHealthChat() {
       <div class="chat-header-avatar"><span style="color:var(--accent);display:flex;">${icons.sparkle}</span></div>
       <div class="chat-header-info">
         <h2>Health Copilot</h2>
-        <span class="chat-status-dot"></span>
-        <span class="chat-status-text">Online • Analyzing your data</span>
+        <span class="chat-status-dot" aria-hidden="true"></span>
+        <span class="chat-status-text" id="chat-status-text">Uses your logged data</span>
       </div>
-      <button class="chat-clear-btn" id="chat-clear" title="Clear chat">${icons.refresh}</button>
+      <button type="button" class="chat-clear-btn" id="chat-clear" title="Clear chat" aria-label="Clear chat history">${icons.x}</button>
     </div>
+    <p class="disclaimer" style="padding:0 var(--space-4) var(--space-2);">Wellness reflections based on what you log — not medical advice. For health concerns, talk to a qualified professional.</p>
 
     <div class="chat-messages" id="chat-messages"></div>
 
@@ -236,7 +237,8 @@ async function sendMessage(text) {
     trackEvent('copilot_message_sent', { userId });
   } catch (err) {
     removeTyping();
-    const errMsg = { role: 'assistant', text: 'I had trouble connecting. Check that the server is running and try again.', timestamp: Date.now() };
+    const errMsg = { role: 'assistant', text: 'I couldn\'t reach the service just now. Please check your connection and try again.', timestamp: Date.now() };
+    document.getElementById('chat-status-text') && (document.getElementById('chat-status-text').textContent = 'Connection problem');
     messages.push(errMsg);
     const container = document.getElementById('chat-messages');
     if (container) container.insertAdjacentHTML('beforeend', renderMessage(errMsg));
@@ -306,7 +308,7 @@ function attachHandlers() {
   });
 
   clearBtn?.addEventListener('click', async () => {
-    if (confirm('Clear the chat history for this user?')) {
+    if (confirm('Clear your chat history? This cannot be undone.')) {
       await deleteChatHistory();
       messages = [];
       try { store.set('chatHistory', []); } catch (err) { console.warn(err); }

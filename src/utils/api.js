@@ -13,8 +13,10 @@ export async function apiFetch(path, options = {}) {
   // with the correct multipart boundary
   const isFormData = options.body instanceof FormData;
 
+  const signal = options.signal || AbortSignal.timeout(options.timeoutMs || 45_000);
   return fetch(url, {
     ...options,
+    signal,
     headers: {
       ...(!isFormData && { 'Content-Type': 'application/json' }),
       'Authorization': `Bearer ${token}`,

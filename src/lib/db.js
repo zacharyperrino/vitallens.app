@@ -442,7 +442,7 @@ export const habits = {
             .upsert({
                 user_id: userId,
                 date: today,
-                water_glasses: entry.waterGlasses || 0,
+                water_glasses: entry.waterGlasses ?? null,
                 smoking: entry.smoking || false,
                 alcohol: entry.alcohol || 'none',
                 caffeine: entry.caffeine || 'moderate',

@@ -26,7 +26,8 @@ export async function renderEasternMedicine() {
   const content = document.getElementById('page-content');
   content.innerHTML = `
     <div class="eastern-med stagger-children">
-      <div class="page-header"><h1>Eastern Medicine</h1><p>Ayurveda, Chinese medicine & holistic wellness</p></div>
+      <div class="page-header"><h1>Eastern Medicine</h1><p>Ayurvedic and Traditional Chinese Medicine frameworks</p></div>
+      <p class="disclaimer" style="margin:0 0 var(--space-4);">These are traditional cultural frameworks for reflecting on wellbeing. They are not diagnostic tools and do not replace medical care.</p>
       <div id="em-summary"></div>
       <div class="tab-bar" id="em-tabs">
         <div class="tab-item active" data-tab="dosha">Dosha Quiz</div>
@@ -238,7 +239,7 @@ function renderDoshaProfile(doshaKey) {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card" style="text-align:center;border:1px solid ${d.color}33;">
       <div style="font-size:48px;margin-bottom:var(--space-2);">${d.icon}</div>
-      <h2 style="margin-bottom:var(--space-1);">You are <span style="color:${d.color};">${d.name}</span></h2>
+      <h2 style="margin-bottom:var(--space-1);">Your responses suggest <span style="color:${d.color};">${d.name}</span></h2>
       <p style="font-size:var(--text-sm);">${d.element}</p>
       <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-2);margin-top:var(--space-3);">
         ${d.qualities.map(q => `<span class="badge" style="background:${d.colorDim};color:${d.color};">${q}</span>`).join('')}
@@ -257,7 +258,7 @@ function renderDoshaProfile(doshaKey) {
         ${d.foods.avoid.map(f => `<div style="font-size:var(--text-xs);color:var(--accent-coral);padding:var(--space-1) 0;">• ${f}</div>`).join('')}
       </div>
     </div>
-    <div class="card"><h4 style="margin-bottom:var(--space-2);">Recommended Herbs</h4>
+    <div class="card"><h4 style="margin-bottom:var(--space-2);">Herbs traditionally associated</h4>
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);">${d.herbs.map(h => `<span class="badge badge-green">${h}</span>`).join('')}</div>
     </div>
     <div class="card"><h4 style="margin-bottom:var(--space-2);">Lifestyle Tips</h4>
@@ -271,7 +272,7 @@ function renderFaceMap() {
   return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
     <div class="card" style="text-align:center;">
       <h4 style="margin-bottom:var(--space-2);">Chinese Face Mapping</h4>
-      <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">Each facial zone connects to internal organs via TCM meridians. Tap a zone to learn more.</p>
+      <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-4);">In traditional face mapping, each zone is associated with an organ system. This is a cultural framework, not a diagnostic tool.</p>
       <div class="face-map" style="background:var(--bg-glass-heavy);border-radius:var(--radius-xl);border:1px solid var(--border-subtle);position:relative;min-height:360px;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.15;color:var(--text-primary);">${icons.user}</div>
         ${faceMappingZones.map(z => `<div class="face-map-zone" data-zone="${z.id}" style="position:absolute;top:${z.position.top};left:${z.position.left};width:${z.position.width};height:${z.position.height};border-radius:var(--radius-md);"></div>`).join('')}

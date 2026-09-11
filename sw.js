@@ -1,64 +1,57 @@
 // ─── VitalLens Service Worker ─────────────────────────────────
-// Offline data entry + background sync + push notifications
+// Offline shell + background sync for queued writes + push notifications.
+//
+// Honesty rules: a write that could not reach the server is NEVER reported
+// as a success. The client receives 503 + {queued:true} and shows "saved
+// offline, pending sync". Queued items carry no auth header; the page
+// supplies a fresh token at replay time. Items are dropped after 5 failed
+// attempts or 7 days so the queue cannot grow forever.
 
-// Bump this on any SW logic change to evict old caches. The HTML shell is
-// fetched network-first (see below), so deploys reach users immediately even
-// without a bump — the version only controls the offline fallback copy.
-const CACHE_NAME = 'vitallens-v2';
+const CACHE_NAME = 'vitallens-v3';
 const OFFLINE_QUEUE = 'vitallens-offline-queue';
+const STATIC_ASSETS = ['/', '/index.html', '/manifest.webmanifest'];
+const MAX_ATTEMPTS = 5;
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Only the offline navigation fallback is precached. Everything else is
-// cached on demand. Build assets (/assets/*) are content-hashed and immutable.
-const STATIC_ASSETS = ['/', '/index.html'];
-
-// ── Install ───────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Non-fatal — some assets may not exist yet
-      });
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(STATIC_ASSETS).catch(() => {}))
+      .then(() => self.skipWaiting())
   );
 });
 
-// ── Activate ──────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── Fetch ─────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-
-  // Only handle same-origin GETs; let everything else hit the network.
   if (url.origin !== self.location.origin) return;
 
-  // API calls — network first, queue writes if offline
   if (url.pathname.startsWith('/api/')) {
-    if (request.method === 'POST' || request.method === 'PUT') {
-      event.respondWith(handleOfflinePost(request));
-      return;
+    if (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH') {
+      event.respondWith(handleOfflineWrite(request));
     }
-    return; // GET API — network only, never cached
+    return; // GET API — network only
   }
 
   if (request.method !== 'GET') return;
 
-  // Navigations (the HTML shell) — NETWORK FIRST. This is what makes new
-  // deploys reach users immediately; the cached copy is only an offline
-  // fallback. Cache-first here was the stale-build trap.
+  // HTML shell — network first; only a GOOD response is cached as the offline fallback.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+          }
           return response;
         })
         .catch(() => caches.match('/index.html'))
@@ -66,7 +59,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Content-hashed build assets — immutable, so cache-first is safe and fast.
+  // Content-hashed build assets — immutable, cache-first.
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
       caches.match(request).then(cached => cached || fetch(request).then(response => {
@@ -80,7 +73,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Other static (icons, manifest) — stale-while-revalidate.
+  // Other static — stale-while-revalidate.
   event.respondWith(
     caches.match(request).then(cached => {
       const network = fetch(request).then(response => {
@@ -95,168 +88,141 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ── Offline POST handler ──────────────────────────────────────
-async function handleOfflinePost(request) {
+// ── Offline write handler ─────────────────────────────────────
+async function handleOfflineWrite(request) {
   try {
-    const response = await fetch(request.clone());
-    return response;
+    return await fetch(request.clone());
   } catch {
-    // Network failed — queue for later sync
+    // Multipart bodies (image uploads) cannot be replayed faithfully — refuse honestly.
+    const ct = request.headers.get('content-type') || '';
+    if (ct.includes('multipart/form-data')) {
+      return json({ error: 'You are offline. Photo uploads need a connection — please try again when reconnected.', queued: false }, 503);
+    }
     const body = await request.clone().text();
-    await queueOfflineRequest({
-      url: request.url,
-      method: request.method,
-      headers: Object.fromEntries(request.headers.entries()),
-      body,
-      timestamp: Date.now(),
-    });
-
-    // Return a synthetic success so the UI doesn't break
-    return new Response(JSON.stringify({
-      success: true,
-      offline: true,
-      message: 'Saved offline — will sync when connection returns.',
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const headers = Object.fromEntries(request.headers.entries());
+    delete headers.authorization; // tokens expire; the page supplies a fresh one at replay
+    try {
+      await queueOfflineRequest({ url: request.url, method: request.method, headers, body, timestamp: Date.now(), attempts: 0 });
+      return json({ error: 'Saved offline — this will sync when your connection returns.', queued: true }, 503);
+    } catch (err) {
+      return json({ error: 'You are offline and this could not be saved. Please try again when reconnected.', queued: false }, 503);
+    }
   }
 }
 
+function json(obj, status) {
+  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
 // ── Offline queue (IndexedDB) ─────────────────────────────────
-async function queueOfflineRequest(request) {
-  const db = await openDB();
-  const tx = db.transaction(OFFLINE_QUEUE, 'readwrite');
-  const store = tx.objectStore(OFFLINE_QUEUE);
-  store.add(request);
-  await new Promise((res, rej) => {
-    tx.oncomplete = res;
-    tx.onerror = rej;
-  });
-  db.close();
-  console.log('[SW] Queued offline request:', request.url);
-}
-
-async function getQueuedRequests() {
-  const db = await openDB();
-  const tx = db.transaction(OFFLINE_QUEUE, 'readonly');
-  const store = tx.objectStore(OFFLINE_QUEUE);
-  const requests = await new Promise((res, rej) => {
-    const req = store.getAll();
-    req.onsuccess = () => res(req.result);
-    req.onerror = rej;
-  });
-  db.close();
-  return requests;
-}
-
-async function clearQueuedRequest(id) {
-  const db = await openDB();
-  const tx = db.transaction(OFFLINE_QUEUE, 'readwrite');
-  tx.objectStore(OFFLINE_QUEUE).delete(id);
-  await new Promise((res, rej) => {
-    tx.oncomplete = res;
-    tx.onerror = rej;
-  });
-  db.close();
-}
-
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('vitallens-offline', 1);
+    const req = indexedDB.open('vitallens-offline', 2);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains(OFFLINE_QUEUE)) {
-        db.createObjectStore(OFFLINE_QUEUE, { keyPath: 'timestamp', autoIncrement: true });
-      }
+      if (db.objectStoreNames.contains(OFFLINE_QUEUE)) db.deleteObjectStore(OFFLINE_QUEUE);
+      db.createObjectStore(OFFLINE_QUEUE, { keyPath: 'id', autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-// ── Background Sync ───────────────────────────────────────────
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'vitallens-sync') {
-    event.waitUntil(syncOfflineQueue());
+async function withStore(mode, fn) {
+  const db = await openDB();
+  try {
+    const tx = db.transaction(OFFLINE_QUEUE, mode);
+    const store = tx.objectStore(OFFLINE_QUEUE);
+    const result = await fn(store);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); });
+    return result;
+  } finally {
+    db.close();
   }
+}
+
+const queueOfflineRequest = (item) => withStore('readwrite', (store) => { store.add(item); });
+const getQueuedRequests = () => withStore('readonly', (store) => new Promise((res, rej) => {
+  const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+}));
+const clearQueuedRequest = (id) => withStore('readwrite', (store) => { store.delete(id); });
+const updateQueuedRequest = (item) => withStore('readwrite', (store) => { store.put(item); });
+
+// ── Background sync ───────────────────────────────────────────
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'vitallens-sync') event.waitUntil(syncOfflineQueue());
 });
+
+async function getFreshToken() {
+  const clients = await self.clients.matchAll({ type: 'window' });
+  if (!clients.length) return null;
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => resolve(null), 3000);
+    channel.port1.onmessage = (e) => { clearTimeout(timer); resolve(e.data?.token || null); };
+    clients[0].postMessage({ type: 'get-token' }, [channel.port2]);
+  });
+}
 
 async function syncOfflineQueue() {
   const queued = await getQueuedRequests();
-  console.log(`[SW] Syncing ${queued.length} offline requests`);
+  if (!queued.length) return;
+  const token = await getFreshToken();
+  if (!token) return; // no open page to mint a token; try again next sync
 
+  let synced = 0, dropped = 0;
   for (const item of queued) {
+    if (Date.now() - item.timestamp > MAX_AGE_MS || item.attempts >= MAX_ATTEMPTS) {
+      await clearQueuedRequest(item.id); dropped++; continue;
+    }
     try {
       const response = await fetch(item.url, {
         method: item.method,
-        headers: item.headers,
+        headers: { ...item.headers, Authorization: `Bearer ${token}` },
         body: item.body,
       });
-
-      if (response.ok) {
-        await clearQueuedRequest(item.timestamp);
-        console.log('[SW] Synced:', item.url);
+      if (response.ok) { await clearQueuedRequest(item.id); synced++; }
+      else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        // Permanent client error — replaying will never succeed.
+        await clearQueuedRequest(item.id); dropped++;
+      } else {
+        await updateQueuedRequest({ ...item, attempts: item.attempts + 1 });
       }
-    } catch (err) {
-      console.warn('[SW] Sync failed for:', item.url, err.message);
+    } catch {
+      await updateQueuedRequest({ ...item, attempts: item.attempts + 1 });
     }
   }
-
-  // Notify clients that sync is complete
   const clients = await self.clients.matchAll();
-  clients.forEach(client => client.postMessage({ type: 'sync-complete' }));
+  clients.forEach(c => c.postMessage({ type: 'sync-complete', synced, dropped }));
 }
 
-// ── Messages ──────────────────────────────────────────────────
+// ── Messages from the page ────────────────────────────────────
 self.addEventListener('message', (event) => {
   const { type, payload } = event.data || {};
-
   if (type === 'show-notification' && payload?.title) {
-    const { title, options } = payload;
-    event.waitUntil(self.registration.showNotification(title, options || {}));
+    event.waitUntil(self.registration.showNotification(payload.title, payload.options || {}));
   }
-
-  if (type === 'trigger-sync') {
-    event.waitUntil(syncOfflineQueue());
-  }
-
+  if (type === 'trigger-sync') event.waitUntil(syncOfflineQueue());
   if (type === 'get-queue-count') {
-    getQueuedRequests().then(queued => {
-      event.source?.postMessage({ type: 'queue-count', count: queued.length });
-    });
+    getQueuedRequests().then(q => event.source?.postMessage({ type: 'queue-count', count: q.length })).catch(() => {});
   }
 });
 
-// ── Push notifications ────────────────────────────────────────
+// ── Push ──────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() || {};
+  let data = {};
+  try { data = event.data?.json() || {}; } catch { data = { body: event.data?.text?.() || '' }; }
   const { title = 'VitalLens', body = 'You have a new update.', url = '/' } = data;
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icon-192.png',
-      badge: '/icon-72.png',
-      data: { url },
-      actions: [{ action: 'open', title: 'View' }],
-    })
-  );
+  event.waitUntil(self.registration.showNotification(title, {
+    body, icon: '/icons/icon-192.svg', badge: '/icons/icon-192.svg', data: { url },
+  }));
 });
 
-// ── Notification click ────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      if (clientList.length > 0) {
-        clientList[0].focus();
-        clientList[0].navigate(url);
-        return;
-      }
-      return self.clients.openWindow(url);
-    })
-  );
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    if (list.length > 0) { list[0].focus(); return list[0].navigate(url); }
+    return self.clients.openWindow(url);
+  }));
 });

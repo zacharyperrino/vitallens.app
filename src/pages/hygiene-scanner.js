@@ -210,14 +210,9 @@ function setupHygieneHandlers(userId) {
 
             const { product } = await res.json();
             resultsEl.innerHTML = '<div id="hygiene-result-react"></div>';
-mountReact(HygieneScanResult, 'hygiene-result-react', { 
-    product,
-    onLog: () => showToast('Product logged to your hygiene history')
-});
-
-            // Wire log button
-            document.getElementById('log-hygiene-btn')?.addEventListener('click', () => {
-                showToast('Product logged to your hygiene history');
+            mountReact(HygieneScanResult, 'hygiene-result-react', {
+                product,
+                onLog: () => showToast('This scan is already saved to your hygiene history'),
             });
 
         } catch (err) {

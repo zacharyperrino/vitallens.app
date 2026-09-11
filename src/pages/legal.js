@@ -28,8 +28,6 @@ function mdToHtml(md) {
 
 export function renderLegal(doc) {
     const content = document.getElementById('page-content');
-    const nav = document.getElementById('bottom-nav');
-    if (nav) nav.style.display = 'none';
     const md = doc === 'terms' ? termsMd : privacyMd;
     content.innerHTML = `
     <div style="max-width:720px;margin:0 auto;padding:var(--space-6);">

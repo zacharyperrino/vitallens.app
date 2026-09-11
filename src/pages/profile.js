@@ -27,7 +27,9 @@ export async function renderProfile() {
     if (!user?.id) throw new Error('You must be signed in to view your profile.');
 
     const profileResponse = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(user.id)}`);
-    const profileJson = profileResponse.ok ? await profileResponse.json() : { profile: null };
+    // A failed load must NOT render an empty form — the next save would overwrite the real row with blanks.
+    if (!profileResponse.ok) throw new Error(`Could not load your profile (server responded ${profileResponse.status}). Nothing was changed.`);
+    const profileJson = await profileResponse.json();
     // Name lives on the profiles table (not health_profile) — read it there.
     let name = '';
     try {
@@ -215,8 +217,48 @@ function renderProfileForm(profile, user) {
         </div>
 
         <button type="submit" id="save-profile-btn" class="btn btn-glass btn-block">Save Profile</button>
-        <button id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign Out</button>
+        <button type="button" id="sign-out-btn" class="btn" style="width:100%;margin-top:var(--space-3);background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary);">Sign Out</button>
       </form>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 style="margin-bottom:var(--space-3);">Subscription</h4>
+        <div id="billing-status" class="disclaimer">Checking your plan…</div>
+        <div id="billing-actions" style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);"></div>
+        <p class="disclaimer" style="margin-top:var(--space-3);">Free includes 5 food scans and 10 AI chats a day. Premium removes those limits. Cancel anytime.</p>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 style="margin-bottom:var(--space-3);">Wearables</h4>
+        <div id="oura-status" class="disclaimer">Checking…</div>
+        <div style="margin-top:var(--space-3);"><button type="button" class="btn btn-sm" id="oura-connect-btn">Connect Oura Ring</button></div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 style="margin-bottom:var(--space-3);">Notifications</h4>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);">
+          <span id="notif-state" class="disclaimer"></span>
+          <button type="button" class="btn btn-sm" id="notif-toggle"></button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 style="margin-bottom:var(--space-3);">Security</h4>
+        <div id="mfa-section"><span class="disclaimer">Checking two-factor status…</span></div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5);">
+        <h4 style="margin-bottom:var(--space-3);">Your data</h4>
+        <p class="disclaimer">Download everything VitalLens holds about you as JSON, or permanently delete your account and all of its data.</p>
+        <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);">
+          <button type="button" class="btn btn-sm" id="export-data-btn">Export my data</button>
+          <button type="button" class="btn btn-sm" id="delete-account-btn" style="color:var(--error);border:1px solid var(--error);">Delete my account</button>
+        </div>
+        <div id="delete-confirm" hidden style="margin-top:var(--space-3);">
+          <label for="delete-email" class="disclaimer">Type your account email to confirm. This cannot be undone.</label>
+          <input class="input-field" id="delete-email" type="email" autocomplete="off" style="margin-top:var(--space-2);">
+          <button type="button" class="btn btn-sm" id="delete-account-confirm" style="margin-top:var(--space-2);color:var(--error);border:1px solid var(--error);">Permanently delete</button>
+        </div>
+      </div>
     </div>`;
 
   attachProfileHandlers(profile, user.id, bmr, tdee);
@@ -336,6 +378,7 @@ document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
     const { signOut } = await import('./auth.js');
     await signOut();
 });
+  attachAccountHandlers(userId);
   document.getElementById('profile-form')?.addEventListener('submit', async event => {
     event.preventDefault();
 
@@ -403,6 +446,8 @@ function calculateBmr(weightKg, heightCm, age, sex) {
   if (!weightKg || !heightCm || !age || !sex) return 0;
   if (sex === 'male') return 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
   if (sex === 'female') return 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
+  // Mifflin-St Jeor defines only male/female constants (+5 / −161). For
+  // "other" we use their midpoint (−78) — a documented convention, not a claim.
   return 10 * weightKg + 6.25 * heightCm - 5 * age - 78;
 }
 
@@ -435,3 +480,156 @@ function getDefaultProfile() {
   };
 }
 
+
+
+// ── Account sections: billing, wearables, notifications, MFA, data ──────
+async function attachAccountHandlers(userId) {
+  // Post-checkout / OAuth return messages
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  if (q.get('upgraded') === 'true') showToast('Welcome to Premium — your limits are lifted.');
+  if (q.get('oura') === 'connected') showToast('Oura Ring connected');
+  if (q.get('oura') === 'error' || q.get('oura') === 'invalid_state') showToast('Oura connection did not complete. Please try again.');
+
+  // Subscription
+  const statusEl = document.getElementById('billing-status');
+  const actionsEl = document.getElementById('billing-actions');
+  try {
+    const res = await apiFetch('/api/billing/status');
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const b = await res.json();
+    if (b.isPremium) {
+      const until = b.currentPeriodEnd ? new Date(b.currentPeriodEnd).toLocaleDateString() : null;
+      statusEl.textContent = `Premium${b.status === 'trialing' ? ' (trial)' : ''}${until ? ` · renews ${until}` : ''}`;
+      actionsEl.innerHTML = '';
+    } else {
+      statusEl.textContent = 'Free plan';
+      actionsEl.innerHTML = `
+        <button type="button" class="btn btn-glass" data-plan="monthly">Upgrade — $9.99 / month</button>
+        <button type="button" class="btn btn-glass" data-plan="annual">Upgrade — $79 / year</button>`;
+      actionsEl.querySelectorAll('[data-plan]').forEach(btn => btn.addEventListener('click', async () => {
+        btn.disabled = true; btn.textContent = 'Opening secure checkout…';
+        try {
+          const r = await apiFetch('/api/billing/create-checkout', { method: 'POST', body: JSON.stringify({ plan: btn.dataset.plan }) });
+          const j = await r.json();
+          if (!r.ok || !j.url) throw new Error(j.error || 'Checkout unavailable');
+          window.location.href = j.url;
+        } catch (err) {
+          showToast(err.message || 'Could not start checkout');
+          btn.disabled = false; btn.textContent = btn.dataset.plan === 'monthly' ? 'Upgrade — $9.99 / month' : 'Upgrade — $79 / year';
+        }
+      }));
+    }
+  } catch (err) {
+    statusEl.textContent = 'Plan details unavailable right now.';
+  }
+
+  // Wearables (Oura)
+  const ouraEl = document.getElementById('oura-status');
+  const ouraBtn = document.getElementById('oura-connect-btn');
+  try {
+    const { refreshOuraStatus, isOuraConnected, startOuraConnect } = await import('../utils/oura.js');
+    await refreshOuraStatus(userId);
+    ouraEl.textContent = isOuraConnected() ? 'Oura Ring connected — sleep and readiness sync nightly.' : 'Not connected. Connect a ring to sync sleep and readiness automatically.';
+    if (isOuraConnected()) ouraBtn.hidden = true;
+    ouraBtn?.addEventListener('click', async () => {
+      ouraBtn.disabled = true;
+      try { await startOuraConnect(); }
+      catch (err) { showToast(err.message || 'Oura is not available right now'); ouraBtn.disabled = false; }
+    });
+  } catch { ouraEl.textContent = 'Wearable status unavailable.'; }
+
+  // Notifications (preference lives in main.js; permission is the browser's)
+  const notifState = document.getElementById('notif-state');
+  const notifBtn = document.getElementById('notif-toggle');
+  const renderNotif = () => {
+    const enabled = localStorage.getItem('vitallens_notifications_enabled') !== 'false';
+    const perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+    if (perm === 'unsupported') { notifState.textContent = 'Not supported in this browser.'; notifBtn.hidden = true; return; }
+    if (perm === 'denied') { notifState.textContent = 'Blocked in your browser settings.'; notifBtn.hidden = true; return; }
+    const on = enabled && perm === 'granted';
+    notifState.textContent = on ? 'Reminders are on.' : 'Reminders are off.';
+    notifBtn.textContent = on ? 'Turn off' : 'Turn on';
+  };
+  renderNotif();
+  window.addEventListener('vitallens:notifications:state', renderNotif);
+  notifBtn?.addEventListener('click', () => window.dispatchEvent(new CustomEvent('vitallens:notifications:toggle')));
+
+  // Two-factor authentication
+  const mfaEl = document.getElementById('mfa-section');
+  async function renderMfa() {
+    try {
+      const { data } = await supabase.auth.mfa.listFactors();
+      const verified = (data?.totp || []).find(f => f.status === 'verified');
+      if (verified) {
+        mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Two-factor authentication is on.</span><button type="button" class="btn btn-sm" id="mfa-off">Turn off</button></div>`;
+        document.getElementById('mfa-off')?.addEventListener('click', async () => {
+          if (!confirm('Turn off two-factor authentication?')) return;
+          const { error } = await supabase.auth.mfa.unenroll({ factorId: verified.id });
+          if (error) return showToast(error.message);
+          showToast('Two-factor turned off'); renderMfa();
+        });
+        return;
+      }
+      mfaEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);"><span class="disclaimer">Add an authenticator app for a second sign-in step.</span><button type="button" class="btn btn-sm" id="mfa-enroll">Set up</button></div>`;
+      document.getElementById('mfa-enroll')?.addEventListener('click', async () => {
+        const { data: enroll, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'VitalLens' });
+        if (error || !enroll) return showToast(error?.message || 'Could not start enrolment');
+        mfaEl.innerHTML = `
+          <p class="disclaimer">Scan this with Google Authenticator, Authy, or 1Password, then enter the 6-digit code.</p>
+          <img src="${enroll.totp.qr_code}" alt="QR code for your authenticator app" style="width:160px;height:160px;margin:var(--space-3) auto;display:block;">
+          <label for="mfa-code" class="visually-hidden">6-digit code</label>
+          <input class="input-field" id="mfa-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6">
+          <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+            <button type="button" class="btn btn-sm btn-glass" id="mfa-verify">Verify</button>
+            <button type="button" class="btn btn-sm" id="mfa-cancel">Cancel</button>
+          </div>`;
+        document.getElementById('mfa-cancel')?.addEventListener('click', async () => { await supabase.auth.mfa.unenroll({ factorId: enroll.id }).catch(() => {}); renderMfa(); });
+        document.getElementById('mfa-verify')?.addEventListener('click', async () => {
+          const code = document.getElementById('mfa-code')?.value.trim();
+          if (!code) return;
+          const { data: ch } = await supabase.auth.mfa.challenge({ factorId: enroll.id });
+          const { error: vErr } = await supabase.auth.mfa.verify({ factorId: enroll.id, challengeId: ch?.id, code });
+          if (vErr) return showToast('That code didn\'t match — try again.');
+          showToast('Two-factor authentication is on'); renderMfa();
+        });
+      });
+    } catch { mfaEl.innerHTML = '<span class="disclaimer">Two-factor status unavailable.</span>'; }
+  }
+  renderMfa();
+
+  // Export
+  document.getElementById('export-data-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Preparing…';
+    try {
+      const res = await apiFetch(`/api/user-data/export?userId=${encodeURIComponent(userId)}`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vitallens-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(a.href);
+      showToast('Your data export has downloaded');
+    } catch (err) { showToast(err.message || 'Export failed'); }
+    finally { btn.disabled = false; btn.textContent = 'Export my data'; }
+  });
+
+  // Delete
+  document.getElementById('delete-account-btn')?.addEventListener('click', () => {
+    const box = document.getElementById('delete-confirm'); box.hidden = !box.hidden;
+    if (!box.hidden) document.getElementById('delete-email')?.focus();
+  });
+  document.getElementById('delete-account-confirm')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget; const confirmEmail = document.getElementById('delete-email')?.value.trim();
+    if (!confirmEmail) return showToast('Type your email to confirm');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const res = await apiFetch('/api/user-data/delete', { method: 'DELETE', body: JSON.stringify({ userId, confirmEmail }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Deletion failed');
+      showToast('Your account and data have been deleted');
+      const { signOut } = await import('./auth.js');
+      setTimeout(signOut, 800);
+    } catch (err) { showToast(err.message); btn.disabled = false; btn.textContent = 'Permanently delete'; }
+  });
+}

@@ -68,17 +68,11 @@ async function requestNotificationPermission() {
 }
 
 async function initializeNotificationPreferences() {
-  createNotificationWidget();
-
-  const permissionGranted = await requestNotificationPermission();
-  if (permissionGranted) {
-    setNotificationPreference(true);
-  } else if (!hasNotificationPermissionBeenRequested()) {
-    setNotificationPreference(false);
-  }
-
+  // Never prompt for permission at boot. The Profile page asks in context,
+  // after the user has opted in. Here we only honour an existing grant.
+  const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
   updateNotificationToggle();
-  return permissionGranted && getNotificationPreference();
+  return granted && getNotificationPreference();
 }
 
 // Listen for profile-driven notification changes
@@ -93,7 +87,7 @@ window.addEventListener('vitallens:notifications:changed', async (e) => {
         if (!granted) { showToast('Notification permission not granted'); return; }
       }
       const session = await getSession();
-      const userId = session?.userId || localStorage.getItem('vitallens_user_id');
+      const userId = session?.user?.id;
       if (userId) setupNotificationTriggers(userId);
       showToast('Notifications enabled');
     } else {
@@ -118,46 +112,12 @@ async function showNotification(title, options = {}) {
   }
 }
 
-function createNotificationWidget() {
-  if (document.getElementById(NOTIFICATION_WIDGET_ID)) return;
-
-  const widget = document.createElement('div');
-  widget.id = NOTIFICATION_WIDGET_ID;
-  widget.style.cssText = `position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,0.12);background:var(--surface-1);color:var(--text-primary);font-size:13px;max-width:220px;`;
-  widget.innerHTML = `
-    <button id="notification-toggle-btn" style="border:none;outline:none;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;">On</button>
-    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
-      <span style="font-weight:700;line-height:1.1;">Notifications</span>
-      <span id="notification-widget-status" style="font-size:11px;color:var(--text-secondary);line-height:1.2;">Enabled</span>
-    </div>
-  `;
-
-  document.body.appendChild(widget);
-  widget.querySelector('#notification-toggle-btn')?.addEventListener('click', handleNotificationToggle);
-  updateNotificationToggle();
-}
-
 function updateNotificationToggle() {
-  const enabled = getNotificationPreference();
-  const button = document.querySelector('#notification-toggle-btn');
-  const status = document.querySelector('#notification-widget-status');
-  if (!button || !status) return;
-
-  if (Notification.permission === 'denied') {
-    button.textContent = 'Blocked';
-    button.style.background = 'rgba(251, 113, 133, 0.18)';
-    button.style.color = 'var(--accent-coral)';
-    status.textContent = 'Permission denied';
-    status.style.color = 'var(--accent-coral)';
-    return;
-  }
-
-  button.textContent = enabled ? 'On' : 'Off';
-  button.style.background = enabled ? 'rgba(16, 185, 129, 0.18)' : 'rgba(148, 163, 184, 0.18)';
-  button.style.color = enabled ? 'var(--accent-green)' : 'var(--text-secondary)';
-  status.textContent = enabled ? 'Enabled' : 'Disabled';
-  status.style.color = enabled ? 'var(--accent-green)' : 'var(--text-secondary)';
+  // Preference is shown/controlled from the Profile page (event below).
+  window.dispatchEvent(new CustomEvent('vitallens:notifications:state', { detail: { enabled: getNotificationPreference(), permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported' } }));
 }
+
+window.addEventListener('vitallens:notifications:toggle', () => { handleNotificationToggle(); });
 
 async function handleNotificationToggle() {
   const enabled = getNotificationPreference();
@@ -178,7 +138,7 @@ async function handleNotificationToggle() {
     setNotificationPreference(true);
     showToast('Notifications enabled');
     const session = await getSession();
-    const userId = session?.userId || localStorage.getItem('vitallens_user_id');
+    const userId = session?.user?.id;
     if (userId) setupNotificationTriggers(userId);
   } else {
     setNotificationPreference(false);
@@ -435,11 +395,12 @@ function initNav() {
     { route: '/health-chat', icon: icons.sparkle, label: 'AI Chat' },
   ];
 
+  nav.setAttribute('aria-label', 'Primary');
   nav.innerHTML = items.map(item => `
-    <div class="nav-item${item.route === '/' ? ' active' : ''}" data-route="${item.route}">
+    <button type="button" class="nav-item${item.route === '/' ? ' active' : ''}" data-route="${item.route}" aria-label="${item.label}" aria-current="${item.route === '/' ? 'page' : 'false'}">
       ${item.icon}
       <span>${item.label}</span>
-    </div>
+    </button>
   `).join('');
 
   nav.querySelectorAll('.nav-item').forEach(navItem => {
@@ -457,10 +418,9 @@ async function init() {
   }
 
   initNav();
-  createNotificationWidget();
 
   const notificationReady = await initializeNotificationPreferences();
-  const userId = session?.userId || localStorage.getItem('vitallens_user_id');
+  const userId = session?.user?.id;
   if (userId && notificationReady) {
     setupNotificationTriggers(userId);
   }

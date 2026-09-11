@@ -48,9 +48,9 @@ const TCM_DB = {
   squash:         { thermal: 'warm',    moisture: 'neutral', flavor: 'sweet',   organ: 'spleen',  action: 'tonifies Qi, resolves dampness, warms middle' },
   zucchini:       { thermal: 'cool',    moisture: 'neutral', flavor: 'sweet',   organ: 'spleen',  action: 'clears heat, promotes diuresis' },
   onion:          { thermal: 'warm',    moisture: 'dry',     flavor: 'pungent', organ: 'lung',    action: 'disperses cold, promotes Qi circulation' },
-  garlic:         { thermal: 'hot',     moisture: 'dry',     flavor: 'pungent', organ: 'lung',    action: 'disperses cold, kills pathogens, warms Yang' },
+  garlic:         { thermal: 'hot',     moisture: 'dry',     flavor: 'pungent', organ: 'lung',    action: 'traditionally considered warming and dispersing' },
   ginger:         { thermal: 'hot',     moisture: 'dry',     flavor: 'pungent', organ: 'lung',    action: 'warms middle, disperses cold, stops nausea' },
-  celery:         { thermal: 'cool',    moisture: 'neutral', flavor: 'sweet',   organ: 'liver',   action: 'calms Liver Yang, clears heat, lowers BP' },
+  celery:         { thermal: 'cool',    moisture: 'neutral', flavor: 'sweet',   organ: 'liver',   action: 'traditionally considered cooling and calming' },
   asparagus:      { thermal: 'cool',    moisture: 'moist',   flavor: 'sweet',   organ: 'lung',    action: 'nourishes Yin, moistens Lung, clears heat' },
   'bell pepper':  { thermal: 'warm',    moisture: 'neutral', flavor: 'sweet',   organ: 'spleen',  action: 'moves Qi, warms middle burner' },
   // ── Grains ──
@@ -85,7 +85,7 @@ const TCM_DB = {
   'hot sauce':    { thermal: 'hot',     moisture: 'dry',     flavor: 'pungent', organ: 'lung',    action: 'disperses cold, moves Qi, opens pores' },
   // ── Nuts & Seeds ──
   walnuts:        { thermal: 'warm',    moisture: 'neutral', flavor: 'sweet',   organ: 'kidney',  action: 'tonifies Kidney Yang, warms Lung, benefits brain' },
-  almonds:        { thermal: 'neutral', moisture: 'moist',   flavor: 'sweet',   organ: 'lung',    action: 'moistens Lung, stops cough, lubricates intestines' },
+  almonds:        { thermal: 'neutral', moisture: 'moist',   flavor: 'sweet',   organ: 'lung',    action: 'traditionally considered moistening' },
   sesame:         { thermal: 'neutral', moisture: 'moist',   flavor: 'sweet',   organ: 'liver',   action: 'nourishes Liver and Kidney, moistens dryness' },
   // ── Mushrooms (specific) ──
   "lion's mane":  { thermal: 'neutral', moisture: 'neutral', flavor: 'sweet',   organ: 'spleen',  action: 'tonifies Qi, nourishes Heart and Spleen, calms mind' },
@@ -1732,8 +1732,9 @@ async function checkNutritionalGaps() {
     const gaps = [];
 
     // Fetch personalized targets from health profile
-    let targets = { calories: 2000, protein: 120, fiber: 25, fat: 65 };
+    let targets = null; // only real targets from the user's profile — never a placeholder
     let activeSupplements = [];
+    let todayMealText = '';
 
     try {
       const { supabase } = await import('../lib/supabase.js');
@@ -1745,19 +1746,22 @@ async function checkNutritionalGaps() {
         ]);
         if (profileRes.ok) {
           const { profile } = await profileRes.json();
-          if (profile) {
-            targets.calories = profile.target_calories || targets.calories;
-            targets.protein = profile.target_protein || targets.protein;
-            targets.fiber = profile.target_fiber || targets.fiber;
-            targets.fat = profile.target_fat || targets.fat;
+          if (profile?.target_calories) {
+            targets = { calories: profile.target_calories, protein: profile.target_protein || 0, fiber: profile.target_fiber || 0, fat: profile.target_fat || 0 };
           }
         }
         if (suppRes.ok) {
           const { supplements } = await suppRes.json();
           activeSupplements = supplements || [];
         }
+        try {
+          const { meals } = await import('../lib/db.js');
+          const todays = await meals.getToday?.();
+          todayMealText = (todays || []).map(m => (m.name || '').toLowerCase()).join(' | ');
+        } catch { /* no meals yet */ }
       }
-    } catch (e) { /* use defaults */ }
+    } catch (e) { /* no profile → no targets */ }
+    if (!targets) return; // nothing to compare against — say nothing rather than guess
 
     // Supplement nutrient coverage map
     const SUPP_COVERS = {
@@ -1800,9 +1804,8 @@ async function checkNutritionalGaps() {
     const interactionWarnings = [];
     INTERACTION_RISKS.forEach(({ supplement, foodPatterns, risk }) => {
       const takingSupp = activeSupplements.some(s => s.name.toLowerCase().includes(supplement));
-      if (takingSupp) {
-        // Check recent meals for conflicting foods
-        // We'll flag based on known corrections and supplement names
+      const conflictingFoodToday = foodPatterns.some(p => todayMealText.includes(p));
+      if (takingSupp && conflictingFoodToday) {
         interactionWarnings.push({ supplement, risk });
       }
     });

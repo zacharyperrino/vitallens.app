@@ -2214,3 +2214,13 @@ select.input-field {
 .animate-slide-in-left {
     animation: slideInLeft 0.3s ease-out both;
 }
+
+/* ── Touch-target floor (WCAG 2.5.8): 44px minimum for every tappable control ── */
+.nav-item, .tab-item, .btn, .btn-sm, .btn-glass, .mode-btn, .chat-send-btn, .chat-clear-btn,
+.chat-chip, .see-all, .quick-action, .oura-connect-btn, .memory-quick-log, .condition-toggle {
+    min-height: 44px;
+}
+.see-all { display: inline-flex; align-items: center; padding: 0 var(--space-2); }
+.toggle { min-width: 44px; min-height: 26px; }
+.nav-item { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
+.nav-item[aria-current="page"] { color: var(--accent); }

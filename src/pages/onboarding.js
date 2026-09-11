@@ -27,8 +27,6 @@ const ACTIVITY_OPTIONS = [
 
 export async function renderOnboarding() {
   const content = document.getElementById('page-content');
-  const nav = document.getElementById('bottom-nav');
-  if (nav) nav.style.display = 'none';
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) { window.location.hash = '#/auth'; return; }

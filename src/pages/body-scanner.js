@@ -889,8 +889,8 @@ function renderBodyResults(r, m) {
       <h4 style="margin-bottom:var(--space-3);">Muscle Imbalance</h4>
       <div style="display:flex;flex-direction:column;gap:var(--space-2);">
         ${[
-          { label: 'Upper Crossed Syndrome', value: r.muscle_imbalance.upper_crossed_syndrome },
-          { label: 'Lower Crossed Syndrome', value: r.muscle_imbalance.lower_crossed_syndrome },
+          { label: 'Forward head / rounded shoulders', value: r.muscle_imbalance.upper_crossed_syndrome },
+          { label: 'Pelvic tilt pattern', value: r.muscle_imbalance.lower_crossed_syndrome },
           { label: 'Dominant Side', value: r.muscle_imbalance.dominant_side_hypertrophy },
           { label: 'Leg Length Diff.', value: r.muscle_imbalance.apparent_leg_length_difference },
         ].filter(i => i.value && i.value !== 'none' && i.value !== 'cannot_assess').map(item => `
@@ -930,7 +930,7 @@ function renderBodyResults(r, m) {
           <div style="font-size:var(--text-sm);font-weight:600;">${(r.body_composition.muscle_development || '—').replace(/_/g, ' ')}</div>
         </div>
         <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Android Pattern</div>
+          <div style="font-size:10px;color:var(--text-tertiary);">Upper-body weight pattern</div>
           <div style="font-size:var(--text-sm);font-weight:600;color:${r.body_composition.android_pattern_present ? 'var(--accent-amber)' : 'var(--accent-green)'};">${r.body_composition.android_pattern_present ? 'Present' : 'Not detected'}</div>
         </div>
       </div>
@@ -1037,7 +1037,7 @@ function renderBodyResults(r, m) {
           <div style="font-size:var(--text-sm);font-weight:600;">${r.body_composition.muscle_definition}</div>
         </div>
         <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);">
-          <div style="font-size:10px;color:var(--text-tertiary);">Central Adiposity</div>
+          <div style="font-size:10px;color:var(--text-tertiary);">Midsection pattern</div>
           <div style="font-size:var(--text-sm);font-weight:600;color:${r.body_composition.central_adiposity_present ? 'var(--accent-amber)' : 'var(--accent-green)'};">${r.body_composition.central_adiposity_present ? 'Present' : 'Not detected'}</div>
         </div>
       </div>
@@ -1162,7 +1162,7 @@ function getHRInterpretation(hr) {
   if (hr < 80) return 'Your resting pulse reading is in a typical range.';
   if (hr < 100) return 'Your resting pulse reading is in a typical range for most adults.';
   if (hr < 120) return 'Slightly elevated. Could indicate recent activity, stress, caffeine, or dehydration.';
-  return 'Elevated heart rate. Monitor stress, hydration, and caffeine. Seek medical advice if persistent at rest.';
+  return 'Higher than a typical resting range. Camera-based estimates are rough — a proper device is more reliable if you are curious.';
 }
 
 // ═══════════════════════════════════════════════════

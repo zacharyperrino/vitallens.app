@@ -2,9 +2,10 @@
 import { icons } from '../icons.js';
 import { createRingProgress, createLineChart } from '../utils/charts.js';
 import { computeHealthScore, getHealthInsights } from '../utils/health-score.js';
-import { isOuraConnected } from '../utils/oura.js';
+import { isOuraConnected, refreshOuraStatus } from '../utils/oura.js';
 import { profile, dailyNutrition, meals, bodyScans, sleepLog, exerciseLog, habits, getUserId } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
+import { apiFetch } from '../utils/api.js';
 
 export async function renderDashboard() {
   const content = document.getElementById('page-content');
@@ -14,7 +15,7 @@ export async function renderDashboard() {
     </div>`;
 
   try {
-    const [profileData, nutrition, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weeklyScoreRecords] = await Promise.all([
+    const [profileData, nutrition, recentMeals, recentBodyScans, recentSleep, recentExercise, habitsToday, weeklyScoreRecords, mealsForStreak, exerciseForStreak, sleepForStreak, targets] = await Promise.all([
       profile.get(),
       dailyNutrition.get(),
       meals.getRecent(5),
@@ -23,6 +24,11 @@ export async function renderDashboard() {
       exerciseLog.getRecent(5),
       habits.getToday?.(),
       getWeeklyScores(),
+      meals.getRecent(90),      // streaks need a real window, not the 5 most recent rows
+      exerciseLog.getRecent(90),
+      sleepLog.getRecent(90),
+      fetchTargets(),
+      getUserId().then(refreshOuraStatus).catch(() => false),
     ]);
 
     const weeklyScores = Array.isArray(weeklyScoreRecords)
@@ -42,16 +48,16 @@ export async function renderDashboard() {
     const insights = getHealthInsights(healthPayload);
     const greeting = getGreeting();
     const name = profileData?.name || 'Explorer';
-    const latestReadiness = isOuraConnected() ? '--' : '--';
-    const latestSleepScore = recentSleep?.[0]?.quality || '--';
-    const calorieGoal = profileData?.calorieTarget || 2200;
-    const proteinGoal = profileData?.proteinTarget || 120;
-    const carbsGoal = profileData?.carbsTarget || 250;
-    const fatGoal = profileData?.fatTarget || 75;
+    const latestSleepScore = recentSleep?.[0]?.quality || null;
+    // Targets come from health_profile (set in onboarding/Profile). No target = no fake goal.
+    const calorieGoal = Number(targets?.target_calories) || null;
+    const proteinGoal = Number(targets?.target_protein) || null;
+    const carbsGoal = Number(targets?.target_carbs) || null;
+    const fatGoal = Number(targets?.target_fat) || null;
     const streaks = {
-      logging: calculateStreak(recentMeals.map((item) => item.logged_at || item.date || item.created_at)),
-      exercise: calculateStreak(recentExercise.map((item) => item.date)),
-      sleep: calculateStreak(recentSleep.map((item) => item.date)),
+      logging: calculateStreak((mealsForStreak || []).map((item) => item.logged_at || item.date || item.created_at)),
+      exercise: calculateStreak((exerciseForStreak || []).map((item) => item.date || item.logged_at)),
+      sleep: calculateStreak((sleepForStreak || []).map((item) => item.date)),
     };
     const latestBodyScan = recentBodyScans[0] || null;
     const latestSleep = recentSleep[0] || null;
@@ -72,25 +78,30 @@ export async function renderDashboard() {
           </div>
         </div>
 
-        <!-- Health Score Ring -->
+        <!-- Wellness Score Ring — only rendered from logged data -->
+        ${health.state === 'ok' ? `
         <div class="card card-glow" style="text-align:center;padding:var(--space-6);">
-          <div class="health-ring" style="margin:0 auto var(--space-4);">
+          <div class="health-ring" style="margin:0 auto var(--space-4);" role="img" aria-label="Wellness score ${health.overall} out of 100">
             ${createRingProgress(health.overall, 100, 160, 10)}
             <div class="ring-label">
               <div class="ring-score text-gradient">${health.overall}</div>
-              <div class="ring-text">Health Score</div>
+              <div class="ring-text">Wellness Score</div>
             </div>
           </div>
           <div style="display:flex;justify-content:center;gap:var(--space-4);flex-wrap:wrap;">
-            <div class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-coral'}">
+            <div class="badge ${health.trend >= 0 ? 'badge-green' : 'badge-amber'}">
               ${health.trend >= 0 ? icons.trending : icons.trendingDown}
               <span>${health.trend >= 0 ? '+' : ''}${health.trend} this week</span>
             </div>
-            <div class="badge badge-purple">
-              <span>Grade: ${health.grade}</span>
-            </div>
+            <div class="badge badge-purple"><span>Grade: ${health.grade}</span></div>
           </div>
-        </div>
+          <p class="disclaimer" style="margin-top:var(--space-3);">Based on ${health.domainsLogged.length} logged areas. A wellness reflection, not a medical measure.</p>
+        </div>` : `
+        <div class="card" style="text-align:center;padding:var(--space-6);">
+          <h3 style="margin-bottom:var(--space-2);">Your wellness score appears after a little logging</h3>
+          <p class="disclaimer">Log at least two areas — for example a meal and a night of sleep — and your score will be computed from your own data. Nothing here is estimated or made up.</p>
+          <button type="button" class="btn btn-glass" style="margin-top:var(--space-4);" data-route="/food-scanner">Log your first meal</button>
+        </div>`}
 
         <!-- Quick Stats Row -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-6);">
@@ -106,25 +117,21 @@ export async function renderDashboard() {
             </div>
           </div>
 
-          <!-- Oura Hub Card -->
-          <div class="card card-sm oura-card" style="margin-bottom:0;" onclick="location.hash='#/profile'">
+          <!-- Sleep / wearable card — shows logged sleep quality; wearable sync lives in Profile -->
+          <div class="card card-sm oura-card" style="margin-bottom:0;">
             <div class="oura-hub-header">
-              <div class="oura-ring-icon">${icons.ring}</div>
-              <div class="oura-sync-status">${isOuraConnected() ? 'Synced' : 'Off'}</div>
+              <div class="oura-ring-icon">${icons.moon}</div>
+              <div class="oura-sync-status">${isOuraConnected() ? 'Wearable synced' : 'Last night'}</div>
             </div>
-            ${isOuraConnected() ? `
+            ${latestSleepScore ? `
               <div class="oura-scores-grid">
                 <div class="oura-score-item">
-                  <div class="oura-score-value">${latestReadiness}</div>
-                  <div class="oura-score-label">Readiness</div>
-                </div>
-                <div class="oura-score-item">
                   <div class="oura-score-value">${latestSleepScore}</div>
-                  <div class="oura-score-label">Sleep</div>
+                  <div class="oura-score-label">Sleep quality</div>
                 </div>
               </div>
             ` : `
-              <button class="oura-connect-btn">Connect Oura</button>
+              <button type="button" class="oura-connect-btn" data-route="/health-input">Log last night's sleep</button>
             `}
           </div>
         </div>
@@ -172,12 +179,16 @@ export async function renderDashboard() {
             ${renderMacro('Carbs', nutrition.carbs, carbsGoal, 'g', 'var(--text-primary)')}
             ${renderMacro('Fat', nutrition.fat, fatGoal, 'g', 'var(--text-primary)')}
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width:${Math.min(100, Math.round((nutrition.calories / calorieGoal) * 100))}%"></div>
+          ${calorieGoal ? `
+          <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${calorieGoal}" aria-valuenow="${Math.round(nutrition.calories || 0)}" aria-label="Calories today">
+            <div class="progress-fill" style="width:${Math.min(100, Math.round(((nutrition.calories || 0) / calorieGoal) * 100))}%"></div>
           </div>
-          <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-2);text-align:center;">
-            ${Math.max(0, calorieGoal - nutrition.calories)} kcal remaining today
-          </p>
+          <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+            ${Math.max(0, calorieGoal - (nutrition.calories || 0))} kcal remaining of your ${calorieGoal} target
+          </p>` : `
+          <p style="font-size:var(--text-sm);color:var(--text-secondary);margin-top:var(--space-2);text-align:center;">
+            <a href="#/profile" style="color:var(--accent);">Set your targets in Profile</a> to see progress toward them.
+          </p>`}
         </div>
 
         <!-- Health Trend -->
@@ -251,6 +262,18 @@ export async function renderDashboard() {
   }
 }
 
+async function fetchTargets() {
+  try {
+    const userId = await getUserId();
+    const res = await apiFetch(`/api/health-profile?userId=${encodeURIComponent(userId)}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.profile || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getWeeklyScores() {
   try {
     const userId = await getUserId();
@@ -258,14 +281,14 @@ async function getWeeklyScores() {
       .from('weekly_scores')
       .select('score,date')
       .eq('user_id', userId)
-      .order('date', { ascending: true })
+      .order('date', { ascending: false })
       .limit(7);
 
     if (error) {
       console.warn('[Dashboard] weekly_scores query failed', error.message);
       return [];
     }
-    return data || [];
+    return (data || []).reverse();
   } catch (error) {
     console.warn('[Dashboard] weekly_scores fallback', error.message);
     return [];

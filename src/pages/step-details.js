@@ -1,88 +1,106 @@
-// Step Details page — timeframe analysis of step data
-import { store } from '../store.js';
+// Step details — real step counts from the user's daily habit log.
+// Steps are entered manually (Log → Habits) or arrive via a wearable sync.
+// Nothing here is estimated: if a day has no entry, it shows as no entry.
 import { icons } from '../icons.js';
-import { syncSteps } from '../utils/apple-health.js';
+import { supabase } from '../lib/supabase.js';
+import { getUserId } from '../lib/db.js';
 import { createSparkline } from '../utils/charts.js';
+import { esc } from '../utils/esc.js';
 
-let currentView = 'weekly'; // daily, weekly, monthly
+const GOAL = 10000;
+let currentView = 'weekly';
 
-export function renderStepDetails() {
+export async function renderStepDetails() {
     const content = document.getElementById('page-content');
-    const stepHistory = store.get('stepHistory') || [];
-    const healthConfig = store.get('healthKit') || {};
-    const goal = healthConfig.goal || 10000;
+    content.innerHTML = `<div class="step-details"><div class="card" style="text-align:center;padding:var(--space-8);"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
 
-    const todaySteps = stepHistory[0]?.value || 0;
-    const progress = Math.min((todaySteps / goal) * 100, 100);
+    let history = [];
+    let loadError = null;
+    try {
+        const userId = await getUserId();
+        const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+        const { data, error } = await supabase
+            .from('habits')
+            .select('date, steps')
+            .eq('user_id', userId)
+            .gte('date', since)
+            .not('steps', 'is', null)
+            .order('date', { ascending: false });
+        if (error) throw error;
+        history = (data || []).map(r => ({ date: r.date, value: Number(r.steps) || 0 }));
+    } catch (err) {
+        loadError = err;
+    }
+
+    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const today = history.find(h => h.date === todayStr);
+    const todaySteps = today ? today.value : null;
+    const progress = todaySteps == null ? 0 : Math.min((todaySteps / GOAL) * 100, 100);
 
     content.innerHTML = `
     <div class="step-details stagger-children">
       <div class="page-header">
         <div style="display:flex;align-items:center;gap:var(--space-3);">
-          <div class="back-btn" id="steps-back">${icons.chevronRight ? icons.chevronRight : '‹'}</div>
+          <button type="button" class="back-btn" id="steps-back" aria-label="Back to home">${icons.chevronRight}</button>
           <h1>Steps</h1>
         </div>
-        <button class="btn btn-sm btn-outline sync-btn" id="sync-steps">
-          ${icons.refresh} Sync
-        </button>
+        <a class="btn btn-sm btn-outline" href="#/health-input">${icons.plus} Log steps</a>
       </div>
+
+      ${loadError ? `
+      <div class="card" role="alert">
+        <p style="color:var(--error);margin:0;">Couldn't load your step history. ${esc(loadError.message || '')}</p>
+        <button type="button" class="btn btn-sm" id="steps-retry" style="margin-top:var(--space-3);">Try again</button>
+      </div>` : ''}
 
       <div class="card step-summary-card">
         <div class="step-large-display">
-          <div class="step-count">${todaySteps.toLocaleString()}</div>
-          <div class="step-label">Steps Today</div>
+          <div class="step-count">${todaySteps == null ? '—' : todaySteps.toLocaleString()}</div>
+          <div class="step-label">${todaySteps == null ? 'No steps logged today' : 'Steps today'}</div>
         </div>
-        <div class="step-progress-container">
-          <div class="step-progress-bar" style="width: ${progress}%"></div>
+        <div class="step-progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="${GOAL}" aria-valuenow="${todaySteps ?? 0}" aria-label="Progress toward daily step goal">
+          <div class="step-progress-bar" style="width:${progress}%"></div>
         </div>
         <div class="step-goal-info">
-          <span>Goal: ${goal.toLocaleString()}</span>
-          <span>${Math.round(progress)}%</span>
+          <span>Goal: ${GOAL.toLocaleString()}</span>
+          <span>${todaySteps == null ? '' : Math.round(progress) + '%'}</span>
         </div>
       </div>
 
-      <div class="tab-bar">
-        <div class="tab-item ${currentView === 'daily' ? 'active' : ''}" data-view="daily">Daily</div>
-        <div class="tab-item ${currentView === 'weekly' ? 'active' : ''}" data-view="weekly">Weekly</div>
-        <div class="tab-item ${currentView === 'monthly' ? 'active' : ''}" data-view="monthly">Monthly</div>
+      <div class="tab-bar" role="tablist" aria-label="Step history range">
+        ${['weekly', 'monthly'].map(v => `<button type="button" role="tab" class="tab-item ${currentView === v ? 'active' : ''}" aria-selected="${currentView === v}" data-view="${v}">${v === 'weekly' ? 'Last 7 days' : 'Last 30 days'}</button>`).join('')}
       </div>
 
       <div class="card chart-card">
-        <canvas id="steps-chart" style="width: 100%; height: 200px;"></canvas>
+        ${history.length ? `<canvas id="steps-chart" style="width:100%;height:200px;" role="img" aria-label="Step counts over the selected range"></canvas>`
+                         : `<div class="empty-state"><p>No step entries yet. Log today's steps from the Habits tab and they will appear here.</p></div>`}
       </div>
 
-      <div class="section-heading">
-        <h3>History</h3>
-      </div>
-      <div class="step-history-list">
-        ${renderHistoryList(stepHistory)}
-      </div>
+      <div class="section-heading"><h3>History</h3></div>
+      <div class="step-history-list">${renderHistoryList(history)}</div>
     </div>`;
 
-    setupStepHandlers();
-    renderChart(stepHistory);
+    document.getElementById('steps-back')?.addEventListener('click', () => { window.location.hash = '#/'; });
+    document.getElementById('steps-retry')?.addEventListener('click', () => renderStepDetails());
+    document.querySelectorAll('.tab-item[data-view]').forEach(tab => {
+        tab.addEventListener('click', () => { currentView = tab.dataset.view; renderStepDetails(); });
+    });
+    renderChart(history);
 }
 
 function renderHistoryList(history) {
-    if (!history || history.length === 0) {
-        return `<div class="card" style="text-align:center;padding:var(--space-8);">No history available</div>`;
-    }
-
+    if (!history.length) return '';
     return history.map(item => {
-        const date = new Date(item.date);
+        const date = new Date(item.date + 'T00:00:00');
         const day = date.toLocaleDateString([], { weekday: 'short' });
         const label = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const pct = Math.min((item.value / 10000) * 100, 100);
-
+        const pct = Math.min((item.value / GOAL) * 100, 100);
         return `
         <div class="card card-sm step-history-item">
-          <div class="step-history-date">
-            <span class="day">${day}</span>
-            <span class="date">${label}</span>
-          </div>
+          <div class="step-history-date"><span class="day">${day}</span><span class="date">${label}</span></div>
           <div class="step-history-value">
             <span class="count">${item.value.toLocaleString()}</span>
-            <div class="mini-progress"><div style="width:${pct}%"></div></div>
+            <div class="mini-progress" aria-hidden="true"><div style="width:${pct}%"></div></div>
           </div>
         </div>`;
     }).join('');
@@ -90,48 +108,8 @@ function renderHistoryList(history) {
 
 function renderChart(history) {
     const canvas = document.getElementById('steps-chart');
-    if (!canvas) return;
-
-    let dataPoints = [];
-    if (currentView === 'daily') {
-        dataPoints = history.slice(0, 24).reverse().map(h => h.value); // Usually we'd want hourly here
-    } else if (currentView === 'weekly') {
-        dataPoints = history.slice(0, 7).reverse().map(h => h.value);
-    } else {
-        dataPoints = history.slice(0, 30).reverse().map(h => h.value);
-    }
-
-    // Since our mock data is only daily, for "daily" view we'll just show last 7 days too for now
-    // In a real app we'd fetch hourly samples from HealthKit
-    createSparkline(canvas, dataPoints, {
-        color: '#2dd4bf',
-        fill: true,
-        points: true
-    });
-}
-
-function setupStepHandlers() {
-    document.getElementById('steps-back')?.addEventListener('click', () => {
-        window.location.hash = '/';
-    });
-
-    document.getElementById('sync-steps')?.addEventListener('click', async (e) => {
-        const btn = e.currentTarget;
-        btn.classList.add('loading');
-        try {
-            await syncSteps();
-            renderStepDetails();
-        } catch (err) {
-            alert('Sync failed: ' + err.message);
-        } finally {
-            btn.classList.remove('loading');
-        }
-    });
-
-    document.querySelectorAll('.tab-item').forEach(tab => {
-        tab.addEventListener('click', () => {
-            currentView = tab.dataset.view;
-            renderStepDetails();
-        });
-    });
+    if (!canvas || !history.length) return;
+    const n = currentView === 'weekly' ? 7 : 30;
+    const points = history.slice(0, n).reverse().map(h => h.value);
+    createSparkline(canvas, points, { color: '#6F8F6A', fill: true, points: true });
 }

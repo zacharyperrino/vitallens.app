@@ -44,6 +44,7 @@ export async function startBarcodeScanner(videoElement, onDetected) {
     }
 
     console.warn('[BarcodeScanner] BarcodeDetector API not available. Using manual entry fallback.');
+    import('./toast.js').then(({ showToast }) => showToast('Live barcode scanning isn\'t supported in this browser — type the barcode below instead.')).catch(() => {});
     return null;
 }
 
@@ -77,9 +78,9 @@ export function stopCamera(stream) {
  * Get score color for a given score value.
  */
 export function getScoreColor(score) {
-    if (score >= 75) return '#4CAF50';
-    if (score >= 50) return '#FFC107';
-    return '#F44336';
+    if (score >= 75) return 'var(--viz-green)';
+    if (score >= 50) return 'var(--viz-amber)';
+    return 'var(--error)';
 }
 
 /**

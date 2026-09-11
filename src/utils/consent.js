@@ -16,12 +16,14 @@ export async function isConsentComplete() {
     if (_consentComplete === true) return true;
     try {
         const res = await apiFetch('/api/consents/status');
-        if (!res.ok) return true; // don't trap the user on a transient failure
+        if (!res.ok) throw new Error(`Consent status unavailable (${res.status})`);
         const data = await res.json();
         _consentComplete = !!data.complete;
         return _consentComplete;
-    } catch {
-        return true;
+    } catch (err) {
+        // Fail closed: the router renders a retry screen. A transient error must
+        // never admit a user to a health app without a recorded consent.
+        throw err;
     }
 }
 

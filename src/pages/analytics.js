@@ -91,7 +91,7 @@ export async function renderAnalytics() {
 
     content.innerHTML = `
     <div class="analytics stagger-children">
-      <div class="page-header"><h1>Analytics</h1><p>Real data · 7-day trends · cross-domain view</p></div>
+      <div class="page-header"><h1>Analytics</h1><p>Trends and patterns from your own logs</p></div>
 
       
       <!-- Pattern Discovery Hero -->
@@ -235,61 +235,18 @@ export async function renderAnalytics() {
       </div>
     </div>`;
 mountReact(WellnessScoreCard, 'weekly-score-react', { userId });
-  setupAnalyticsHandlers(userId);
+    mountReact(PatternDiscoveryHero, 'pattern-hero-react', { userId });
+    mountReact(NutritionTracker, 'nutrition-tracker-react', { userId });
+    // Sections that render from the server on load (previously only reachable from their own buttons)
+    const weeklyEl = document.getElementById('weekly-report-section');
+    if (weeklyEl) weeklyEl.innerHTML = await renderWeeklyReportSection(userId);
+    setupAnalyticsHandlers(userId);
 
   } catch (err) {
     console.error('[Analytics]', err);
-    content.innerHTML = `<div class="analytics"><div class="page-header"><h1>Analytics</h1></div><div class="card"><p style="color:var(--text-secondary);">Failed to load analytics data. Make sure the server is running.</p></div></div>`;
+    content.innerHTML = `<div class="analytics"><div class="page-header"><h1>Analytics</h1></div><div class="empty-state" role="alert"><h3>Couldn't load your analytics</h3><p>Check your connection and try again. Your data is safe.</p><button type="button" class="btn btn-primary" id="analytics-retry">Try again</button></div></div>`;
+    document.getElementById('analytics-retry')?.addEventListener('click', () => renderAnalytics());
   }
-}
-
-async function renderPatternDiscoveryHero(userId) {
-  try {
-    const res = await apiFetch(`/api/correlate/latest?userId=${userId}&limit=8`);
-    if (!res.ok) return renderPatternDiscoveryEmpty();
-    const { correlations } = await res.json();
-    const meaningful = (correlations || []).filter(c => c.correlation_type !== 'summary' && c.confidence >= 0.6);
-    const summary = correlations?.find(c => c.correlation_type === 'summary');
-    if (meaningful.length === 0) return renderPatternDiscoveryEmpty();
-
-    const top = meaningful[0];
-    const domains = top.correlation_type?.split('-') || ['lifestyle', 'wellness'];
-    const domainA = domains[0]?.replace(/_/g, ' ') || 'lifestyle';
-    const domainB = domains[1]?.replace(/_/g, ' ') || 'wellness';
-    const directionColor = top.direction === 'positive' ? 'var(--accent-green)' : top.direction === 'negative' ? 'var(--accent-coral)' : 'var(--accent-teal)';
-    const directionIcon = top.direction === 'positive' ? '↑' : top.direction === 'negative' ? '↓' : '↔';
-    const strengthLabel = top.confidence >= 0.8 ? 'Consistent pattern' : top.confidence >= 0.5 ? 'Emerging pattern' : 'Early signal';
-
-    return `
-    <div style="background:linear-gradient(135deg,var(--surface-2) 0%,var(--surface-3) 100%);border-radius:var(--radius-lg);padding:var(--space-5);border:1px solid var(--border);position:relative;overflow:hidden;">
-      <div style="position:absolute;top:0;right:0;width:120px;height:120px;background:${directionColor};opacity:0.05;border-radius:50%;transform:translate(30px,-30px);"></div>
-      <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);">
-        <div style="width:8px;height:8px;border-radius:50%;background:${directionColor};"></div>
-        <div style="font-size:10px;font-weight:700;color:${directionColor};text-transform:uppercase;letter-spacing:0.1em;">${strengthLabel}</div>
-      </div>
-      <div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-2);text-transform:capitalize;">${domainA} ${domainB}</div>
-      <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);line-height:1.5;">${top.description}</div>
-      ${top.actionable ? `
-      <div style="padding:var(--space-2) var(--space-3);background:var(--surface-1);border-radius:var(--radius-md);border-left:3px solid ${directionColor};margin-bottom:var(--space-3);">
-        <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:2px;">Something to explore</div>
-        <div style="font-size:var(--text-xs);color:var(--text-secondary);">${top.actionable}</div>
-      </div>` : ''}
-      ${meaningful.length > 1 ? `
-      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3);">
-        ${meaningful.slice(1, 4).map(c => {
-          const parts = c.correlation_type?.split('-') || [];
-          const col = c.direction === 'positive' ? 'var(--accent-green)' : c.direction === 'negative' ? 'var(--accent-coral)' : 'var(--accent-amber)';
-          return `<div style="padding:var(--space-1) var(--space-2);background:var(--surface-1);border-radius:var(--radius-sm);border:1px solid var(--border);font-size:10px;color:var(--text-tertiary);">
-            <span style="color:${col};">●</span> ${parts[0]?.replace(/_/g, ' ')} ${parts[1]?.replace(/_/g, ' ')}
-          </div>`;
-        }).join('')}
-      </div>` : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:10px;color:var(--text-tertiary);font-style:italic;">Pattern observations · not medical advice</div>
-        <button id="refresh-patterns-btn" style="font-size:10px;color:var(--accent-teal);background:none;border:none;cursor:pointer;padding:0;">Run fresh analysis</button>
-      </div>
-    </div>`;
-  } catch { return renderPatternDiscoveryEmpty(); }
 }
 
 function renderPatternDiscoveryEmpty() {
@@ -319,7 +276,7 @@ async function renderPredictionsSection(userId) {
     return `
       <div class="card" style="border-left:3px solid ${trajColor};margin-bottom:var(--space-3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">Overall Direction</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">Recent direction, from your logs</div>
           <span style="font-size:10px;padding:1px 8px;border-radius:20px;background:${trajColor}22;color:${trajColor};font-weight:600;text-transform:capitalize;">${prediction.overall_trajectory}</span>
         </div>
         <div style="font-size:var(--text-xs);color:var(--text-secondary);">${prediction.trajectory_summary}</div>
@@ -333,12 +290,12 @@ async function renderPredictionsSection(userId) {
         <div class="card card-sm">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
             <div style="font-size:var(--text-xs);font-weight:600;">${t.metric}</div>
-            <span style="font-size:10px;color:${confColor(t.confidence)};">${t.confidence} confidence</span>
+            <span style="font-size:10px;color:${confColor(t.confidence)};">${t.confidence} data support</span>
           </div>
           <div style="display:flex;gap:var(--space-3);align-items:center;margin-bottom:4px;">
             <span style="font-size:10px;color:var(--text-tertiary);">Now: ${t.current_value}</span>
             <span style="color:var(--text-tertiary);">→</span>
-            <span style="font-size:10px;font-weight:600;color:${t.direction === 'improving' ? 'var(--accent-green)' : t.direction === 'declining' ? 'var(--accent-coral)' : 'var(--text-secondary)'};">7d: ${t.projected_7d}</span>
+            <span style="font-size:10px;font-weight:600;color:${t.direction === 'improving' ? 'var(--accent-green)' : t.direction === 'declining' ? 'var(--accent-coral)' : 'var(--text-secondary)'};">if this continues: ${t.projected_7d}</span>
           </div>
           ${t.worth_watching ? `<div style="font-size:10px;color:var(--accent-amber);">${t.worth_watching}</div>` : ''}
           ${t.alert ? `<div style="font-size:10px;color:var(--accent-amber);">${t.alert}</div>` : ''}
@@ -347,7 +304,8 @@ async function renderPredictionsSection(userId) {
       </div>` : ''}
 
       ${interventions.length > 0 ? `
-      <div style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Highest-Impact Suggestions For You</div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Suggestions based on your logs</div>
+      <p class="disclaimer" style="margin-bottom:var(--space-2);">Observations from your own entries — not medical advice.</p>
       <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3);">
         ${interventions.slice(0, 5).map(iv => `
         <div class="card card-sm">
@@ -529,20 +487,6 @@ function renderReportEmpty() {
 }
 
 function setupAnalyticsHandlers(userId) {
-  document.getElementById('refresh-patterns-btn')?.addEventListener('click', async () => {
-  const hero = document.getElementById('pattern-discovery-hero');
-  const correlationSection = document.getElementById('correlation-section');
-  hero.innerHTML = '<div style="text-align:center;padding:var(--space-6);"><div class="spinner" style="margin:0 auto;"></div></div>';
-  try {
-    const res = await apiFetch(`/api/correlate/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
-    if (!res.ok) throw new Error('Server error');
-    hero.innerHTML = await renderPatternDiscoveryHero(userId);
-    correlationSection.innerHTML = await renderCorrelationSection(userId);
-    setupAnalyticsHandlers(userId);
-  } catch (e) {
-    hero.innerHTML = renderPatternDiscoveryEmpty();
-  }
-});
   document.getElementById('run-predictions-btn')?.addEventListener('click', async () => {
     const btn = document.getElementById('run-predictions-btn');
     const section = document.getElementById('predictions-section');

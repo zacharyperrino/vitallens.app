@@ -5,6 +5,7 @@ import { apiFetch } from '../utils/api.js';
 
 
 import { showToast } from '../utils/toast.js';
+import { esc } from '../utils/esc.js';
 let activeTab = 'labs';
 let currentUserId = null;
 
@@ -26,6 +27,8 @@ export async function renderHealthInput() {
         <div class="tab-item" data-tab="background">Background</div>
         <div class="tab-item" data-tab="goals">Goals</div>
         <div class="tab-item" data-tab="env">Environ.</div>
+        <div class="tab-item" data-tab="medications">Meds</div>
+        <div class="tab-item" data-tab="cycle">Cycle</div>
       </div>
       <div id="health-tab-content"><div style="text-align:center;padding:var(--space-8);"><div class="spinner" style="margin:0 auto;"></div></div></div>
     </div>`;
@@ -55,6 +58,8 @@ async function renderTabContent() {
     background: renderBackground,
     goals: renderGoals,
     env: renderEnvironment,
+    medications: renderMedications,
+    cycle: renderCycle,
   };
 
   const html = await (renderers[activeTab] || renderLabs)();
@@ -135,7 +140,7 @@ async function renderLabs() {
             <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${l.panel_type || displayName}</div>
             <div style="font-size:var(--text-xs);color:var(--text-tertiary);">
               ${date}${markerCount > 1 ? ` • ${markerCount} markers` : ''}
-              ${hasAbnormal ? ' • <span style="color:var(--accent-coral);">Abnormal values</span>' : ''}
+              ${hasAbnormal ? ' • <span style="color:var(--accent-amber);">Outside the report\'s reference range</span>' : ''}
             </div>
           </div>
           <div style="text-align:right;">
@@ -275,13 +280,13 @@ async function renderSleep() {
           <div class="input-group"><label>Hours Slept</label><input class="input-field" type="number" step="0.5" id="sleep-hours" placeholder="7.5"></div>
           <div class="input-group"><label>Quality</label>
             <select class="input-field" id="sleep-quality">
-              <option>Poor</option><option>Fair</option><option selected>Good</option><option>Excellent</option>
+              <option value="" selected disabled>Select…</option><option>Poor</option><option>Fair</option><option>Good</option><option>Excellent</option>
             </select>
           </div>
         </div>
         <div class="grid-2">
-          <div class="input-group"><label>Bedtime</label><input class="input-field" type="time" id="sleep-bedtime" value="22:30"></div>
-          <div class="input-group"><label>Wake Time</label><input class="input-field" type="time" id="sleep-wake" value="06:30"></div>
+          <div class="input-group"><label>Bedtime</label><input class="input-field" type="time" id="sleep-bedtime"></div>
+          <div class="input-group"><label>Wake Time</label><input class="input-field" type="time" id="sleep-wake"></div>
         </div>
         <div class="input-group"><label>Notes</label><input class="input-field" type="text" id="sleep-notes" placeholder="Any notes..."></div>
         <button type="submit" class="btn btn-primary btn-block">Log Sleep</button>
@@ -337,7 +342,7 @@ async function renderHabits() {
           </select>
         </div>
         <div class="input-group"><label>Daily Water (glasses)</label>
-          <input class="input-field" type="number" id="habit-water" value="${h.water_glasses || 8}" min="0" max="20">
+          <input class="input-field" type="number" id="habit-water" value="${h.water_glasses ?? ''}" min="0" max="20" placeholder="e.g. 8">
         </div>
         <div class="input-group"><label>Stress Level (1-10)</label>
           <input class="input-field" type="number" id="habit-stress" value="${h.stress_level || ''}" min="1" max="10" placeholder="5">
@@ -897,13 +902,53 @@ function setupFormHandlers() {
     this.classList.toggle('active');
   });
 
+  // ── Medications (logging only — no interaction or dosage logic, by design) ──
+  document.getElementById('medication-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = document.getElementById('med-name')?.value.trim();
+    if (!name) return showToast('Enter a medication name');
+    try {
+      const res = await apiFetch('/api/medications', { method: 'POST', body: JSON.stringify({
+        userId: currentUserId, name,
+        dose: document.getElementById('med-dose')?.value.trim() || null,
+        frequency: document.getElementById('med-frequency')?.value || null,
+        notes: document.getElementById('med-notes')?.value.trim() || null,
+      }) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed');
+      showToast('Medication logged'); renderTab();
+    } catch (err) { showToast(err.message || 'Could not save medication'); }
+  });
+  document.querySelectorAll('.med-stop').forEach(btn => btn.addEventListener('click', async () => {
+    try {
+      const res = await apiFetch(`/api/medications/${btn.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ userId: currentUserId, active: false }) });
+      if (!res.ok) throw new Error('Update failed');
+      showToast('Marked as stopped'); renderTab();
+    } catch (err) { showToast(err.message); }
+  }));
+
+  // ── Cycle ──
+  document.getElementById('cycle-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/api/cycle/log', { method: 'POST', body: JSON.stringify({
+        userId: currentUserId,
+        event_type: document.getElementById('cycle-type')?.value,
+        flow: document.getElementById('cycle-flow')?.value || null,
+        symptom: document.getElementById('cycle-symptom')?.value.trim() || null,
+        date: document.getElementById('cycle-date')?.value || undefined,
+      }) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed');
+      showToast('Cycle entry logged'); renderTab();
+    } catch (err) { showToast(err.message || 'Could not save entry'); }
+  });
+
   document.getElementById('save-habits')?.addEventListener('click', async () => {
     try {
       await habits.logToday({
         smoking: document.getElementById('toggle-smoking')?.classList.contains('active') || false,
         alcohol: document.getElementById('habit-alcohol')?.value || 'none',
-        caffeine: document.getElementById('habit-caffeine')?.value || 'moderate',
-        waterGlasses: parseInt(document.getElementById('habit-water')?.value || '8'),
+        caffeine: document.getElementById('habit-caffeine')?.value || null,
+        waterGlasses: document.getElementById('habit-water')?.value === '' ? null : parseInt(document.getElementById('habit-water')?.value, 10),
         stressLevel: parseInt(document.getElementById('habit-stress')?.value || '0') || null,
         steps: parseInt(document.getElementById('habit-steps')?.value || '') || null,
         mood: document.getElementById('habit-mood')?.value || null,
@@ -1068,7 +1113,7 @@ function setupFormHandlers() {
 
       statusEl.innerHTML = `
         <div style="padding:var(--space-3);background:var(--accent-teal-dim);border-radius:var(--radius-md);color:var(--accent-teal);font-size:var(--text-sm);">
-          Found ${markerCount} markers from ${parsed.panel_type || 'lab report'}${parsed.lab_name ? ` (${parsed.lab_name})` : ''}
+          Found ${markerCount} markers from ${esc(parsed.panel_type || 'lab report')}${parsed.lab_name ? ` (${esc(parsed.lab_name)})` : ''}
         </div>`;
 
       const markerRows = Object.entries(parsed.markers || {}).map(([name, data]) => {
@@ -1078,11 +1123,11 @@ function setupFormHandlers() {
         const statusIcon = data.status === 'high' ? '↑' : data.status === 'low' ? '↓' : data.status === 'critical' ? '!' : '✓';
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;border-bottom:1px solid var(--border);">
-            <span style="font-size:var(--text-sm);">${name}</span>
+            <span style="font-size:var(--text-sm);">${esc(name)}</span>
             <div style="display:flex;align-items:center;gap:var(--space-2);">
-              ${data.reference_range ? `<span style="font-size:10px;color:var(--text-tertiary);">ref: ${data.reference_range}</span>` : ''}
-              <span style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${statusColor};">${data.value}</span>
-              <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${data.unit || ''}</span>
+              ${data.reference_range ? `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">ref: ${esc(data.reference_range)}</span>` : ''}
+              <span style="font-family:var(--font-heading);font-weight:var(--weight-bold);color:${statusColor};">${esc(data.value)}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(data.unit || '')}</span>
               <span style="font-size:12px;color:${statusColor};">${statusIcon}</span>
             </div>
           </div>`;
@@ -1092,11 +1137,11 @@ function setupFormHandlers() {
       resultsEl.innerHTML = `
         <div class="card" style="padding:var(--space-3);">
           <h4 style="margin-bottom:var(--space-1);">Extracted Markers</h4>
-          ${parsed.collected_at ? `<p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-3);">Collected: ${parsed.collected_at}</p>` : ''}
+          ${parsed.collected_at ? `<p style="font-size:var(--text-xs);color:var(--text-tertiary);margin-bottom:var(--space-3);">Collected: ${esc(parsed.collected_at)}</p>` : ''}
           <div style="max-height:300px;overflow-y:auto;margin-bottom:var(--space-3);">
             ${markerRows}
           </div>
-          ${parsed.notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Notes: ${parsed.notes}</p>` : ''}
+          ${parsed.notes ? `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Notes: ${esc(parsed.notes)}</p>` : ''}
           <button id="confirm-save-labs" class="btn btn-primary btn-block">
             Save ${markerCount} Markers to Health Log
           </button>
@@ -1216,3 +1261,88 @@ function setupStravaHandlers() {
   });
 }
 
+
+
+// ═══════════════════════════════════════
+// MEDICATIONS — a log, nothing more. No interaction checks, no dosage advice.
+// ═══════════════════════════════════════
+async function renderMedications() {
+  let meds = []; let loadError = null;
+  try {
+    const res = await apiFetch(`/api/medications?userId=${encodeURIComponent(currentUserId)}`);
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    meds = (await res.json()).medications || [];
+  } catch (e) { loadError = e; }
+
+  return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+    <div class="card">
+      <h4 style="margin-bottom:var(--space-2);">Log a medication</h4>
+      <p class="disclaimer" style="margin-bottom:var(--space-3);">A private record for your own reference. VitalLens does not check interactions or suggest doses — follow your prescriber's instructions.</p>
+      <form id="medication-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
+        <div class="input-group"><label for="med-name">Name</label><input class="input-field" id="med-name" type="text" required placeholder="e.g. Levothyroxine"></div>
+        <div class="grid-2">
+          <div class="input-group"><label for="med-dose">Dose (as prescribed)</label><input class="input-field" id="med-dose" type="text" placeholder="e.g. 50 mcg"></div>
+          <div class="input-group"><label for="med-frequency">Frequency</label>
+            <select class="input-field" id="med-frequency"><option value="">Select…</option><option>Once daily</option><option>Twice daily</option><option>As needed</option><option>Weekly</option></select>
+          </div>
+        </div>
+        <div class="input-group"><label for="med-notes">Notes (optional)</label><input class="input-field" id="med-notes" type="text" placeholder="e.g. take with food"></div>
+        <button type="submit" class="btn btn-primary btn-block">Add to log</button>
+      </form>
+    </div>
+    <div class="section-heading"><h3>Current medications</h3><span class="badge badge-teal">${meds.filter(m => m.active !== false).length}</span></div>
+    ${loadError ? `<div class="card" role="alert"><p style="color:var(--error);margin:0;">Couldn't load your medication log. ${esc(loadError.message)}</p></div>`
+      : meds.length ? meds.map(m => `<div class="card card-sm">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);">
+          <div style="flex:1;">
+            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(m.name)}${m.active === false ? ' <span class="badge">stopped</span>' : ''}</div>
+            <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(m.dose || '')}${m.dose && m.frequency ? ' • ' : ''}${esc(m.frequency || '')}${m.notes ? '<br>' + esc(m.notes) : ''}</div>
+          </div>
+          ${m.active !== false ? `<button type="button" class="btn btn-sm btn-ghost med-stop" data-id="${esc(m.id)}" aria-label="Mark ${esc(m.name)} as stopped">Stopped</button>` : ''}
+        </div></div>`).join('')
+      : '<div class="empty-state"><p>No medications logged.</p></div>'}
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+// CYCLE — observational log that feeds cross-domain patterns.
+// ═══════════════════════════════════════
+async function renderCycle() {
+  let history = []; let loadError = null;
+  try {
+    const res = await apiFetch(`/api/cycle/history?userId=${encodeURIComponent(currentUserId)}`);
+    if (!res.ok) throw new Error(`Server responded ${res.status}`);
+    const data = await res.json();
+    history = data.history || data.entries || data.events || [];
+  } catch (e) { loadError = e; }
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+  return `<div class="stagger-children" style="display:flex;flex-direction:column;gap:var(--space-4);">
+    <div class="card">
+      <h4 style="margin-bottom:var(--space-2);">Log a cycle event</h4>
+      <p class="disclaimer" style="margin-bottom:var(--space-3);">Kept private and used only to look for patterns across your own logs.</p>
+      <form id="cycle-form" style="display:flex;flex-direction:column;gap:var(--space-3);">
+        <div class="grid-2">
+          <div class="input-group"><label for="cycle-type">Event</label>
+            <select class="input-field" id="cycle-type"><option value="period_start">Period start</option><option value="period_end">Period end</option><option value="symptom">Symptom</option><option value="ovulation">Ovulation (estimated)</option></select>
+          </div>
+          <div class="input-group"><label for="cycle-date">Date</label><input class="input-field" id="cycle-date" type="date" value="${today}" max="${today}"></div>
+        </div>
+        <div class="grid-2">
+          <div class="input-group"><label for="cycle-flow">Flow (optional)</label>
+            <select class="input-field" id="cycle-flow"><option value="">—</option><option>light</option><option>medium</option><option>heavy</option></select>
+          </div>
+          <div class="input-group"><label for="cycle-symptom">Symptom (optional)</label><input class="input-field" id="cycle-symptom" type="text" placeholder="e.g. cramps, headache"></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log entry</button>
+      </form>
+    </div>
+    <div class="section-heading"><h3>Recent entries</h3></div>
+    ${loadError ? `<div class="card" role="alert"><p style="color:var(--error);margin:0;">Couldn't load your cycle history. ${esc(loadError.message)}</p></div>`
+      : history.length ? history.slice(0, 30).map(h => `<div class="card card-sm" style="display:flex;justify-content:space-between;gap:var(--space-3);">
+          <span style="font-size:var(--text-sm);">${esc((h.event_type || '').replace(/_/g, ' '))}${h.symptom ? ' — ' + esc(h.symptom) : ''}${h.flow ? ' (' + esc(h.flow) + ')' : ''}</span>
+          <span style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(h.date || '')}</span>
+        </div>`).join('')
+      : '<div class="empty-state"><p>No cycle entries yet.</p></div>'}
+  </div>`;
+}

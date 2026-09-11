@@ -29,7 +29,7 @@
   /* === Text — charcoal, never pure black === */
   --text-primary: #2A2A2A;
   --text-secondary: #6B6B6B;
-  --text-tertiary: #9A9A9A;
+  --text-tertiary: #767676;   /* 4.5:1+ on every app surface */
   --text-inverse: #FFFFFF;
 
   /* === Accent — ONE. Blue, reserved for primary CTAs === */
@@ -59,10 +59,12 @@
   --accent-green-dim: var(--viz-green-dim);
   --accent-amber: var(--viz-amber);
   --accent-amber-dim: var(--viz-amber-dim);
-  --accent-coral: var(--viz-amber);
-  --accent-coral-dim: var(--viz-amber-dim);
-  --accent-red: var(--viz-amber);
-  --accent-red-dim: var(--viz-amber-dim);
+  --error: #A4413B;           /* 5.3:1 on the page canvas — errors must be readable */
+  --error-dim: rgba(164, 65, 59, 0.10);
+  --accent-coral: var(--error);
+  --accent-coral-dim: var(--error-dim);
+  --accent-red: var(--error);
+  --accent-red-dim: var(--error-dim);
   --accent-purple: var(--viz-neutral);
   --accent-purple-dim: var(--viz-neutral-dim);
   --accent-blue: var(--accent);

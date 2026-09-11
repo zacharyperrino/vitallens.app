@@ -145,19 +145,19 @@ export const faceMappingZones = [
     },
     {
         id: 'nose', name: 'Nose', organ: 'Heart / Cardiovascular', position: { top: '30%', left: '38%', width: '24%', height: '18%' },
-        signs: ['Redness: Blood pressure or circulation issues', 'Blackheads: Heart qi stagnation', 'Swelling: Inflammatory markers'],
+        signs: ['Redness: traditionally linked to circulation', 'Blackheads: traditionally read as heart qi stagnation', 'Swelling: traditionally linked to internal heat'],
         tcmMeridian: 'Heart Meridian',
-        recommendations: ['Monitor blood pressure regularly', 'Increase cardiovascular exercise', 'Reduce saturated fats and processed foods']
+        recommendations: ['Gentle cardiovascular movement', 'Favour lighter, less processed meals', 'Notice how sleep and stress affect this area']
     },
     {
         id: 'chin', name: 'Chin', organ: 'Reproductive / Hormonal', position: { top: '72%', left: '30%', width: '40%', height: '15%' },
-        signs: ['Hormonal acne: Endocrine imbalance', 'Darkness: Kidney qi deficiency', 'Puffiness: Lymphatic stagnation'],
+        signs: ['Breakouts: traditionally linked to hormonal rhythm', 'Darkness: traditionally read as kidney qi', 'Puffiness: traditionally linked to lymphatic flow'],
         tcmMeridian: 'Kidney & Reproductive Meridian',
-        recommendations: ['Balance hormones with adaptogenic herbs', 'Support kidney function with adequate hydration', 'Reduce endocrine disruptors in environment']
+        recommendations: ['Keep a regular sleep rhythm', 'Stay well hydrated', 'Notice patterns across your cycle or month']
     },
     {
         id: 'jawline', name: 'Jawline', organ: 'Colon / Lymphatic', position: { top: '62%', left: '12%', width: '76%', height: '12%' },
-        signs: ['Acne: Colon toxicity or lymphatic congestion', 'Puffiness: Poor lymphatic drainage', 'Tension: TMJ or stress holding'],
+        signs: ['Breakouts: traditionally linked to digestion', 'Puffiness: traditionally linked to lymphatic flow', 'Tension: often linked to stress or jaw clenching'],
         tcmMeridian: 'Large Intestine & Stomach Meridian',
         recommendations: ['Support colon health with fiber and water', 'Practice lymphatic drainage massage', 'Release jaw tension with relaxation techniques']
     },
@@ -166,9 +166,9 @@ export const faceMappingZones = [
 export const tongueDiagnosis = [
     { condition: 'Pale Tongue', meaning: 'Qi or blood pattern — traditionally linked to low energy', recommendation: 'Iron-rich foods, warming herbs' },
     { condition: 'Red Tongue', meaning: 'Excess heat pattern — traditionally linked to stress or overheating', recommendation: 'Cooling foods, peppermint tea, reduce spicy foods' },
-    { condition: 'Purple Tongue', meaning: 'Blood stasis — poor circulation', recommendation: 'Increase movement, turmeric, and warming spices' },
-    { condition: 'Thick White Coating', meaning: 'Cold and dampness — poor digestion', recommendation: 'Warm, cooked foods, ginger tea, avoid dairy' },
-    { condition: 'Yellow Coating', meaning: 'Heat and dampness pattern', recommendation: 'Bitter herbs, reduce alcohol and sugar' },
+    { condition: 'Purple Tongue', meaning: 'Blood stasis pattern — traditionally linked to circulation', recommendation: 'Increase movement, turmeric, and warming spices' },
+    { condition: 'Thick White Coating', meaning: 'Cold and dampness pattern — traditionally linked to digestion', recommendation: 'Warm, cooked foods, ginger tea, avoid dairy' },
+    { condition: 'Yellow Coating', meaning: 'Heat and dampness pattern — traditionally linked to rich food and alcohol', recommendation: 'Bitter herbs, reduce alcohol and sugar' },
     { condition: 'Cracked Tongue', meaning: 'Yin pattern — traditionally linked to dryness', recommendation: 'Hydrating foods, marshmallow root, adequate water' },
     { condition: 'Swollen/Tooth-marked', meaning: 'Spleen qi pattern — traditionally linked to digestion', recommendation: 'Easy-to-digest meals, avoid raw/cold foods' },
 ];
