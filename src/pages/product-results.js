@@ -3,9 +3,18 @@
 // ingredients with flagged additives, and positives/negatives.
 
 import { icons } from '../icons.js';
+import { esc } from '../utils/esc.js';
 import { getScoreColor, getScoreLabel } from '../utils/product-scanner.js';
 import { createDonutChart } from '../utils/charts.js';
 import { apiFetch } from '../utils/api.js';
+
+const RISK_LEVELS = new Set(['high', 'moderate', 'low']);
+// Additive risk levels come from a third-party service; only known values
+// are allowed into class names and badge styles.
+function riskLevel(additive) {
+  const r = String(additive?.risk_level || '').toLowerCase();
+  return RISK_LEVELS.has(r) ? r : null;
+}
 
 /**
  * Render product detail results.
@@ -18,30 +27,33 @@ export function renderProductResults() {
   if (!data) {
     content.innerHTML = `
       <div class="food-scanner stagger-children">
-        <div class="card" style="text-align:center;padding:var(--space-8);">
-          <div style="margin-bottom:var(--space-3);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.scan}</div>
-          <h3>No Product Data</h3>
-          <p style="font-size:var(--text-sm);color:var(--text-secondary);">Scan a product barcode to see results here.</p>
-          <button class="btn btn-primary" onclick="location.hash='#/food-scanner'" style="margin-top:var(--space-4);">Go to Scanner</button>
+        <div class="empty-state">
+          <div style="color:var(--text-tertiary);display:flex;justify-content:center;">${icons.scan}</div>
+          <h3>No product to show</h3>
+          <p>Scan a product barcode or nutrition label and its results will appear here.</p>
+          <button type="button" class="btn btn-primary" id="product-results-go-scanner">Go to Scanner</button>
         </div>
       </div>`;
+    document.getElementById('product-results-go-scanner')?.addEventListener('click', () => { location.hash = '#/food-scanner'; });
     return;
   }
 
-  const { product, healthScore, additives } = data;
+  const { product = {}, healthScore = {}, additives } = data;
   const n = product.nutrition || {};
-  const score = healthScore.score;
-  const scoreColor = healthScore.color || getScoreColor(score);
+  const score = Number(healthScore.score) || 0;
+  // Colour always comes from our own token scale — never from the API payload.
+  const scoreColor = getScoreColor(score);
   const scoreLabel = healthScore.rating || getScoreLabel(score);
 
   // Macro percentages for chart
-  const totalMacro = Math.round(((n.protein || 0) + (n.carbs || 0) + (n.fat || 0)) * 10) / 10;
-  const pPct = totalMacro ? Math.round(((n.protein || 0) / totalMacro) * 100) : 0;
-  const cPct = totalMacro ? Math.round(((n.carbs || 0) / totalMacro) * 100) : 0;
+  const totalMacro = Math.round(((Number(n.protein) || 0) + (Number(n.carbs) || 0) + (Number(n.fat) || 0)) * 10) / 10;
+  const pPct = totalMacro ? Math.round(((Number(n.protein) || 0) / totalMacro) * 100) : 0;
+  const cPct = totalMacro ? Math.round(((Number(n.carbs) || 0) / totalMacro) * 100) : 0;
   const fPct = totalMacro ? 100 - pPct - cPct : 0;
 
   // Flag ingredients with additives
-  const scoredIngredients = renderScoredIngredients(product.ingredients, additives?.analyzed || [], product.ingredients_analysis);
+  const analyzedAdditives = Array.isArray(additives?.analyzed) ? additives.analyzed : [];
+  const scoredIngredients = renderScoredIngredients(product.ingredients, analyzedAdditives, product.ingredients_analysis);
 
   // Analysis badges from OFF
   const analysis = product.ingredients_analysis;
@@ -52,27 +64,39 @@ export function renderProductResults() {
     analysis.isOrganic === true ? `<span class="badge badge-green">Organic</span>` : '',
   ].filter(Boolean).join('') : '';
 
+  const nutriGrade = String(product.nutriscore || '').toUpperCase();
+  const nutriBadge = /^[A-E]$/.test(nutriGrade)
+    ? `<span class="badge" style="background:${getNutriScoreColor(nutriGrade)};color:var(--text-inverse);">NutriScore ${nutriGrade}</span>`
+    : '';
+  const nova = Number(product.nova_group);
+  const novaBadge = nova >= 1 && nova <= 4
+    ? `<span class="badge badge-${nova <= 2 ? 'green' : nova <= 3 ? 'amber' : 'coral'}">NOVA ${nova}</span>`
+    : '';
+
+  const summary = additives?.summary || {};
+  const additiveCount = Number(summary.total) || analyzedAdditives.length;
+  const servingSize = Number(n.serving_size) > 0 ? Number(n.serving_size) : 100;
+
   content.innerHTML = `
     <div class="food-scanner stagger-children">
-      <!-- Back Button -->
-      <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4);cursor:pointer;" onclick="location.hash='#/food-scanner'">
-        <span style="color:var(--text-tertiary);transform:rotate(180deg);display:inline-block;">${icons.chevronRight}</span>
+      <button type="button" id="product-results-back" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4);cursor:pointer;padding:0;">
+        <span aria-hidden="true" style="color:var(--text-tertiary);transform:rotate(180deg);display:inline-block;">${icons.chevronRight}</span>
         <span style="font-size:var(--text-sm);color:var(--text-tertiary);">Back to Scanner</span>
-      </div>
+      </button>
 
       <!-- Product Header + Score Badge -->
       <div class="card product-header-card">
         <div style="display:flex;gap:var(--space-4);align-items:center;">
-          <div class="product-score-badge" style="--score-color:${scoreColor};">
+          <div class="product-score-badge" style="--score-color:${scoreColor};" role="img" aria-label="Wellness score ${score} out of 100, ${esc(scoreLabel)}">
             <div class="product-score-value">${score}</div>
-            <div class="product-score-label">${scoreLabel}</div>
+            <div class="product-score-label">${esc(scoreLabel)}</div>
           </div>
           <div style="flex:1;">
-            <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${product.name}</h2>
-            ${product.brand ? `<p style="font-size:var(--text-sm);color:var(--text-secondary);">${product.brand}</p>` : ''}
+            <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-1);">${esc(product.name || 'Unnamed product')}</h2>
+            ${product.brand ? `<p style="font-size:var(--text-sm);color:var(--text-secondary);">${esc(product.brand)}</p>` : ''}
             <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
-              ${product.nutriscore ? `<span class="badge" style="background:${getNutriScoreColor(product.nutriscore)};color:white;">NutriScore ${product.nutriscore}</span>` : ''}
-              ${product.nova_group ? `<span class="badge badge-${product.nova_group <= 2 ? 'green' : product.nova_group <= 3 ? 'amber' : 'coral'}">NOVA ${product.nova_group}</span>` : ''}
+              ${nutriBadge}
+              ${novaBadge}
               ${analysisBadges}
             </div>
           </div>
@@ -81,13 +105,13 @@ export function renderProductResults() {
 
       <!-- Positives & Negatives -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
-        <div class="card" style="border-left:3px solid #4CAF50;">
-          <h4 style="font-size:var(--text-xs);color:#4CAF50;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Positives</h4>
-          ${(healthScore.positives || []).map(p => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${p}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">—</p>'}
+        <div class="card" style="border-left:3px solid var(--viz-green);">
+          <h4 style="font-size:var(--text-xs);color:var(--viz-green);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Positives</h4>
+          ${(healthScore.positives || []).map(p => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${esc(p)}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">None noted</p>'}
         </div>
-        <div class="card" style="border-left:3px solid #F44336;">
-          <h4 style="font-size:var(--text-xs);color:#F44336;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Negatives</h4>
-          ${(healthScore.negatives || []).map(n => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${n}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">—</p>'}
+        <div class="card" style="border-left:3px solid var(--error);">
+          <h4 style="font-size:var(--text-xs);color:var(--error);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-2);">Negatives</h4>
+          ${(healthScore.negatives || []).map(m => `<p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-1);">• ${esc(m)}</p>`).join('') || '<p style="font-size:var(--text-xs);color:var(--text-tertiary);">None noted</p>'}
         </div>
       </div>
 
@@ -95,7 +119,7 @@ export function renderProductResults() {
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
           <h4>Nutrition per 100g</h4>
-          <span style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-extrabold);color:var(--accent-teal);">${n.calories || '—'} <span style="font-size:var(--text-xs);font-weight:var(--weight-normal);color:var(--text-tertiary);">kcal</span></span>
+          <span style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--weight-extrabold);color:var(--accent-teal);">${n.calories != null ? Math.round(Number(n.calories) || 0) : '—'} <span style="font-size:var(--text-xs);font-weight:var(--weight-normal);color:var(--text-tertiary);">kcal</span></span>
         </div>
         <div style="display:flex;align-items:center;gap:var(--space-5);">
           <div class="chart-container" style="flex-shrink:0;">
@@ -103,7 +127,7 @@ export function renderProductResults() {
     { percent: pPct, color: 'var(--accent-blue)' },
     { percent: cPct, color: 'var(--accent-amber)' },
     { percent: fPct, color: 'var(--accent-coral)' },
-  ], 100, 10) : '<div style="width:100px;height:100px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--text-tertiary);">N/A</div>'}
+  ], 100, 10) : '<div style="width:100px;height:100px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);color:var(--text-tertiary);">No data</div>'}
             ${totalMacro > 0 ? `<div class="chart-center-label"><div class="value" style="font-size:var(--text-md);">${totalMacro}g</div><div class="label">total</div></div>` : ''}
           </div>
           <div style="flex:1;">
@@ -111,7 +135,7 @@ export function renderProductResults() {
             ${renderNutrientRow('Carbs', n.carbs, 'g', cPct, 'var(--accent-amber)')}
             ${renderNutrientRow('  Sugar', n.sugar, 'g', null, 'var(--accent-coral)')}
             ${renderNutrientRow('Fat', n.fat, 'g', fPct, 'var(--accent-coral)')}
-            ${renderNutrientRow('  Sat. Fat', n.saturated_fat, 'g', null, '#e57373')}
+            ${renderNutrientRow('  Sat. Fat', n.saturated_fat, 'g', null, 'var(--error)')}
             ${renderNutrientRow('Fiber', n.fiber, 'g', null, 'var(--accent-green)')}
             ${renderNutrientRow('Sodium', n.sodium, 'mg', null, 'var(--text-secondary)')}
           </div>
@@ -120,56 +144,59 @@ export function renderProductResults() {
 
       <!-- Ingredients & Additives -->
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);cursor:pointer;" id="ingredients-toggle">
+        <button type="button" id="ingredients-toggle" aria-expanded="true" aria-controls="ingredients-body" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:var(--space-3);cursor:pointer;padding:0;text-align:left;">
           <h4>Ingredients</h4>
-          <span style="color:var(--text-tertiary);font-size:var(--text-xs);">${icons.chevronRight}</span>
-        </div>
+          <span id="ingredients-chevron" aria-hidden="true" style="color:var(--text-tertiary);font-size:var(--text-xs);display:inline-block;transform:rotate(90deg);transition:transform 0.2s;">${icons.chevronRight}</span>
+        </button>
         <div id="ingredients-body" class="expandable-section">
           <p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.6;">${scoredIngredients}</p>
         </div>
       </div>
 
       <!-- Additive Analysis -->
-      ${additives && additives.analyzed && additives.analyzed.length > 0 ? `
+      ${analyzedAdditives.length > 0 ? `
       <div class="card">
-        <h4 style="margin-bottom:var(--space-3);">Additives (${additives.summary?.total || additives.analyzed.length})</h4>
+        <h4 style="margin-bottom:var(--space-3);">Additives (${additiveCount})</h4>
         <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;">
-          ${additives.summary?.high > 0 ? `<span class="badge badge-coral">${additives.summary.high} high risk</span>` : ''}
-          ${additives.summary?.moderate > 0 ? `<span class="badge badge-amber">${additives.summary.moderate} moderate</span>` : ''}
-          ${additives.summary?.low > 0 ? `<span class="badge badge-green">${additives.summary.low} low risk</span>` : ''}
+          ${Number(summary.high) > 0 ? `<span class="badge badge-coral">${Number(summary.high)} high risk</span>` : ''}
+          ${Number(summary.moderate) > 0 ? `<span class="badge badge-amber">${Number(summary.moderate)} moderate</span>` : ''}
+          ${Number(summary.low) > 0 ? `<span class="badge badge-green">${Number(summary.low)} low risk</span>` : ''}
         </div>
-        ${additives.analyzed.map(a => `
-          <div class="additive-row additive-${a.risk_level}">
+        ${analyzedAdditives.map(a => {
+          const level = riskLevel(a);
+          return `
+          <div class="additive-row ${level ? `additive-${level}` : ''}">
             <div style="display:flex;align-items:center;gap:var(--space-2);">
-              <span class="additive-risk-dot additive-dot-${a.risk_level}"></span>
-              <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">${a.code}</span>
-              <span style="font-size:var(--text-sm);color:var(--text-secondary);">${a.name}</span>
+              <span class="additive-risk-dot ${level ? `additive-dot-${level}` : ''}" aria-hidden="true"></span>
+              <span style="font-weight:var(--weight-semibold);font-size:var(--text-sm);">${esc(a.code)}</span>
+              <span style="font-size:var(--text-sm);color:var(--text-secondary);">${esc(a.name)}</span>
             </div>
-            <span class="badge badge-${a.risk_level === 'high' ? 'coral' : a.risk_level === 'moderate' ? 'amber' : 'green'}" style="font-size:10px;">${a.risk_level}</span>
-          </div>
-        `).join('')}
+            <span class="badge badge-${level === 'high' ? 'coral' : level === 'moderate' ? 'amber' : 'green'}" style="font-size:var(--text-xs);">${level ? `${level} risk` : 'unrated'}</span>
+          </div>`;
+        }).join('')}
       </div>
       ` : ''}
 
-      <!-- Disclaimer -->
       <!-- Log to Food Diary -->
       <div class="card" style="text-align:center;">
         <p style="font-size:var(--text-xs);color:var(--text-secondary);margin-bottom:var(--space-3);">Add this product to today's food log and daily nutrition totals.</p>
         <div style="display:flex;gap:var(--space-2);align-items:center;justify-content:center;margin-bottom:var(--space-3);">
-          <label style="font-size:var(--text-xs);color:var(--text-secondary);">Serving size (g)</label>
-          <input type="number" id="product-serving-size" value="${n.serving_size || 100}" min="1" max="2000" step="1"
+          <label for="product-serving-size" style="font-size:var(--text-xs);color:var(--text-secondary);">Serving size (g)</label>
+          <input type="number" id="product-serving-size" value="${servingSize}" min="1" max="2000" step="1" inputmode="numeric"
             style="width:80px;padding:4px 8px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);font-size:var(--text-sm);text-align:center;">
         </div>
-        <button id="log-product-btn" class="btn btn-primary btn-block">Log to Food Diary</button>
-        <div id="log-product-status" style="display:none;margin-top:var(--space-2);font-size:var(--text-xs);color:var(--accent-green);">Logged successfully</div>
+        <button type="button" id="log-product-btn" class="btn btn-primary btn-block">Log to Food Diary</button>
+        <div id="log-product-status" role="status" aria-live="polite" style="display:none;margin-top:var(--space-2);font-size:var(--text-xs);color:var(--viz-green);"></div>
       </div>
 
-      <p style="font-size:var(--text-xs);color:var(--text-tertiary);text-align:center;padding:var(--space-3) var(--space-4);line-height:1.5;">
+      <p class="disclaimer" style="text-align:center;padding:var(--space-3) var(--space-4);">
         This score is for informational purposes and does not constitute medical or dietary advice.
         Data sourced from Open Food Facts. Always consult a healthcare professional.
       </p>
     </div>
   `;
+
+  document.getElementById('product-results-back')?.addEventListener('click', () => { location.hash = '#/food-scanner'; });
 
   // Setup toggle
   setupExpandables();
@@ -181,6 +208,7 @@ export function renderProductResults() {
 async function logProductToFoodLog(product, n) {
   const btn = document.getElementById('log-product-btn');
   const status = document.getElementById('log-product-status');
+  if (!btn || !status) return;
   const servingSize = parseFloat(document.getElementById('product-serving-size')?.value) || 100;
   const scale = servingSize / 100; // nutrition is per 100g
 
@@ -190,17 +218,17 @@ async function logProductToFoodLog(product, n) {
   try {
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.id) throw new Error('Not authenticated');
+    if (!user?.id) throw new Error('not signed in');
 
-    const calories = Math.round((n.calories || 0) * scale);
-    const protein = Math.round((n.protein || 0) * scale * 10) / 10;
-    const carbs = Math.round((n.carbs || 0) * scale * 10) / 10;
-    const fat = Math.round((n.fat || 0) * scale * 10) / 10;
-    const fiber = Math.round((n.fiber || 0) * scale * 10) / 10;
-    const mealName = `${product.brand ? product.brand + ' ' : ''}${product.name}`;
+    const calories = Math.round((Number(n.calories) || 0) * scale);
+    const protein = Math.round((Number(n.protein) || 0) * scale * 10) / 10;
+    const carbs = Math.round((Number(n.carbs) || 0) * scale * 10) / 10;
+    const fat = Math.round((Number(n.fat) || 0) * scale * 10) / 10;
+    const fiber = Math.round((Number(n.fiber) || 0) * scale * 10) / 10;
+    const mealName = `${product.brand ? product.brand + ' ' : ''}${product.name || 'Scanned product'}`;
 
-    // Save to meals table
-    await apiFetch(`/api/ingest`, {
+    // Save to meals table — this is the write that counts as "logged".
+    const ingestRes = await apiFetch(`/api/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -220,55 +248,69 @@ async function logProductToFoodLog(product, n) {
         },
       }),
     });
+    if (!ingestRes.ok) throw new Error(`Ingest failed (${ingestRes.status})`);
 
-    // Update daily_nutrition via RPC
-    await apiFetch(`/api/meal-memory`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id,
-        hash: `product-${product.barcode || product.name}`,
-        mealName,
-        foods: [{ name: product.name, grams: servingSize }],
-        calories,
-      }),
-    });
+    // Meal memory and daily totals are follow-ups. If they fail the meal is
+    // still logged, so report a partial result rather than a failure that
+    // would invite a duplicate log.
+    let totalsUpdated = true;
+    try {
+      const memRes = await apiFetch(`/api/meal-memory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          hash: `product-${product.barcode || product.name}`,
+          mealName,
+          foods: [{ name: product.name, grams: servingSize }],
+          calories,
+        }),
+      });
+      if (!memRes.ok) console.warn('[ProductLog] Meal memory not saved:', memRes.status);
 
-    // Increment daily nutrition via Supabase RPC directly
-    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    await supabase.rpc('increment_daily_nutrition', {
-      p_user_id: user.id,
-      p_date: today,
-      p_calories: calories,
-      p_protein: protein,
-      p_carbs: carbs,
-      p_fat: fat,
-      p_fiber: fiber,
-    });
+      const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const { error: rpcError } = await supabase.rpc('increment_daily_nutrition', {
+        p_user_id: user.id,
+        p_date: today,
+        p_calories: calories,
+        p_protein: protein,
+        p_carbs: carbs,
+        p_fat: fat,
+        p_fiber: fiber,
+      });
+      if (rpcError) throw rpcError;
+    } catch (partialErr) {
+      totalsUpdated = false;
+      console.warn('[ProductLog] Daily totals not updated:', partialErr?.message || partialErr);
+    }
 
     btn.textContent = 'Logged';
-    btn.style.background = 'var(--accent-green)';
+    btn.style.background = 'var(--viz-green)';
     status.style.display = 'block';
-    status.textContent = `${mealName} — ${calories} cal logged to today`;
-    console.log(`[ProductLog] Logged: ${mealName} — ${calories} cal, ${protein}g protein`);
+    status.style.color = totalsUpdated ? 'var(--viz-green)' : 'var(--viz-amber)';
+    status.textContent = totalsUpdated
+      ? `${mealName} — ${calories} cal logged to today`
+      : `${mealName} was logged, but today's nutrition totals couldn't be updated right now.`;
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Log to Food Diary';
-    console.error('[ProductLog] Failed:', err.message);
-    const s = document.getElementById('log-product-status');
-    s.style.display = 'block';
-    s.style.color = 'var(--accent-coral)';
-    s.textContent = `Failed to log: ${err.message}`;
+    console.error('[ProductLog] Failed:', err?.message || err);
+    status.style.display = 'block';
+    status.style.color = 'var(--error)';
+    status.textContent = /not signed in/i.test(err?.message || '')
+      ? 'Please sign in to log products to your food diary.'
+      : "Couldn't log this product. Check your connection and try again.";
   }
 }
 
 function renderNutrientRow(label, value, unit, pct, color) {
-  const rounded = value != null ? Math.round(value * 100) / 100 : null;
+  const num = value != null && value !== '' ? Number(value) : NaN;
+  const rounded = Number.isFinite(num) ? Math.round(num * 100) / 100 : null;
   const displayValue = rounded != null ? `${rounded}${unit}` : '—';
   return `
     <div class="nutrient-row" style="padding:var(--space-1) 0;">
       <div class="nutrient-info">
-        <div class="nutrient-dot" style="background:${color};"></div>
+        <div class="nutrient-dot" style="background:${color};" aria-hidden="true"></div>
         <span class="nutrient-name">${label}</span>
       </div>
       <span class="nutrient-value">${displayValue}${pct != null ? ` (${pct}%)` : ''}</span>
@@ -315,12 +357,13 @@ function scoreIngredient(ingredient, analyzedAdditives) {
   const eMatch = clean.match(/\be\d{3,4}[a-z]?\b/i);
   if (eMatch) {
     const code = eMatch[0].toUpperCase();
-    const additive = analyzedAdditives.find(a => a.code.toUpperCase() === code);
+    const additive = analyzedAdditives.find(a => String(a?.code || '').toUpperCase() === code);
     if (additive) {
+      const level = riskLevel(additive);
       return {
         text: ingredient.trim(),
-        score: additive.risk_level === 'high' ? 'red' : additive.risk_level === 'moderate' ? 'yellow' : 'yellow',
-        reason: `${additive.name} — ${additive.risk_level} risk`,
+        score: level === 'high' ? 'red' : 'yellow',
+        reason: `${additive.name || code} — ${level ? `${level} risk` : 'unrated'}`,
       };
     }
     return { text: ingredient.trim(), score: 'yellow', reason: 'Additive' };
@@ -344,11 +387,20 @@ function scoreIngredient(ingredient, analyzedAdditives) {
   return { text: ingredient.trim(), score: 'yellow', reason: null };
 }
 
+// Each status has a colour, a visible glyph, and a word for screen readers,
+// so the classification is never carried by colour alone.
+const INGREDIENT_STATUS = {
+  red:    { bg: 'var(--error-dim)',     border: 'var(--error)',     text: 'var(--error)',     glyph: '!', word: 'flagged' },
+  yellow: { bg: 'var(--viz-amber-dim)', border: 'var(--viz-amber)', text: 'var(--viz-amber)', glyph: '',  word: 'neutral' },
+  green:  { bg: 'var(--viz-green-dim)', border: 'var(--viz-green)', text: 'var(--viz-green)', glyph: '✓', word: 'no flags' },
+};
+
 function renderScoredIngredients(ingredientsText, analyzedAdditives, analysis) {
-  if (!ingredientsText) return '<em style="color:var(--text-tertiary);">Not listed by manufacturer</em>';
+  const notListed = '<em style="color:var(--text-tertiary);">Not listed by manufacturer</em>';
+  if (!ingredientsText || typeof ingredientsText !== 'string') return notListed;
 
   const ingredients = ingredientsText.split(/,(?![^(]*\))/).filter(i => i.trim());
-  if (ingredients.length === 0) return '<em style="color:var(--text-tertiary);">Not listed by manufacturer</em>';
+  if (ingredients.length === 0) return notListed;
 
   const scored = ingredients.map(i => {
     const s = scoreIngredient(i, analyzedAdditives);
@@ -362,52 +414,41 @@ function renderScoredIngredients(ingredientsText, analyzedAdditives, analysis) {
   const redCount = scored.filter(s => s.score === 'red').length;
   const greenCount = scored.filter(s => s.score === 'green').length;
 
-  const colorMap = {
-    red: { bg: 'rgba(239,68,68,0.15)', border: '#ef4444', text: '#ef4444' },
-    yellow: { bg: 'rgba(245,158,11,0.12)', border: '#f59e0b', text: '#f59e0b' },
-    green: { bg: 'rgba(34,197,94,0.12)', border: '#22c55e', text: '#22c55e' },
-  };
-
+  const legendDot = (color) => `<span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>`;
   const legend = `
-    <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-3);font-size:10px;color:var(--text-tertiary);">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>${greenCount} safe</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>${scored.length - redCount - greenCount} neutral</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${redCount} concerning</span>
+    <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-3);font-size:var(--text-xs);color:var(--text-tertiary);">
+      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--viz-green)')}${greenCount} no flags</span>
+      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--viz-amber)')}${scored.length - redCount - greenCount} neutral</span>
+      <span style="display:flex;align-items:center;gap:4px;">${legendDot('var(--error)')}${redCount} flagged</span>
     </div>`;
 
   const pills = scored.map(s => {
-    const c = colorMap[s.score];
-    const title = s.reason ? ` title="${s.reason}"` : '';
-    return `<span${title} style="display:inline-block;margin:3px;padding:3px 8px;border-radius:20px;font-size:11px;background:${c.bg};border:1px solid ${c.border};color:${c.text};cursor:${s.reason ? 'help' : 'default'};">${s.text}</span>`;
+    const c = INGREDIENT_STATUS[s.score] || INGREDIENT_STATUS.yellow;
+    const title = s.reason ? ` title="${esc(s.reason)}"` : '';
+    const glyph = c.glyph ? `<span aria-hidden="true">${c.glyph} </span>` : '';
+    const srNote = `<span class="visually-hidden"> (${c.word}${s.reason ? `: ${esc(s.reason)}` : ''})</span>`;
+    return `<span${title} style="display:inline-block;margin:3px;padding:3px 8px;border-radius:20px;font-size:var(--text-xs);background:${c.bg};border:1px solid ${c.border};color:${c.text};cursor:${s.reason ? 'help' : 'default'};">${glyph}${esc(s.text)}${srNote}</span>`;
   }).join('');
 
   return legend + `<div style="line-height:2;">${pills}</div>`;
 }
 
-function highlightAdditives(ingredientsText, analyzed) {
-  if (!ingredientsText) return '';
-  let html = ingredientsText;
-  for (const a of analyzed) {
-    const regex = new RegExp(`(${a.code})`, 'gi');
-    const cls = a.risk_level === 'high' ? 'additive-flag-high' : a.risk_level === 'moderate' ? 'additive-flag-moderate' : '';
-    if (cls) {
-      html = html.replace(regex, `<span class="${cls}" title="${a.name} — ${a.risk_level} risk">$1</span>`);
-    }
-  }
-  return html;
-}
-
+// Nutri-Score grades map onto the app's own status scale. The badge always
+// prints the letter, so the grade is never conveyed by colour alone.
 function getNutriScoreColor(grade) {
-  const colors = { A: '#038141', B: '#85BB2F', C: '#FECB02', D: '#EE8100', E: '#E63E11' };
-  return colors[grade?.toUpperCase()] || '#888';
+  const colors = { A: 'var(--viz-green)', B: 'var(--viz-green)', C: 'var(--viz-amber)', D: 'var(--error)', E: 'var(--error)' };
+  return colors[grade] || 'var(--text-tertiary)';
 }
 
 function setupExpandables() {
-  document.getElementById('ingredients-toggle')?.addEventListener('click', () => {
+  const toggle = document.getElementById('ingredients-toggle');
+  toggle?.addEventListener('click', () => {
     const body = document.getElementById('ingredients-body');
-    if (body) {
-      const isOpen = body.style.display !== 'none';
-      body.style.display = isOpen ? 'none' : 'block';
-    }
+    const chevron = document.getElementById('ingredients-chevron');
+    if (!body) return;
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    toggle.setAttribute('aria-expanded', String(!isOpen));
+    if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
   });
 }

@@ -5,27 +5,46 @@ import { initCamera, stopCamera, startBarcodeScanner } from '../utils/product-sc
 import { mountReact } from '../components/mountReact.js';
 import HygieneScanResult from '../components/HygieneScanResult.jsx';
 import { apiFetch } from '../utils/api.js';
-
 import { showToast } from '../utils/toast.js';
+
 let cameraStream = null;
 let stopScanning = null;
 
+// Stops the detection loop and releases the camera. Safe to call repeatedly.
+function releaseCamera() {
+    if (stopScanning) { try { stopScanning(); } catch { /* already stopped */ } stopScanning = null; }
+    if (cameraStream) { stopCamera(cameraStream); cameraStream = null; }
+}
+
+let cleanupBound = false;
+function bindCleanup() {
+    if (cleanupBound) return;
+    cleanupBound = true;
+    window.addEventListener('hashchange', releaseCamera);
+    window.addEventListener('pagehide', releaseCamera);
+}
+
 export async function renderHygieneScanner() {
     const content = document.getElementById('page-content');
+    bindCleanup();
+    releaseCamera();
 
     const { supabase } = await import('../lib/supabase.js');
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id;
 
-    // Load recent scans
+    // Load recent scans. A failed request is shown as a failure — never as "no scans yet".
     let recentScans = [];
+    let historyError = false;
     try {
         const res = await apiFetch(`/api/hygiene/history?userId=${userId}&limit=10`);
-        if (res.ok) {
-            const data = await res.json();
-            recentScans = data.scans || [];
-        }
-    } catch (e) { console.warn('[Hygiene] Could not load history:', e.message); }
+        if (!res.ok) throw new Error(`History request failed (${res.status})`);
+        const data = await res.json();
+        recentScans = Array.isArray(data.scans) ? data.scans : [];
+    } catch (e) {
+        historyError = true;
+        console.warn('[Hygiene] Could not load history:', e.message);
+    }
 
     content.innerHTML = `
     <div class="stagger-children" style="padding-bottom:var(--space-8);">
@@ -37,40 +56,47 @@ export async function renderHygieneScanner() {
       <!-- Scanner card -->
       <div class="card" style="margin-bottom:var(--space-4);">
         <div id="camera-container" style="position:relative;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);">
-          <video id="hygiene-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+          <video id="hygiene-video" autoplay playsinline muted aria-label="Live camera preview for barcode scanning" style="width:100%;height:100%;object-fit:cover;display:none;"></video>
           <div id="camera-placeholder" style="text-align:center;color:var(--text-tertiary);">
             <div style="margin-bottom:var(--space-2);color:var(--text-tertiary);display:flex;justify-content:center;">${icons.droplet}</div>
             <div style="font-size:var(--text-sm);">Point camera at product barcode</div>
           </div>
-          <div id="scan-overlay" style="display:none;position:absolute;inset:0;border:2px solid var(--accent-teal);border-radius:var(--radius-md);pointer-events:none;">
+          <div id="scan-overlay" aria-hidden="true" style="display:none;position:absolute;inset:0;border:2px solid var(--accent-teal);border-radius:var(--radius-md);pointer-events:none;">
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:60px;border:2px solid var(--accent-teal);border-radius:4px;"></div>
           </div>
         </div>
 
         <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
-          <button id="start-camera-btn" class="btn btn-primary" style="flex:1;">
+          <button type="button" id="start-camera-btn" class="btn btn-primary" style="flex:1;">
             ${icons.camera} Start Camera
           </button>
-          <button id="stop-camera-btn" class="btn" style="flex:1;display:none;background:var(--surface-2);border:1px solid var(--border);">
+          <button type="button" id="stop-camera-btn" class="btn" style="flex:1;display:none;background:var(--surface-2);border:1px solid var(--border);">
             Stop Camera
           </button>
         </div>
 
         <!-- Manual barcode entry -->
         <div style="display:flex;gap:var(--space-2);">
-          <input type="text" id="manual-barcode" placeholder="Or enter barcode manually..."
+          <label for="manual-barcode" class="visually-hidden">Barcode number</label>
+          <input type="text" id="manual-barcode" inputmode="numeric" placeholder="Or enter barcode manually..."
             style="flex:1;padding:var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);">
-          <button id="manual-scan-btn" class="btn" style="background:var(--surface-2);border:1px solid var(--border);">
+          <button type="button" id="manual-scan-btn" class="btn" aria-label="Look up barcode" style="background:var(--surface-2);border:1px solid var(--border);">
             ${icons.scan}
           </button>
         </div>
       </div>
 
       <!-- Results -->
-      <div id="hygiene-results" style="margin-bottom:var(--space-4);"></div>
+      <div id="hygiene-results" aria-live="polite" style="margin-bottom:var(--space-4);"></div>
 
       <!-- Recent scans -->
-      ${recentScans.length > 0 ? `
+      ${historyError ? `
+      <div class="section-heading"><h3>Recent Scans</h3></div>
+      <div class="empty-state" role="alert">
+        <h3>Couldn't load your recent scans</h3>
+        <p>Check your connection and try again. Nothing you've scanned has been lost.</p>
+        <button type="button" class="btn btn-sm" id="hygiene-history-retry">Try again</button>
+      </div>` : recentScans.length > 0 ? `
       <div class="section-heading"><h3>Recent Scans</h3></div>
       <div style="display:flex;flex-direction:column;gap:var(--space-2);">
         ${recentScans.map(s => renderScanCard(s)).join('')}
@@ -80,109 +106,47 @@ export async function renderHygieneScanner() {
         <div style="font-size:var(--text-sm);color:var(--text-secondary);">No hygiene scans yet — scan a product to start tracking ingredient patterns.</div>
       </div>`}
 
-      <div style="font-size:10px;color:var(--text-tertiary);text-align:center;margin-top:var(--space-4);font-style:italic;">
+      <p class="disclaimer" style="text-align:center;margin-top:var(--space-4);">
         Pattern observations only — not medical advice. Consult a dermatologist for any skin concerns.
-      </div>
+      </p>
     </div>`;
 
+    document.getElementById('hygiene-history-retry')?.addEventListener('click', () => renderHygieneScanner());
     setupHygieneHandlers(userId);
 }
 
 function renderScanCard(scan) {
-    const score = scan.safety_score || 0;
-    const scoreColor = score >= 75 ? 'var(--accent-green)' : score >= 50 ? 'var(--accent-amber)' : 'var(--accent-coral)';
+    const score = Number(scan.safety_score) || 0;
+    const scoreColor = score >= 75 ? 'var(--viz-green)' : score >= 50 ? 'var(--viz-amber)' : 'var(--error)';
     const scoreLabel = score >= 75 ? 'Looks clean' : score >= 50 ? 'Some things to explore' : 'Worth reviewing';
-    const concerns = scan.concerns || [];
+    const concerns = Array.isArray(scan.concerns) ? scan.concerns : [];
+    const scannedDate = scan.scanned_at && !Number.isNaN(new Date(scan.scanned_at).getTime())
+        ? new Date(scan.scanned_at).toLocaleDateString()
+        : '';
 
     return `
     <div class="card card-sm">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-2);">
         <div style="flex:1;">
           <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);">${esc(scan.product_name || 'Unknown Product')}</div>
-          <div style="font-size:10px;color:var(--text-tertiary);">${esc(scan.brand) || ''} · ${new Date(scan.scanned_at).toLocaleDateString()}</div>
+          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${[esc(scan.brand), scannedDate].filter(Boolean).join(' · ')}</div>
         </div>
         <div style="text-align:center;margin-left:var(--space-3);">
           <div style="font-family:var(--font-heading);font-size:var(--text-xl);font-weight:700;color:${scoreColor};">${score}</div>
-          <div style="font-size:9px;color:${scoreColor};">${scoreLabel}</div>
+          <div style="font-size:var(--text-xs);color:${scoreColor};">${scoreLabel}</div>
         </div>
       </div>
       ${concerns.length > 0 ? `
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-1);">
-        ${concerns.slice(0, 3).map(c => `
-        <span style="font-size:9px;padding:2px 6px;border-radius:20px;background:${c.risk === 'high' ? 'var(--accent-coral-dim)' : 'var(--accent-amber-dim)'};color:${c.risk === 'high' ? 'var(--accent-coral)' : 'var(--accent-amber)'};">
-          ${esc(c.ingredient)}
-        </span>`).join('')}
-        ${concerns.length > 3 ? `<span style="font-size:9px;color:var(--text-tertiary);">+${concerns.length - 3} more</span>` : ''}
-      </div>` : `<div style="font-size:10px;color:var(--accent-green);">No major concerns noticed</div>`}
-    </div>`;
-}
-
-function renderFullResults(product, userId) {
-    const score = product.safetyScore || 0;
-    const scoreColor = score >= 75 ? 'var(--accent-green)' : score >= 50 ? 'var(--accent-amber)' : 'var(--accent-coral)';
-    const scoreLabel = score >= 75 ? 'Looks clean' : score >= 50 ? 'Some things to explore' : 'Worth reviewing';
-    const concerns = product.concerns || [];
-    const highConcerns = concerns.filter(c => c.risk === 'high');
-    const modConcerns = concerns.filter(c => c.risk === 'moderate');
-    const lowConcerns = concerns.filter(c => c.risk === 'low');
-
-    return `
-    <div class="card" style="margin-bottom:var(--space-3);">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4);">
-        <div style="flex:1;">
-          <div style="font-size:var(--text-base);font-weight:var(--weight-bold);">${esc(product.name)}</div>
-          <div style="font-size:var(--text-xs);color:var(--text-tertiary);">${esc(product.brand)}</div>
-          ${product.category ? `<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">${product.category}</div>` : ''}
-        </div>
-        <div style="text-align:center;margin-left:var(--space-4);">
-          <div style="font-family:var(--font-heading);font-size:var(--text-3xl);font-weight:800;color:${scoreColor};">${score}</div>
-          <div style="font-size:10px;color:${scoreColor};font-weight:600;">${scoreLabel}</div>
-          <div style="font-size:9px;color:var(--text-tertiary);">wellness score</div>
-        </div>
-      </div>
-
-      ${concerns.length === 0 ? `
-      <div style="padding:var(--space-3);background:var(--accent-green-dim);border-radius:var(--radius-md);margin-bottom:var(--space-3);">
-        <div style="font-size:var(--text-xs);color:var(--accent-green);">No commonly flagged ingredients noticed in this product.</div>
-      </div>` : ''}
-
-      ${highConcerns.length > 0 ? `
-      <div style="margin-bottom:var(--space-3);">
-        <div style="font-size:10px;font-weight:700;color:var(--accent-coral);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Worth Reviewing</div>
-        ${highConcerns.map(c => `
-        <div style="padding:var(--space-2);background:var(--accent-coral-dim);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-coral);margin-bottom:2px;">${esc(c.ingredient)}</div>
-          <div style="font-size:10px;color:var(--text-secondary);">${c.note}</div>
-        </div>`).join('')}
-      </div>` : ''}
-
-      ${modConcerns.length > 0 ? `
-      <div style="margin-bottom:var(--space-3);">
-        <div style="font-size:10px;font-weight:700;color:var(--accent-amber);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Something to Explore</div>
-        ${modConcerns.map(c => `
-        <div style="padding:var(--space-2);background:var(--accent-amber-dim);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent-amber);margin-bottom:2px;">${esc(c.ingredient)}</div>
-          <div style="font-size:10px;color:var(--text-secondary);">${c.note}</div>
-        </div>`).join('')}
-      </div>` : ''}
-
-      ${lowConcerns.length > 0 ? `
-      <div style="margin-bottom:var(--space-3);">
-        <div style="font-size:10px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:var(--space-2);">Some Users Prefer to Avoid</div>
-        ${lowConcerns.map(c => `
-        <div style="padding:var(--space-2);background:var(--surface-2);border-radius:var(--radius-md);margin-bottom:var(--space-1);">
-          <div style="font-size:var(--text-xs);font-weight:600;color:var(--text-secondary);margin-bottom:2px;">${esc(c.ingredient)}</div>
-          <div style="font-size:10px;color:var(--text-tertiary);">${c.note}</div>
-        </div>`).join('')}
-      </div>` : ''}
-
-      <div style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-bottom:var(--space-3);">
-        Pattern observations only — not medical advice.
-      </div>
-
-      <button id="log-hygiene-btn" class="btn btn-primary btn-block" data-product='${JSON.stringify({ name: product.name, brand: product.brand, score: product.safetyScore })}'>
-        Log This Product
-      </button>
+        ${concerns.slice(0, 3).map(c => {
+            const high = c.risk === 'high';
+            return `
+        <span style="font-size:var(--text-xs);padding:2px 6px;border-radius:20px;background:${high ? 'var(--error-dim)' : 'var(--viz-amber-dim)'};color:${high ? 'var(--error)' : 'var(--viz-amber)'};">
+          ${esc(c.ingredient)}<span class="visually-hidden"> (${high ? 'worth reviewing' : 'something to explore'})</span>
+        </span>`;
+        }).join('')}
+        ${concerns.length > 3 ? `<span style="font-size:var(--text-xs);color:var(--text-tertiary);">+${concerns.length - 3} more</span>` : ''}
+      </div>` : `<div style="font-size:var(--text-xs);color:var(--viz-green);">No major concerns noticed</div>`}
     </div>`;
 }
 
@@ -191,6 +155,31 @@ function setupHygieneHandlers(userId) {
     const startBtn = document.getElementById('start-camera-btn');
     const stopBtn = document.getElementById('stop-camera-btn');
     const resultsEl = document.getElementById('hygiene-results');
+    const placeholder = document.getElementById('camera-placeholder');
+    const overlay = document.getElementById('scan-overlay');
+
+    function showCameraUI(on) {
+        if (video) video.style.display = on ? 'block' : 'none';
+        if (placeholder) placeholder.style.display = on ? 'none' : 'block';
+        if (overlay) overlay.style.display = on ? 'block' : 'none';
+        if (startBtn) startBtn.style.display = on ? 'none' : 'block';
+        if (stopBtn) stopBtn.style.display = on ? 'block' : 'none';
+    }
+
+    function stopCameraUI() {
+        releaseCamera();
+        showCameraUI(false);
+    }
+
+    function renderScanError(barcode) {
+        resultsEl.innerHTML = `
+          <div class="empty-state" role="alert">
+            <h3>Couldn't look up this product</h3>
+            <p>Check your connection and try again.</p>
+            <button type="button" class="btn btn-sm" id="hygiene-scan-retry">Try again</button>
+          </div>`;
+        document.getElementById('hygiene-scan-retry')?.addEventListener('click', () => scanBarcode(barcode));
+    }
 
     async function scanBarcode(barcode) {
         resultsEl.innerHTML = `<div class="card" style="text-align:center;padding:var(--space-4);"><div class="spinner" style="margin:0 auto;"></div><div style="font-size:var(--text-xs);color:var(--text-tertiary);margin-top:var(--space-2);">Looking up product...</div></div>`;
@@ -203,12 +192,22 @@ function setupHygieneHandlers(userId) {
             });
 
             if (!res.ok) {
-                const err = await res.json();
-                resultsEl.innerHTML = `<div class="card"><p style="color:var(--accent-coral);font-size:var(--text-sm);">${err.error || 'Product not found.'}</p></div>`;
-                return;
+                const err = await res.json().catch(() => ({}));
+                const notFound = res.status === 404 || /not found/i.test(err.error || '');
+                if (notFound) {
+                    // A miss in the product database is a result, not a failure.
+                    resultsEl.innerHTML = `
+                      <div class="empty-state">
+                        <h3>Product not found</h3>
+                        <p>Barcode ${esc(barcode)} isn't in the product database yet. Check the number and try again.</p>
+                      </div>`;
+                    return;
+                }
+                throw new Error(err.error || `Scan failed (${res.status})`);
             }
 
             const { product } = await res.json();
+            if (!product) throw new Error('Empty product response');
             resultsEl.innerHTML = '<div id="hygiene-result-react"></div>';
             mountReact(HygieneScanResult, 'hygiene-result-react', {
                 product,
@@ -216,40 +215,42 @@ function setupHygieneHandlers(userId) {
             });
 
         } catch (err) {
-            resultsEl.innerHTML = `<div class="card"><p style="color:var(--accent-coral);font-size:var(--text-sm);">Scan failed — try again.</p></div>`;
+            console.warn('[Hygiene] Scan failed:', err.message);
+            renderScanError(barcode);
         }
     }
 
     startBtn?.addEventListener('click', async () => {
         try {
             cameraStream = await initCamera(video);
-            video.style.display = 'block';
-            document.getElementById('camera-placeholder').style.display = 'none';
-            document.getElementById('scan-overlay').style.display = 'block';
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'block';
+            showCameraUI(true);
 
-            stopScanning = startBarcodeScanner(video, async (barcode) => {
-                if (stopScanning) { stopScanning(); stopScanning = null; }
-                await scanBarcode(barcode);
+            // startBarcodeScanner is async and resolves to the stop function
+            // (or null when live detection isn't supported in this browser).
+            stopScanning = await startBarcodeScanner(video, async (barcode) => {
+                stopCameraUI();
+                try {
+                    await scanBarcode(barcode);
+                } catch (err) {
+                    console.warn('[Hygiene] Detection handler failed:', err.message);
+                    renderScanError(barcode);
+                }
             });
         } catch (err) {
-            resultsEl.innerHTML = `<div class="card"><p style="color:var(--accent-coral);font-size:var(--text-sm);">Camera access denied. Use manual entry below.</p></div>`;
+            console.warn('[Hygiene] Camera unavailable:', err.message);
+            stopCameraUI();
+            resultsEl.innerHTML = `
+              <div class="empty-state" role="alert">
+                <h3>Couldn't access the camera</h3>
+                <p>Allow camera access in your browser settings, or type the barcode in the box above.</p>
+              </div>`;
         }
     });
 
-    stopBtn?.addEventListener('click', () => {
-        if (stopScanning) { stopScanning(); stopScanning = null; }
-        stopCamera(cameraStream);
-        video.style.display = 'none';
-        document.getElementById('camera-placeholder').style.display = 'block';
-        document.getElementById('scan-overlay').style.display = 'none';
-        startBtn.style.display = 'block';
-        stopBtn.style.display = 'none';
-    });
+    stopBtn?.addEventListener('click', stopCameraUI);
 
     document.getElementById('manual-scan-btn')?.addEventListener('click', async () => {
-        const barcode = document.getElementById('manual-barcode').value.trim();
+        const barcode = document.getElementById('manual-barcode')?.value.trim();
         if (!barcode) return;
         await scanBarcode(barcode);
     });
@@ -261,4 +262,3 @@ function setupHygieneHandlers(userId) {
         }
     });
 }
-

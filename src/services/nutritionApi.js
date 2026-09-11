@@ -56,7 +56,6 @@ const LABEL_TO_QUERY = {
     eggplant: 'eggplant cooked', cabbage: 'cabbage cooked',
     yellow_squash: 'summer squash cooked',
     summer_squash: 'summer squash cooked',
-    zucchini: 'zucchini cooked',
     butternut_squash: 'butternut squash cooked',
     acorn_squash: 'acorn squash cooked',
 
@@ -111,10 +110,8 @@ const LABEL_TO_QUERY = {
 
     // Other specialty items
     truffle: 'mushrooms cooked',
-    edamame: 'edamame cooked',
     miso: 'miso soup',
     tahini: 'tahini sesame butter',
-    hummus: 'hummus',
     guacamole: 'avocado guacamole',
 
 };
