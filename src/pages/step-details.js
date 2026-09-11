@@ -4,15 +4,19 @@
 import { icons } from '../icons.js';
 import { supabase } from '../lib/supabase.js';
 import { getUserId } from '../lib/db.js';
-import { createSparkline } from '../utils/charts.js';
+import { createInteractiveTrendChart } from '../utils/charts.js';
 import { esc } from '../utils/esc.js';
 
 const GOAL = 10000;
 let currentView = 'weekly';
 
+function localDateStr(d) {
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+}
+
 export async function renderStepDetails() {
     const content = document.getElementById('page-content');
-    content.innerHTML = `<div class="step-details"><div class="card" style="text-align:center;padding:var(--space-8);"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
+    content.innerHTML = `<div class="step-details"><div class="card" style="text-align:center;padding:var(--space-8);" role="status" aria-live="polite"><div class="spinner" style="margin:0 auto;"></div><p class="visually-hidden">Loading your step history</p></div></div>`;
 
     let history = [];
     let loadError = null;
@@ -29,13 +33,18 @@ export async function renderStepDetails() {
         if (error) throw error;
         history = (data || []).map(r => ({ date: r.date, value: Number(r.steps) || 0 }));
     } catch (err) {
+        console.warn('[StepDetails] Could not load step history:', err?.message || err);
         loadError = err;
     }
 
-    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const todayStr = localDateStr(new Date());
     const today = history.find(h => h.date === todayStr);
     const todaySteps = today ? today.value : null;
     const progress = todaySteps == null ? 0 : Math.min((todaySteps / GOAL) * 100, 100);
+
+    const rangeDays = currentView === 'weekly' ? 7 : 30;
+    const rangeLabel = currentView === 'weekly' ? 'Last 7 days' : 'Last 30 days';
+    const chartData = chartSeries(history, rangeDays);
 
     content.innerHTML = `
     <div class="step-details stagger-children">
@@ -48,9 +57,10 @@ export async function renderStepDetails() {
       </div>
 
       ${loadError ? `
-      <div class="card" role="alert">
-        <p style="color:var(--error);margin:0;">Couldn't load your step history. ${esc(loadError.message || '')}</p>
-        <button type="button" class="btn btn-sm" id="steps-retry" style="margin-top:var(--space-3);">Try again</button>
+      <div class="empty-state card" role="alert">
+        <h3>Couldn't load your step history</h3>
+        <p>Check your connection and try again. Your entries are safe.</p>
+        <button type="button" class="btn btn-sm" id="steps-retry">Try again</button>
       </div>` : ''}
 
       <div class="card step-summary-card">
@@ -68,13 +78,16 @@ export async function renderStepDetails() {
       </div>
 
       <div class="tab-bar" role="tablist" aria-label="Step history range">
-        ${['weekly', 'monthly'].map(v => `<button type="button" role="tab" class="tab-item ${currentView === v ? 'active' : ''}" aria-selected="${currentView === v}" data-view="${v}">${v === 'weekly' ? 'Last 7 days' : 'Last 30 days'}</button>`).join('')}
+        ${['weekly', 'monthly'].map(v => `<button type="button" role="tab" id="steps-tab-${v}" aria-controls="steps-chart-panel" class="tab-item ${currentView === v ? 'active' : ''}" aria-selected="${currentView === v}" data-view="${v}">${v === 'weekly' ? 'Last 7 days' : 'Last 30 days'}</button>`).join('')}
       </div>
 
-      <div class="card chart-card">
-        ${history.length ? `<canvas id="steps-chart" style="width:100%;height:200px;" role="img" aria-label="Step counts over the selected range"></canvas>`
-                         : `<div class="empty-state"><p>No step entries yet. Log today's steps from the Habits tab and they will appear here.</p></div>`}
-      </div>
+      ${loadError ? '' : `
+      <div class="card chart-card" id="steps-chart-panel" role="tabpanel" aria-labelledby="steps-tab-${currentView}">
+        ${chartData.length
+            ? `<div id="steps-chart-wrap">${createInteractiveTrendChart(chartData, 340, 160, 'var(--viz-green)', 'steps-chart', { label: `Daily step counts, ${rangeLabel.toLowerCase()}`, unit: 'steps' })}</div>
+               <p style="font-size:var(--text-xs);color:var(--text-tertiary);margin:var(--space-2) 0 0;">${chartData.length} ${chartData.length === 1 ? 'day' : 'days'} with entries in the ${rangeLabel.toLowerCase()}. Hover, tap, or tab through the points to see each day.</p>`
+            : `<div class="empty-state"><h3>No step entries yet</h3><p>${history.length ? `Nothing logged in the ${rangeLabel.toLowerCase()}.` : 'Log today\'s steps from the Habits tab and they will appear here.'}</p></div>`}
+      </div>`}
 
       <div class="section-heading"><h3>History</h3></div>
       <div class="step-history-list">${renderHistoryList(history)}</div>
@@ -85,7 +98,19 @@ export async function renderStepDetails() {
     document.querySelectorAll('.tab-item[data-view]').forEach(tab => {
         tab.addEventListener('click', () => { currentView = tab.dataset.view; renderStepDetails(); });
     });
-    renderChart(history);
+}
+
+// Entries within the last N calendar days, oldest first, labelled for the chart.
+function chartSeries(history, days) {
+    const cutoff = localDateStr(new Date(Date.now() - (days - 1) * 86400000));
+    return history
+        .filter(h => h.date >= cutoff)
+        .slice()
+        .reverse()
+        .map(h => ({
+            label: new Date(h.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            value: h.value,
+        }));
 }
 
 function renderHistoryList(history) {
@@ -97,19 +122,11 @@ function renderHistoryList(history) {
         const pct = Math.min((item.value / GOAL) * 100, 100);
         return `
         <div class="card card-sm step-history-item">
-          <div class="step-history-date"><span class="day">${day}</span><span class="date">${label}</span></div>
+          <div class="step-history-date"><span class="day">${esc(day)}</span><span class="date">${esc(label)}</span></div>
           <div class="step-history-value">
-            <span class="count">${item.value.toLocaleString()}</span>
+            <span class="count">${item.value.toLocaleString()} <span class="visually-hidden">steps, ${Math.round(pct)}% of goal</span></span>
             <div class="mini-progress" aria-hidden="true"><div style="width:${pct}%"></div></div>
           </div>
         </div>`;
     }).join('');
-}
-
-function renderChart(history) {
-    const canvas = document.getElementById('steps-chart');
-    if (!canvas || !history.length) return;
-    const n = currentView === 'weekly' ? 7 : 30;
-    const points = history.slice(0, n).reverse().map(h => h.value);
-    createSparkline(canvas, points, { color: '#6F8F6A', fill: true, points: true });
 }

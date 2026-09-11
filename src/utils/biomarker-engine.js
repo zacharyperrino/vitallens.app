@@ -1,12 +1,20 @@
-// Biomarker Analysis Engine — Evidence-based health signal extraction
-// Modules: rPPG Heart Rate, Face Analysis, Eye Analysis, Skin Appearance, Body Composition
-
+// Biomarker Analysis Engine — camera-based wellness signal extraction
+// Modules: rPPG pulse estimate, Face reflection, Tongue reflection, Body/posture reflection
+//
+// Honesty rule: if a value cannot actually be measured (no usable pulse
+// signal, too few frames, camera too slow) the engine returns `null` for
+// that value and a plain-language `reason`. It never emits a number from noise.
 
 import { apiFetch } from '../utils/api.js';
 
 // ═══════════════════════════════════════════════════════
-//  1) rPPG HEART RATE — Extract HR from face video
+//  1) rPPG PULSE ESTIMATE — from face video
 // ═══════════════════════════════════════════════════════
+
+const RPPG_MIN_FRAMES = 60;        // ~2 s at 30 fps
+const RPPG_MIN_FPS = 8;            // below this the pulse band can't be resolved
+const RPPG_MIN_CORRELATION = 0.35; // autocorrelation peak needed to call a rhythm "found"
+const RPPG_MIN_SIGNAL_QUALITY = 15;
 
 export class RPPGEngine {
     constructor() {
@@ -25,15 +33,15 @@ export class RPPGEngine {
     }
 
     addFrame(imageData) {
-        if (!this.isRecording) return;
+        if (!this.isRecording) return null;
 
         const elapsed = performance.now() - this._startTime;
         const progress = Math.min(1, elapsed / this._duration);
         if (this.onProgress) this.onProgress(progress);
 
-        // Extract avg RGB from forehead ROI (top 30-50%, center 40-60%)
+        // Extract avg RGB from forehead ROI
         const roi = this._extractForeheadROI(imageData);
-        this.buffer.push({ ...roi, timestamp: performance.now() });
+        if (roi) this.buffer.push({ ...roi, timestamp: performance.now() });
 
         if (this.buffer.length > this.bufferSize) this.buffer.shift();
 
@@ -62,13 +70,27 @@ export class RPPGEngine {
                 count++;
             }
         }
-
+        if (!count) return null;
         return { r: sumR / count, g: sumG / count, b: sumB / count };
     }
 
+    _unmeasured(reason, extra = {}) {
+        return {
+            hr: null,
+            hrv: null,
+            confidence: 0,
+            sampleRate: null,
+            duration: null,
+            quality: 'Unusable',
+            measurable: false,
+            reason,
+            ...extra,
+        };
+    }
+
     analyze() {
-        if (this.buffer.length < 60) {
-            return { hr: 0, hrv: 0, confidence: 0, error: 'Insufficient frames' };
+        if (this.buffer.length < RPPG_MIN_FRAMES) {
+            return this._unmeasured('Not enough video frames were captured');
         }
 
         // Use green channel (strongest pulse signal in skin)
@@ -77,7 +99,10 @@ export class RPPGEngine {
 
         // Calculate sample rate
         const duration = (timestamps[timestamps.length - 1] - timestamps[0]) / 1000;
-        const sampleRate = signal.length / duration;
+        const sampleRate = duration > 0 ? signal.length / duration : 0;
+        if (!Number.isFinite(sampleRate) || sampleRate < RPPG_MIN_FPS) {
+            return this._unmeasured('The camera frame rate was too low to read a pulse');
+        }
 
         // Detrend (remove linear trend)
         const detrended = this._detrend(signal);
@@ -86,22 +111,37 @@ export class RPPGEngine {
         const filtered = this._bandpassFilter(detrended, sampleRate, 0.7, 3.5);
 
         // Find dominant frequency via autocorrelation
-        const { hr, confidence: freqConfidence } = this._findHeartRate(filtered, sampleRate);
-
-        // Estimate HRV from peak intervals
-        const hrv = this._estimateHRV(filtered, sampleRate);
+        const { hr, confidence: freqConfidence, correlation, atBoundary } = this._findHeartRate(filtered, sampleRate);
 
         // Signal quality assessment
         const signalQuality = this._assessSignalQuality(filtered);
-        const confidence = Math.round((freqConfidence * 0.6 + signalQuality * 0.4));
+        const confidence = Math.round(freqConfidence * 0.6 + signalQuality * 0.4);
+
+        const measurable = Number.isFinite(hr)
+            && correlation >= RPPG_MIN_CORRELATION
+            && signalQuality >= RPPG_MIN_SIGNAL_QUALITY
+            && !atBoundary;
+
+        if (!measurable) {
+            return this._unmeasured('No steady pulse rhythm was found in the video', {
+                confidence,
+                sampleRate: Math.round(sampleRate),
+                duration: Math.round(duration),
+            });
+        }
+
+        // Estimate HRV from peak intervals (null when too few beats were seen)
+        const hrv = this._estimateHRV(filtered, sampleRate);
 
         return {
             hr: Math.round(hr),
-            hrv: Math.round(hrv),
+            hrv: hrv == null ? null : Math.round(hrv),
             confidence,
             sampleRate: Math.round(sampleRate),
             duration: Math.round(duration),
             quality: confidence >= 70 ? 'Good' : confidence >= 40 ? 'Fair' : 'Poor',
+            measurable: true,
+            reason: null,
         };
     }
 
@@ -111,7 +151,8 @@ export class RPPGEngine {
         for (let i = 0; i < n; i++) {
             sumX += i; sumY += signal[i]; sumXY += i * signal[i]; sumXX += i * i;
         }
-        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const denom = (n * sumXX - sumX * sumX) || 1;
+        const slope = (n * sumXY - sumX * sumY) / denom;
         const intercept = (sumY - slope * sumX) / n;
         return signal.map((v, i) => v - (slope * i + intercept));
     }
@@ -142,11 +183,14 @@ export class RPPGEngine {
         const normalized = signal.map(v => (v - mean) / (std || 1));
 
         const n = normalized.length;
-        const minLag = Math.floor(sampleRate / 3.5);
-        const maxLag = Math.floor(sampleRate / 0.7);
+        const minLag = Math.max(1, Math.floor(sampleRate / 3.5));
+        const maxLag = Math.min(Math.floor(sampleRate / 0.7), n - 1);
+        if (maxLag <= minLag) {
+            return { hr: NaN, confidence: 0, correlation: 0, atBoundary: true };
+        }
 
         let bestLag = minLag, bestCorr = -Infinity;
-        for (let lag = minLag; lag <= Math.min(maxLag, n - 1); lag++) {
+        for (let lag = minLag; lag <= maxLag; lag++) {
             let corr = 0, norm1 = 0, norm2 = 0;
             for (let i = 0; i < n - lag; i++) {
                 corr += normalized[i] * normalized[i + lag];
@@ -160,11 +204,13 @@ export class RPPGEngine {
             }
         }
 
+        // A peak sitting on the search boundary is usually an edge artefact,
+        // not a real rhythm.
+        const atBoundary = bestLag === minLag || bestLag === maxLag;
         const hr = (sampleRate / bestLag) * 60;
-        const confidence = Math.min(100, Math.max(0, bestCorr * 140));
-        const clampedHr = Math.max(42, Math.min(210, hr));
+        const confidence = Math.min(100, Math.max(0, bestCorr * 140)) * (atBoundary ? 0.5 : 1);
 
-        return { hr: clampedHr, confidence };
+        return { hr, confidence, correlation: bestCorr, atBoundary };
     }
 
     _estimateHRV(signal, sampleRate) {
@@ -175,7 +221,7 @@ export class RPPGEngine {
             }
         }
 
-        if (crossings.length < 3) return 0;
+        if (crossings.length < 3) return null;
         const intervals = [];
         for (let i = 1; i < crossings.length; i++) {
             intervals.push(crossings[i] - crossings[i - 1]);
@@ -200,72 +246,61 @@ export class RPPGEngine {
     }
 }
 
-export async function analyzeFace(imageData) {
-    const blob = await imageDataToBlob(imageData);
-    const formData = new FormData();
-    formData.append('image', blob, 'face.png');
-    formData.append('scanType', 'face');
+// ═══════════════════════════════════════════════════════
+//  2) PHOTO REFLECTIONS — server-side AI analysis
+// ═══════════════════════════════════════════════════════
 
-    const res = await apiFetch(`/api/biomarker-scan`, {
+const SCAN_TIMEOUT_MS = 40_000;
+
+// Turn an HTTP failure into a plain-language error the UI can show as-is.
+async function scanError(res, what) {
+    let body = null;
+    try { body = await res.json(); } catch { /* not JSON */ }
+    let message;
+    if (res.status === 429) {
+        message = body?.upgradeRequired
+            ? "You've used all of today's check-ins on your current plan."
+            : "You've reached today's check-in limit. Try again tomorrow.";
+    } else if (res.status === 413) {
+        message = 'That photo is too large to send. Try a smaller photo.';
+    } else if (res.status >= 400 && res.status < 500) {
+        message = `This photo couldn't be used for a ${what} check-in. Try a clearer, well-lit photo.`;
+    } else {
+        message = "The check-in service isn't responding right now. Try again in a moment.";
+    }
+    const err = new Error(message);
+    err.status = res.status;
+    err.upgradeRequired = Boolean(body?.upgradeRequired);
+    err.userFacing = true;
+    return err;
+}
+
+async function runScan(imageInput, scanType, what) {
+    const blob = await normalizeImageForUpload(imageInput);
+    const formData = new FormData();
+    formData.append('image', blob, `${scanType}.jpg`);
+    formData.append('scanType', scanType);
+
+    const res = await apiFetch('/api/biomarker-scan', {
         method: 'POST',
         body: formData,
+        timeoutMs: SCAN_TIMEOUT_MS,
     });
 
-    if (!res.ok) {
-        throw new Error('Face scan failed');
-    }
+    if (!res.ok) throw await scanError(res, what);
     return res.json();
 }
 
-export async function analyzeEye(imageData) {
-    const blob = await imageDataToBlob(imageData);
-    const formData = new FormData();
-    formData.append('image', blob, 'eye.png');
-    formData.append('scanType', 'eye');
-
-    const res = await apiFetch(`/api/biomarker-scan`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!res.ok) {
-        throw new Error('Eye scan failed');
-    }
-    return res.json();
+export function analyzeFace(imageInput) {
+    return runScan(imageInput, 'face', 'face');
 }
 
-export async function analyzeSkin(imageData) {
-    const blob = await imageDataToBlob(imageData);
-    const formData = new FormData();
-    formData.append('image', blob, 'skin.png');
-    formData.append('scanType', 'skin');
-
-    const res = await apiFetch(`/api/biomarker-scan`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!res.ok) {
-        throw new Error('Skin scan failed');
-    }
-    return res.json();
+export function analyzeTongue(imageInput) {
+    return runScan(imageInput, 'tongue', 'tongue');
 }
 
-export async function analyzeBodyComposition(imageData) {
-    const blob = await imageDataToBlob(imageData);
-    const formData = new FormData();
-    formData.append('image', blob, 'body.png');
-    formData.append('scanType', 'body');
-
-    const res = await apiFetch(`/api/biomarker-scan`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!res.ok) {
-        throw new Error('Body composition scan failed');
-    }
-    return res.json();
+export function analyzeBodyComposition(imageInput) {
+    return runScan(imageInput, 'body', 'body');
 }
 
 async function normalizeImageForUpload(imageInput) {
@@ -273,42 +308,33 @@ async function normalizeImageForUpload(imageInput) {
     if (imageInput instanceof ImageData || (imageInput && typeof imageInput.width === 'number' && typeof imageInput.height === 'number' && imageInput.data)) {
         return await imageDataToBlob(imageInput);
     }
-    throw new Error('Unsupported image input for upload');
+    const err = new Error("This image couldn't be prepared for upload. Try taking the photo again.");
+    err.userFacing = true;
+    throw err;
 }
 
-export async function analyzeTongue(imageInput) {
-    const blob = await normalizeImageForUpload(imageInput);
-    const formData = new FormData();
-    formData.append('image', blob, 'tongue.png');
-    formData.append('scanType', 'tongue');
-    const res = await apiFetch(`/api/biomarker-scan`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error('Tongue scan failed');
-    return res.json();
-}
-
-export async function analyzeNail(imageInput) {
-    const blob = await normalizeImageForUpload(imageInput);
-    const formData = new FormData();
-    formData.append('image', blob, 'nail.png');
-    formData.append('scanType', 'nail');
-    const res = await apiFetch(`/api/biomarker-scan`, { method: 'POST', body: formData });
-    if (!res.ok) throw new Error('Nail scan failed');
-    return res.json();
-}
-
-export async function imageDataToBlob(imageData) {
-    return new Promise((resolve) => {
+// Downscales to ≤1024px on the long side before encoding, so phone photos
+// never go over the wire at full resolution.
+function imageDataToBlob(imageData) {
+    return new Promise((resolve, reject) => {
         const MAX = 1024;
         const scale = Math.min(1, MAX / Math.max(imageData.width, imageData.height));
         const canvas = document.createElement('canvas');
-        canvas.width = Math.round(imageData.width * scale);
-        canvas.height = Math.round(imageData.height * scale);
+        canvas.width = Math.max(1, Math.round(imageData.width * scale));
+        canvas.height = Math.max(1, Math.round(imageData.height * scale));
         const ctx = canvas.getContext('2d');
         const tmp = document.createElement('canvas');
         tmp.width = imageData.width;
         tmp.height = imageData.height;
         tmp.getContext('2d').putImageData(imageData, 0, 0);
         ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.7);
+        canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else {
+                const err = new Error("This image couldn't be prepared for upload. Try taking the photo again.");
+                err.userFacing = true;
+                reject(err);
+            }
+        }, 'image/jpeg', 0.7);
     });
 }
