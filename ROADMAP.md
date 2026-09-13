@@ -70,7 +70,7 @@ spend cap honoured; no health text in logs; PostHog bundled (CSP unchanged).
 | 2 | **Rotate** the OpenAI, Anthropic, Supabase service-role, Stripe, Upstash keys that sat in `server/.env.test` (never committed; scrubbed). Paste new values into `server/.env` and `.env.test`. | Provider dashboards | 30 min |
 | 3 | ~~Create the private GitHub repo and push~~ **Done 2026-09-12** — `github.com/zacharyperrino/vitallens.app`, `main` tracks `origin/main`. | — | — |
 | 4 | **Add CI secrets** to the server repo (`SUPABASE_URL`, anon + service keys, `TEST_USER_A/B_EMAIL/PASSWORD`) so the integration suite runs in CI. | GitHub → Settings → Secrets | 5 min |
-| 5 | Leaked-password protection toggle. | Supabase → Auth → Attack protection | 30 s |
+| 5 | ~~Leaked-password protection~~ — Pro-plan only. Free-tier substitute applied: minimum password length 8 with letters and digits (Supabase → Auth → Sign In / Providers → Email). | — | done |
 | 6 | *Optional:* Oura developer credentials, Stripe live keys, a Pro Supabase plan (stops the weekly free-tier auto-pause). | — | — |
 | 7 | *Optional:* VAPID keys (server `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_EMAIL` + frontend `VITE_VAPID_PUBLIC_KEY`) to turn on web push; a PostHog key (`VITE_POSTHOG_KEY`) for product analytics. Both are off until set. | server `.env` + frontend build env | 5 min |
 

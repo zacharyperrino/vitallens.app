@@ -58,7 +58,7 @@ export function renderAuth() {
 
             <div>
               <label for="auth-password" style="${LABEL_STYLE}">Password</label>
-              <input type="password" id="auth-password" placeholder="At least 6 characters" autocomplete="current-password" style="${FIELD_STYLE}">
+              <input type="password" id="auth-password" placeholder="At least 8 characters, letters and numbers" minlength="8" autocomplete="current-password" style="${FIELD_STYLE}">
             </div>
 
             <!-- Consent (signup only) -->
@@ -123,8 +123,8 @@ export function renderAuth() {
             return;
         }
 
-        if (password.length < 6) {
-            showError('Your password needs at least 6 characters.');
+        if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+            showError('Your password needs at least 8 characters, including a letter and a number.');
             return;
         }
 
