@@ -58,7 +58,7 @@ export function renderAuth() {
 
             <div>
               <label for="auth-password" style="${LABEL_STYLE}">Password</label>
-              <input type="password" id="auth-password" placeholder="At least 8 characters, letters and numbers" minlength="8" autocomplete="current-password" style="${FIELD_STYLE}">
+              <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" style="${FIELD_STYLE}">
             </div>
 
             <!-- Consent (signup only) -->
@@ -98,7 +98,10 @@ export function renderAuth() {
         document.getElementById('name-field').style.display = signup ? 'block' : 'none';
         document.getElementById('dob-field').style.display = signup ? 'block' : 'none';
         document.getElementById('consent-field').style.display = signup ? 'flex' : 'none';
-        document.getElementById('auth-password').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+        const pw = document.getElementById('auth-password');
+        pw.setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+        pw.placeholder = signup ? 'At least 8 characters, letters and numbers' : 'Password';
+        if (signup) pw.setAttribute('minlength', '8'); else pw.removeAttribute('minlength');
         document.getElementById('auth-submit').textContent = signup ? 'Create account' : 'Sign in';
         hideError();
     }
@@ -123,7 +126,10 @@ export function renderAuth() {
             return;
         }
 
-        if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+        // Strength rule applies to NEW passwords only — existing accounts keep
+        // signing in with whatever they registered with (Supabase enforces the
+        // same rule server-side at signup).
+        if (mode === 'signup' && (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password))) {
             showError('Your password needs at least 8 characters, including a letter and a number.');
             return;
         }

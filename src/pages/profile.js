@@ -164,9 +164,9 @@ function renderProfileForm(profile, user) {
           <div class="grid-3-stats gap-3 mt-3">
             <div class="input-group">
               <label for="p-height">Height</label>
-              <div class="flex gap-2 items-center">
+              <div class="unit-row">
                 <input class="input-field" type="number" min="0" id="p-height" value="${profile.height || ''}" placeholder="Height">
-                <select class="input-field" id="p-height-unit" style="width:100px;" aria-label="Height unit">
+                <select class="input-field" id="p-height-unit" aria-label="Height unit">
                   <option value="cm" ${profile.heightUnit === 'cm' ? 'selected' : ''}>cm</option>
                   <option value="in" ${profile.heightUnit === 'in' ? 'selected' : ''}>in</option>
                 </select>
@@ -174,9 +174,9 @@ function renderProfileForm(profile, user) {
             </div>
             <div class="input-group">
               <label for="p-weight">Current weight</label>
-              <div class="flex gap-2 items-center">
+              <div class="unit-row">
                 <input class="input-field" type="number" min="0" id="p-weight" value="${profile.weight || ''}" placeholder="Weight">
-                <select class="input-field" id="p-weight-unit" style="width:100px;" aria-label="Weight unit">
+                <select class="input-field" id="p-weight-unit" aria-label="Weight unit">
                   <option value="kg" ${profile.weightUnit === 'kg' ? 'selected' : ''}>kg</option>
                   <option value="lb" ${profile.weightUnit === 'lb' ? 'selected' : ''}>lb</option>
                 </select>
@@ -184,7 +184,7 @@ function renderProfileForm(profile, user) {
             </div>
             <div class="input-group">
               <label for="p-goal-weight">Goal weight</label>
-              <div class="flex gap-2 items-center">
+              <div class="unit-row">
                 <input class="input-field" type="number" min="0" id="p-goal-weight" value="${profile.goalWeight || ''}" placeholder="Goal weight">
                 <span id="p-goal-weight-unit" class="text-secondary text-sm">${profile.weightUnit}</span>
               </div>
