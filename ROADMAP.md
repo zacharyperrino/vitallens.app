@@ -68,7 +68,7 @@ spend cap honoured; no health text in logs; PostHog bundled (CSP unchanged).
 |---|---|---|---|
 | 1 | **Restore the "Confirm signup" email template** (body has no `{{ .ConfirmationURL }}`; new users can't activate). Then do one real signup. | Supabase → Authentication → Email Templates | 2 min |
 | 2 | **Rotate** the OpenAI, Anthropic, Supabase service-role, Stripe, Upstash keys that sat in `server/.env.test` (never committed; scrubbed). Paste new values into `server/.env` and `.env.test`. | Provider dashboards | 30 min |
-| 3 | **Create the private GitHub repo** `vitallens-app` and push: `git remote add origin https://github.com/zacharyperrino/vitallens-app.git && git push -u origin main` | github.com/new | 2 min |
+| 3 | ~~Create the private GitHub repo and push~~ **Done 2026-09-12** — `github.com/zacharyperrino/vitallens.app`, `main` tracks `origin/main`. | — | — |
 | 4 | **Add CI secrets** to the server repo (`SUPABASE_URL`, anon + service keys, `TEST_USER_A/B_EMAIL/PASSWORD`) so the integration suite runs in CI. | GitHub → Settings → Secrets | 5 min |
 | 5 | Leaked-password protection toggle. | Supabase → Auth → Attack protection | 30 s |
 | 6 | *Optional:* Oura developer credentials, Stripe live keys, a Pro Supabase plan (stops the weekly free-tier auto-pause). | — | — |

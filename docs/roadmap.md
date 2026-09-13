@@ -15,7 +15,7 @@ in `AUDIT-2026-09.md`.
 1. **Supabase dashboard**: restore the "Confirm signup" email template (2 min);
    enable leaked-password protection.
 2. **Rotate** the API keys that lived in `server/.env.test` (never committed).
-3. **GitHub**: create the private `vitallens-app` repo and push the frontend;
+3. **GitHub**: create the private `vitallens.app` repo and push the frontend;
    add the CI secrets to the server repo so the integration suite runs.
 4. Optional: Oura developer credentials, Stripe live keys; VAPID keys (server
    `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_EMAIL` + frontend
