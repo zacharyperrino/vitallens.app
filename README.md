@@ -106,6 +106,29 @@ npm install && npm run dev
 
 Database: apply `server/supabase/schema-baseline.sql` to an empty Supabase project (extensions, tables, RLS, policies, functions), then the reference seed `server/supabase/seed/additive_classifications.sql` (28 rows; without it every additive scores `unknown`). Incremental history lives in `server/supabase/migrations/`.
 
+## Deploying
+
+Two hosts, both free-tier friendly. The app is a PWA: once it is served over HTTPS it is
+installable from the browser (Safari → Share → *Add to Home Screen*; Chrome → *Install app*).
+
+**API → Railway** (or any Node ≥ 20.6 host): connect the `vitallens-server` repo; the start
+command is already in `railway.json` / `Procfile`. Set the environment variables from
+`server/.env.example` — at minimum `NODE_ENV=production`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OAUTH_STATE_SECRET`,
+`FRONTEND_URL` (your Vercel origin, comma-separated if several) and the three spend caps.
+The healthcheck path is `/api/ready`.
+
+**Frontend → Vercel:** import the `vitallens.app` repo; `vercel.json` carries the build
+settings, SPA rewrite and security headers. Build-time env: `VITE_API_BASE` (the Railway
+URL, no trailing slash), `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. The CSP already
+allows `*.up.railway.app`; if the API lives elsewhere, add that origin to `connect-src`.
+
+After both are up: add the Vercel origin to Supabase → Authentication → URL Configuration
+(Site URL + redirect list), set the repo variable `API_URL` on `vitallens-server` so the
+daily keep-alive workflow pings the deployed API, and paste the live URL here.
+
+**Live:** _add the Vercel URL once deployed_
+
 ## Quality gates
 
 ```bash
