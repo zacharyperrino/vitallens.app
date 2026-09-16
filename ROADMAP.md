@@ -64,6 +64,8 @@ spend cap honoured; no health text in logs; PostHog bundled (CSP unchanged).
 
 ## Part B — Owner steps (cannot be done from the codebase)
 
+**Deployed 2026-09-16:** frontend https://vitallens-app.vercel.app (Vercel), API https://vitallens-server-production-183a.up.railway.app (Railway). Keys rotated; legacy Supabase keys disabled.
+
 | # | Step | Where | Time |
 |---|---|---|---|
 | 1 | **Restore the "Confirm signup" email template** (body has no `{{ .ConfirmationURL }}`; new users can't activate). Then do one real signup. | Supabase → Authentication → Email Templates | 2 min |

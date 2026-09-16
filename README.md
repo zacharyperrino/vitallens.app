@@ -1,5 +1,7 @@
 # VitalLens
 
+**Live demo:** https://vitallens-app.vercel.app — sign up with any email (confirmation link arrives within a minute) or install it to your home screen.
+
 A personal wellness journal that turns everyday logging — meals, sleep, habits, check-ins — into patterns you can actually see. Photograph a meal and get calories from real nutrition databases; ask a copilot that answers only from *your* data; watch a wellness score that is computed from what you logged and never estimated.
 
 Built as a full-stack portfolio project: a vanilla-JS PWA on a hardened Express API over Supabase, with AI (GPT-4o vision, Claude, pgvector RAG) wrapped in cost controls and a strict wellness-only framing.
@@ -127,7 +129,7 @@ After both are up: add the Vercel origin to Supabase → Authentication → URL 
 (Site URL + redirect list), set the repo variable `API_URL` on `vitallens-server` so the
 daily keep-alive workflow pings the deployed API, and paste the live URL here.
 
-**Live:** _add the Vercel URL once deployed_
+**Live:** https://vitallens-app.vercel.app · API: https://vitallens-server-production-183a.up.railway.app/api/ready
 
 ## Quality gates
 
