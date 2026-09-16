@@ -7,7 +7,7 @@ status: verified-2026-09-10
 
 ## Stack (from the actual package files)
 
-- **Frontend**: vanilla-JS hash-router SPA served by Vite 8; `@supabase/supabase-js` for auth + RLS-scoped reads. React 19 "islands" (`src/components/*.jsx`, mounted with `mountReact`) power the wellness score card, pattern discovery hero, nutrition tracker, and hygiene result. PWA service worker (`sw.js`) registers in prod builds only. `posthog-js` is bundled and dynamically imported only when `VITE_POSTHOG_KEY` is set (CSP `script-src` stays `'self'`).
+- **Frontend**: vanilla-JS hash-router SPA served by Vite 8; `@supabase/supabase-js` for auth + RLS-scoped reads. React 19 "islands" (`src/components/*.jsx`, mounted with `mountReact`) power the wellness score card, pattern discovery hero, nutrition tracker, and hygiene result. PWA service worker (`public/sw.js`) registers in prod builds only. `posthog-js` is bundled and dynamically imported only when `VITE_POSTHOG_KEY` is set (CSP `script-src` stays `'self'`).
 - **Backend**: single Express process (`server/server.js`) — express, helmet, cors, morgan, express-rate-limit, multer (uploads), zod (AI response validation), stripe, web-push, `@sentry/node`, `@upstash/redis` (context cache), dotenv. Started as `node --import ./instrument.js server.js` (`npm start`, `Procfile`, `railway.json`) so Sentry hooks Express before it loads; multer is 2.x.
 - **Database**: Supabase Postgres (project `nlxptctihrotizvaywdo`) with RLS everywhere + pgvector for RAG. See [[data-model]].
 - **AI**: OpenAI GPT-4o (vision meal scan, strict json_schema), `text-embedding-3-small` (1536-dim embeddings), Anthropic Claude Sonnet/Haiku (analysis engines + language-safety check).

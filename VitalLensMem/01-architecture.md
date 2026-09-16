@@ -4,7 +4,7 @@
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vanilla-JS hash-router SPA, Vite (port 3000), PWA (`sw.js`, prod-only) |
+| Frontend | Vanilla-JS hash-router SPA, Vite (port 3000), PWA (`public/sw.js`, prod-only) |
 | Backend | Express (port 3001), single process (`server/server.js`) |
 | Database | Supabase Postgres (project `vitallens`, id `nlxptctihrotizvaywdo`), RLS everywhere, pgvector |
 | Auth | Supabase Auth (email+password, email confirmation required); API verifies Bearer JWTs |

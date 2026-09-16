@@ -39,7 +39,7 @@ module.exports = [
 
   // Service worker.
   {
-    files: ['sw.js'],
+    files: ['public/sw.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'script',
